@@ -85,7 +85,7 @@ fn main() {
     let pipeline_json: serde_json::Value =
         serde_json::from_reader(pipeline_file).expect("could not parse pipeline");
 
-    println!("Json parsed: \"{}\"", pipeline_json);
+    println!("Json parsed: \"{:#?}\"", pipeline_json);
 
     let event_loop = EventLoop::new();
     let wb = WindowBuilder::new().with_title("VJ tool stuff idk");
@@ -93,7 +93,7 @@ fn main() {
     let display = Display::new(wb, cb, &event_loop).unwrap();
 
     let pipeline = Pipeline::from_json(pipeline_json, &display);
-    println!("{:?}", pipeline);
+    println!("{:#?}", pipeline);
 
     // create fullscreen rect
     let v1 = Vertex::new(-1.0, -1.0);
@@ -109,14 +109,18 @@ fn main() {
     let (mut width, mut height) = display.get_framebuffer_dimensions();
 
     // init buffers
-    let mut back_texture = Texture2d::empty(&display, width, height).unwrap();
-    //let mut textures = HashMap::new();
-    //for stage in pipeline.stages {
-    //    textures.insert(
-    //        stage.target.clone(),
-    //        Texture2d::empty(&display, width, height).unwrap(),
-    //    );
-    //}
+    let mut textures = HashMap::new();
+    for stage in pipeline.stages.iter() {
+        if let Some(tex_name) = stage.target.clone() {
+            textures.insert(
+                tex_name,
+                Texture2d::empty(&display, width, height).unwrap(),
+            );
+        }
+    }
+
+    // make dummy texture
+    let dummy = Texture2d::empty(&display, 1, 1).unwrap();
 
     // start event loop
     let start_time = Instant::now();
@@ -131,8 +135,6 @@ fn main() {
                 WindowEvent::Resized(size) => {
                     width = size.width;
                     height = size.height;
-
-                    back_texture = Texture2d::empty(&display, width, height).unwrap();
                 }
                 _ => return,
             },
@@ -146,58 +148,44 @@ fn main() {
 
         // compute uniforms
         let time = start_time.elapsed().as_secs_f32();
-        let uniforms = uniform! { R: [width as f32, height as f32, time], B: &back_texture };
-        //let mut uniforms = UniformVec::new();
-        //uniforms.add("R", UniformValue::Vec3([width as f32, height as f32, time]));
-        //for target in pipeline.stages.iter().filter_map(|s| s.target.as_ref()) {
-        //    let tex = textures.get(&Some(target.clone())).expect("wtf??");
-        //    uniforms.add(&target, UniformValue::Texture2d(tex, None));
-        //}
 
         // draw stuff
         for stage in pipeline.stages.iter() {
-            let mut target = back_texture.as_surface();
-            target
-                .draw(
-                    &vertex_buffer,
-                    &indices,
-                    &stage.prog,
-                    &uniforms,
-                    &Default::default(),
-                )
-                .unwrap();
+            let c0 = stage.channels[0].clone().map(|s| textures.get(&s)).flatten().unwrap_or(&dummy);
+            let c1 = stage.channels[1].clone().map(|s| textures.get(&s)).flatten().unwrap_or(&dummy);
+            let c2 = stage.channels[2].clone().map(|s| textures.get(&s)).flatten().unwrap_or(&dummy);
+            let c3 = stage.channels[3].clone().map(|s| textures.get(&s)).flatten().unwrap_or(&dummy);
 
-            //if let Some(tex) = textures.get(&stage.target) {
-            //    let mut target = tex.as_surface();
-            //    target
-            //        .draw(
-            //            &vertex_buffer,
-            //            &indices,
-            //            &stage.prog,
-            //            &uniforms,
-            //            &Default::default(),
-            //        )
-            //        .unwrap();
-            //} else {
-            //    let mut target = display.draw();
-            //    target
-            //        .draw(
-            //            &vertex_buffer,
-            //            &indices,
-            //            &stage.prog,
-            //            &uniforms,
-            //            &Default::default(),
-            //        )
-            //        .unwrap();
-            //}
+            let uniforms = uniform! {
+                R: [width as f32, height as f32, time],
+                C0: c0, C1: c1, C2: c2, C3: c3
+            };
+
+            if let Some(tex) = stage.target.clone().map(|s| textures.get(&s)).flatten() {
+                let mut target = tex.as_surface();
+                target
+                    .draw(
+                        &vertex_buffer,
+                        &indices,
+                        &stage.prog,
+                        &uniforms,
+                        &Default::default(),
+                    )
+                    .unwrap();
+            } else {
+                let mut target = display.draw();
+                target
+                    .draw(
+                        &vertex_buffer,
+                        &indices,
+                        &stage.prog,
+                        &uniforms,
+                        &Default::default(),
+                    )
+                    .unwrap();
+                target.finish().unwrap();
+            }
         }
-
-        // final draw on screen
-        let target = display.draw();
-        back_texture
-            .as_surface()
-            .fill(&target, MagnifySamplerFilter::Nearest);
-        target.finish().unwrap();
 
         // wait for next frame
         let next_frame_time = Instant::now() + Duration::from_millis(5);

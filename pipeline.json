@@ -1,9 +1,11 @@
 {
     "PASSES": [
         {
-            "fs": "./scene.glsl"
+            "fs": "./scene.glsl",
+            "TARGET": "foo"
         }, {
-            "fs": "./post.glsl"
+            "fs": "./post.glsl",
+            "c0": "foo"
         }
     ]
 }

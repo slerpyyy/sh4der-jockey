@@ -8,11 +8,12 @@ const DEFAULT_FRAGMENT_SHADER: &str = include_str!("defaults/fs.glsl");
 pub struct Stage {
     pub prog: Program,
     pub target: Option<String>,
+    pub channels: [Option<String>; 4],
 }
 
 impl Stage {
-    pub fn new(prog: Program, target: Option<String>) -> Self {
-        Self { prog, target }
+    pub fn new(prog: Program, target: Option<String>, channels: [Option<String>; 4]) -> Self {
+        Self { prog, target, channels }
     }
 
     pub fn from_json<F: Facade>(facade: &F, object: Value) -> Self {
@@ -34,8 +35,17 @@ impl Stage {
             s => panic!("expected string, got {:?}", s),
         };
 
+        let mut channels = [None, None, None, None];
+        for i in 0..4 {
+            let name = format!("c{}", i);
+            channels[i] = match object.get(&name) {
+                Some(Value::String(s)) => Some(s.clone()),
+                _ => None,
+            };
+        }
+
         let prog = Program::from_source(facade, &vs, &fs, None).unwrap();
-        Stage::new(prog, target)
+        Stage::new(prog, target, channels)
     }
 }
 
