@@ -1,0 +1,10 @@
+[package]
+name = "sh4der-jockey"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+getopts = "0.2.21"
+serde_json = "1.0"
+glium = "0.29.0"
+image = "0.23.10"

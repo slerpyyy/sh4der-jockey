@@ -1,0 +1,9 @@
+{
+    "PASSES": [
+        {
+            "fs": "./scene.glsl"
+        }, {
+            "fs": "./post.glsl"
+        }
+    ]
+}

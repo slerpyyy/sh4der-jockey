@@ -1,0 +1,8 @@
+{
+    "PASSES": [
+        {
+            "vs": "./vs.glsl",
+            "fs": "./fs.glsl"
+        }
+    ]
+}
