@@ -2,6 +2,7 @@
 name = "sh4der-jockey"
 version = "0.1.0"
 edition = "2018"
+build = "build.rs"
 
 [dependencies]
 gl = "0.14.0"
@@ -9,3 +10,8 @@ imgui = "0.7.0"
 imgui-opengl-renderer = "0.11.0"
 imgui-sdl2 = "0.14.0"
 sdl2 = "0.34.4"
+serde_json = "1.0.64"
+
+[build-dependencies]
+vergen = "5.1.2"
+anyhow = "1.0.40"

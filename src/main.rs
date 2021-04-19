@@ -1,10 +1,11 @@
-//#![allow(dead_code)]
-
 extern crate gl;
 extern crate imgui;
 extern crate imgui_opengl_renderer;
 extern crate imgui_sdl2;
 extern crate sdl2;
+
+mod pipeline;
+mod util;
 
 use gl::types::*;
 use std::ffi::CString;
@@ -12,6 +13,7 @@ use std::mem;
 use std::ptr;
 use std::str;
 use std::time::Instant;
+use util::*;
 
 const VS_SRC: &'static str = "
 #version 150
@@ -29,78 +31,6 @@ void main() {
     out_color = vec4(gl_FragCoord.xy / R.xy, 0.5 + 0.5 * sin(R.z), 1.0);
 }";
 
-const FULLSCREEN_RECT: [GLfloat; 12] = [
-    -1.0, -1.0, -1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, -1.0, -1.0, -1.0,
-];
-
-pub fn compile_shader(src: &str, ty: GLenum) -> GLuint {
-    unsafe {
-        let shader = gl::CreateShader(ty);
-
-        // Attempt to compile the shader
-        let c_str = CString::new(src.as_bytes()).unwrap();
-        gl::ShaderSource(shader, 1, &c_str.as_ptr(), ptr::null());
-        gl::CompileShader(shader);
-
-        // Get the compile status
-        let mut status = gl::FALSE as GLint;
-        gl::GetShaderiv(shader, gl::COMPILE_STATUS, &mut status);
-
-        // Fail on error
-        if status != (gl::TRUE as GLint) {
-            let mut len = 0;
-            gl::GetShaderiv(shader, gl::INFO_LOG_LENGTH, &mut len);
-            let mut buf = Vec::with_capacity(len as usize);
-            buf.set_len((len as usize) - 1); // subtract 1 to skip the trailing null character
-            gl::GetShaderInfoLog(
-                shader,
-                len,
-                ptr::null_mut(),
-                buf.as_mut_ptr() as *mut GLchar,
-            );
-            panic!(
-                "{}",
-                str::from_utf8(&buf).expect("ShaderInfoLog not valid utf8")
-            );
-        }
-        shader
-    }
-}
-
-pub fn link_program(vs: GLuint, fs: GLuint) -> GLuint {
-    unsafe {
-        let program = gl::CreateProgram();
-
-        gl::AttachShader(program, vs);
-        gl::AttachShader(program, fs);
-        gl::LinkProgram(program);
-
-        // Get the link status
-        let mut status = gl::FALSE as GLint;
-        gl::GetProgramiv(program, gl::LINK_STATUS, &mut status);
-
-        // Fail on error
-        if status != (gl::TRUE as GLint) {
-            let mut len: GLint = 0;
-            gl::GetProgramiv(program, gl::INFO_LOG_LENGTH, &mut len);
-            let mut buf = Vec::with_capacity(len as usize);
-            buf.set_len((len as usize) - 1); // subtract 1 to skip the trailing null character
-            gl::GetProgramInfoLog(
-                program,
-                len,
-                ptr::null_mut(),
-                buf.as_mut_ptr() as *mut GLchar,
-            );
-            panic!(
-                "{}",
-                str::from_utf8(&buf).expect("ProgramInfoLog not valid utf8")
-            );
-        }
-
-        program
-    }
-}
-
 fn main() {
     let sdl_context = sdl2::init().unwrap();
     let video = sdl_context.video().unwrap();
@@ -111,8 +41,14 @@ fn main() {
         gl_attr.set_context_version(3, 0);
     }
 
+    let title = format!(
+        "Sh4derJockey (version {}-{})",
+        env!("VERGEN_BUILD_SEMVER"),
+        &env!("VERGEN_GIT_SHA")[0..7]
+    );
+
     let window = video
-        .window("rust-imgui-sdl2 demo", 1080, 720)
+        .window(&title, 1080, 720)
         .position_centered()
         .resizable()
         .opengl()
@@ -136,11 +72,12 @@ fn main() {
     let mut last_frame = Instant::now();
     let start_time = Instant::now();
 
-    let mut vao = 0;
-    let mut vbo = 0;
     let vs = compile_shader(VS_SRC, gl::VERTEX_SHADER);
     let fs = compile_shader(FS_SRC, gl::FRAGMENT_SHADER);
     let program = link_program(vs, fs);
+
+    let mut vao = 0;
+    let mut vbo = 0;
 
     unsafe {
         gl::GenVertexArrays(1, &mut vao);
@@ -200,15 +137,20 @@ fn main() {
 
             // Use shader program
             gl::UseProgram(program);
+
+            #[allow(temporary_cstring_as_ptr)]
             gl::BindFragDataLocation(program, 0, CString::new("out_color").unwrap().as_ptr());
 
             // Specify the layout of the vertex data
+            #[allow(temporary_cstring_as_ptr)]
             let pos_attr =
                 gl::GetAttribLocation(program, CString::new("position").unwrap().as_ptr());
 
+            #[allow(temporary_cstring_as_ptr)]
             let r_loc = gl::GetUniformLocation(program, CString::new("R").unwrap().as_ptr());
             gl::Uniform3f(r_loc, width as _, height as _, time);
 
+            #[allow(temporary_cstring_as_ptr)]
             let time_loc = gl::GetUniformLocation(program, CString::new("time").unwrap().as_ptr());
             gl::Uniform1f(time_loc, time);
 
