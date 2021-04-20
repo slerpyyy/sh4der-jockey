@@ -14,6 +14,7 @@ A non-exhaustive list of things we want our tool to be able to do, vaguely order
 - [ ] MIDI control
 - [ ] audio reactive / FFT
 - [ ] tap-to-sync / BPM calculator
+- [x] mip maps
 - [ ] code view
 - [ ] vertex shaders
 - [ ] compute shaders

@@ -74,7 +74,7 @@ pub fn link_program(vs: GLuint, fs: GLuint) -> GLuint {
             let mut len: GLint = 0;
             gl::GetProgramiv(program, gl::INFO_LOG_LENGTH, &mut len);
             let mut buf = Vec::with_capacity(len as usize);
-            buf.set_len((len as usize) - 1); // subtract 1 to skip the trailing null character
+            buf.set_len((len as usize).saturating_sub(1)); // subtract 1 to skip the trailing null character
             gl::GetProgramInfoLog(
                 program,
                 len,
@@ -106,7 +106,7 @@ pub fn texture(width: GLsizei, height: GLsizei, index: GLuint) -> (GLuint, GLuin
         gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as i32);
         gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as i32);
 
-        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as i32);
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR_MIPMAP_LINEAR as i32);
         gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32);
 
         gl::TexImage2D(
@@ -120,6 +120,8 @@ pub fn texture(width: GLsizei, height: GLsizei, index: GLuint) -> (GLuint, GLuin
             gl::FLOAT,
             std::ptr::null(),
         );
+
+        gl::GenerateMipmap(gl::TEXTURE_2D);
 
         gl::FramebufferTexture2D(
             gl::FRAMEBUFFER,

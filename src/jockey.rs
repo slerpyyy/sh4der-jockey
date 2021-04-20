@@ -88,11 +88,11 @@ impl Jockey {
         let pl = self.pipeline.as_ref()?;
 
         for stage in pl.stages.iter() {
-            let target: GLuint = stage
+            let (target_tex, target_fb) = stage
                 .target
                 .as_ref()
-                .and_then(|s| pl.buffers.get(s).map(|(_, fb, _)| fb).cloned())
-                .unwrap_or(0);
+                .and_then(|s| pl.buffers.get(s).map(|(tex, fb, _)| (*tex, *fb)))
+                .unwrap_or((0, 0));
 
             unsafe {
                 // Use shader program
@@ -121,8 +121,8 @@ impl Jockey {
                 }
 
                 // Specify render target
-                gl::BindFramebuffer(gl::FRAMEBUFFER, target);
-                if target != 0 {
+                gl::BindFramebuffer(gl::FRAMEBUFFER, target_fb);
+                if target_fb != 0 {
                     gl::Viewport(0, 0, 1080, 720);
                 }
 
@@ -152,6 +152,10 @@ impl Jockey {
 
                 // Draw stuff
                 draw_fullscreen_rect(self.vao);
+
+                // Generate mip maps
+                gl::BindTexture(gl::TEXTURE_2D, target_tex);
+                gl::GenerateMipmap(gl::TEXTURE_2D);
             }
         }
 
