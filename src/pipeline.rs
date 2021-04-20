@@ -81,7 +81,10 @@ impl Pipeline {
 
             unsafe {
                 gl::FramebufferTexture(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0, tex_id, 0);
-                assert_eq!(gl::CheckFramebufferStatus(gl::FRAMEBUFFER), gl::FRAMEBUFFER_COMPLETE);
+                assert_eq!(
+                    gl::CheckFramebufferStatus(gl::FRAMEBUFFER),
+                    gl::FRAMEBUFFER_COMPLETE
+                );
             }
 
             buffers.insert(target.clone(), tex_id);

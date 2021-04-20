@@ -3,7 +3,6 @@ use crate::util::*;
 use gl::types::*;
 use std::ffi::CString;
 use std::io::Read;
-use std::mem;
 
 pub struct Jockey {
     pub window: sdl2::video::Window,
@@ -96,17 +95,6 @@ impl Jockey {
                 .unwrap_or(0);
 
             unsafe {
-                gl::BindVertexArray(self.vao);
-
-                // Create a Vertex Buffer Object and copy the vertex data to it
-                gl::BindBuffer(gl::ARRAY_BUFFER, self.vao);
-                gl::BufferData(
-                    gl::ARRAY_BUFFER,
-                    (FULLSCREEN_RECT.len() * mem::size_of::<GLfloat>()) as GLsizeiptr,
-                    mem::transmute(&FULLSCREEN_RECT[0]),
-                    gl::STATIC_DRAW,
-                );
-
                 // Use shader program
                 gl::UseProgram(stage.prog_id);
 
@@ -163,7 +151,7 @@ impl Jockey {
                 );
 
                 // Draw stuff
-                gl::DrawArrays(gl::TRIANGLES, 0, 6);
+                draw_fullscreen_rect(self.vao);
             }
         }
 

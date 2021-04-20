@@ -9,33 +9,12 @@ mod pipeline;
 mod util;
 
 use getopts::Options;
-use gl::types::*;
 use jockey::*;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
-use std::ffi::CString;
 use std::fs::File;
-use std::mem;
-use std::ptr;
 use std::str;
 use std::time::Instant;
-use util::*;
-
-const VS_SRC: &'static str = "
-#version 150
-in vec2 position;
-void main() {
-    gl_Position = vec4(position, 0.0, 1.0);
-}";
-
-const FS_SRC: &'static str = "
-#version 150
-out vec4 out_color;
-uniform vec3 R;
-uniform float time;
-void main() {
-    out_color = vec4(gl_FragCoord.xy / R.xy, 0.5 + 0.5 * sin(R.z), 1.0);
-}";
 
 fn print_usage(name: &str, opts: &Options) {
     println!("Usage: {} [option]\n", name);
@@ -76,10 +55,6 @@ fn main() {
     let mut last_frame = Instant::now();
     let start_time = Instant::now();
 
-    let vs = compile_shader(VS_SRC, gl::VERTEX_SHADER);
-    let fs = compile_shader(FS_SRC, gl::FRAGMENT_SHADER);
-    let program = link_program(vs, fs);
-
     'running: loop {
         for event in jockey.event_pump.poll_iter() {
             jockey.imgui_sdl2.handle_event(&mut jockey.imgui, &event);
@@ -114,56 +89,6 @@ fn main() {
 
         // run all shader stages
         jockey.draw(width as _, height as _, time);
-
-        /*
-        unsafe {
-            //gl::ClearColor(0.0, 0.0, 0.0, 1.0);
-            //gl::Clear(gl::COLOR_BUFFER_BIT);
-
-            gl::BindVertexArray(jockey.vao);
-
-            // Create a Vertex Buffer Object and copy the vertex data to it
-            gl::BindBuffer(gl::ARRAY_BUFFER, jockey.vao);
-            gl::BufferData(
-                gl::ARRAY_BUFFER,
-                (FULLSCREEN_RECT.len() * mem::size_of::<GLfloat>()) as GLsizeiptr,
-                mem::transmute(&FULLSCREEN_RECT[0]),
-                gl::STATIC_DRAW,
-            );
-
-            // Use shader program
-            gl::UseProgram(program);
-
-            #[allow(temporary_cstring_as_ptr)]
-            gl::BindFragDataLocation(program, 0, CString::new("out_color").unwrap().as_ptr());
-
-            // Specify the layout of the vertex data
-            #[allow(temporary_cstring_as_ptr)]
-            let pos_attr =
-                gl::GetAttribLocation(program, CString::new("position").unwrap().as_ptr());
-
-            #[allow(temporary_cstring_as_ptr)]
-            let r_loc = gl::GetUniformLocation(program, CString::new("R").unwrap().as_ptr());
-            gl::Uniform3f(r_loc, width as _, height as _, time);
-
-            #[allow(temporary_cstring_as_ptr)]
-            let time_loc = gl::GetUniformLocation(program, CString::new("time").unwrap().as_ptr());
-            gl::Uniform1f(time_loc, time);
-
-            gl::EnableVertexAttribArray(pos_attr as GLuint);
-
-            gl::VertexAttribPointer(
-                pos_attr as GLuint,
-                2,
-                gl::FLOAT,
-                gl::FALSE as GLboolean,
-                0,
-                ptr::null(),
-            );
-
-            gl::DrawArrays(gl::TRIANGLES, 0, 6);
-        }
-        */
 
         let ui = jockey.imgui.frame();
         ui.show_demo_window(&mut true); // Zhe magic

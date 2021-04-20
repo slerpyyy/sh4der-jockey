@@ -1,11 +1,27 @@
 use gl::types::*;
 use std::ffi::CString;
-use std::ptr;
-use std::str;
 
-pub const FULLSCREEN_RECT: [GLfloat; 12] = [
+const FULLSCREEN_RECT: [GLfloat; 12] = [
     -1.0, -1.0, -1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, -1.0, -1.0, -1.0,
 ];
+
+pub fn draw_fullscreen_rect(vao: GLuint) {
+    unsafe {
+        gl::BindVertexArray(vao);
+        gl::BindBuffer(gl::ARRAY_BUFFER, vao);
+
+        let data_size = FULLSCREEN_RECT.len() * std::mem::size_of::<GLfloat>();
+        gl::BufferData(
+            gl::ARRAY_BUFFER,
+            data_size as GLsizeiptr,
+            std::mem::transmute(&FULLSCREEN_RECT[0]),
+            gl::STATIC_DRAW,
+        );
+
+        let vert_count = FULLSCREEN_RECT.len() as GLsizei / 2;
+        gl::DrawArrays(gl::TRIANGLES, 0, vert_count);
+    }
+}
 
 pub fn compile_shader(src: &str, ty: GLenum) -> GLuint {
     unsafe {
@@ -13,7 +29,7 @@ pub fn compile_shader(src: &str, ty: GLenum) -> GLuint {
 
         // Attempt to compile the shader
         let c_str = CString::new(src.as_bytes()).unwrap();
-        gl::ShaderSource(shader, 1, &c_str.as_ptr(), ptr::null());
+        gl::ShaderSource(shader, 1, &c_str.as_ptr(), std::ptr::null());
         gl::CompileShader(shader);
 
         // Get the compile status
@@ -29,12 +45,12 @@ pub fn compile_shader(src: &str, ty: GLenum) -> GLuint {
             gl::GetShaderInfoLog(
                 shader,
                 len,
-                ptr::null_mut(),
+                std::ptr::null_mut(),
                 buf.as_mut_ptr() as *mut GLchar,
             );
             panic!(
                 "{}",
-                str::from_utf8(&buf).expect("ShaderInfoLog not valid utf8")
+                std::str::from_utf8(&buf).expect("ShaderInfoLog not valid utf8")
             );
         }
         shader
@@ -62,12 +78,12 @@ pub fn link_program(vs: GLuint, fs: GLuint) -> GLuint {
             gl::GetProgramInfoLog(
                 program,
                 len,
-                ptr::null_mut(),
+                std::ptr::null_mut(),
                 buf.as_mut_ptr() as *mut GLchar,
             );
             panic!(
                 "{}",
-                str::from_utf8(&buf).expect("ProgramInfoLog not valid utf8")
+                std::str::from_utf8(&buf).expect("ProgramInfoLog not valid utf8")
             );
         }
 
