@@ -3,7 +3,7 @@
 out vec4 color;
 
 uniform vec3 R;
-uniform sampler2D B;
+uniform sampler2D tex;
 
 vec3 gay(float x) {
     x = x * 3.0 - 1.5;
@@ -20,10 +20,14 @@ void main() {
         float x = float(i) / float(iter-1);
         float s = 1.0 + 0.1 * (x - 0.5);
         vec2 tuv = 0.5 + s * (uv - 0.5);
-        acc += vec4(gay(x), 1) * texture2D(B, tuv);
+        acc += vec4(gay(x), 1) * texture2D(tex, tuv);
     }
 
     acc /= float(iter);
+
+    // just so we see something if the texture isn't working
+    vec2 s = sin(vec2(4.0 * uv + R.z));
+    acc += 0.01 * (s.x + s.y);
 
     color = pow(acc, vec4(1) / 2.2);
 }

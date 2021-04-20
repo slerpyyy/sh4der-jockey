@@ -31,7 +31,7 @@ impl Stage {
             s => panic!("expected string, got {:?}", s),
         };
 
-        let target = match object.get("TARGET") {
+        let target = match object.get("target") {
             Some(Value::String(s)) => Some(s.clone()),
             None => None,
             s => panic!("expected string, got {:?}", s),
@@ -54,7 +54,7 @@ pub struct Pipeline {
 
 impl Pipeline {
     pub fn from_json(object: Value) -> Option<Self> {
-        let passes = match object.get("PASSES") {
+        let passes = match object.get("stages") {
             Some(serde_json::Value::Array(s)) => s,
             s => panic!("expected array, got {:?}", s),
         }
@@ -77,10 +77,13 @@ impl Pipeline {
                 continue;
             }
 
-            let mut tex_id = 0;
+            let tex_id = empty_texture(1080, 720);
+
             unsafe {
-                gl::GenFramebuffers(1, &mut tex_id);
+                gl::FramebufferTexture(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0, tex_id, 0);
+                assert_eq!(gl::CheckFramebufferStatus(gl::FRAMEBUFFER), gl::FRAMEBUFFER_COMPLETE);
             }
+
             buffers.insert(target.clone(), tex_id);
         }
 

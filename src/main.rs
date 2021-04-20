@@ -1,5 +1,3 @@
-#![allow(dead_code, unused_imports)]
-
 extern crate gl;
 extern crate imgui;
 extern crate imgui_opengl_renderer;
@@ -15,11 +13,12 @@ use gl::types::*;
 use jockey::*;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
+use std::ffi::CString;
+use std::fs::File;
 use std::mem;
 use std::ptr;
 use std::str;
 use std::time::Instant;
-use std::{ffi::CString, fs::File};
 use util::*;
 
 const VS_SRC: &'static str = "
@@ -68,8 +67,7 @@ fn main() {
 
     let mut jockey = Jockey::init();
 
-    let pipeline_file =
-        File::open("pipeline.json").expect("could not open pipeline file");
+    let pipeline_file = File::open("pipeline.json").expect("could not open pipeline file");
 
     jockey.update_pipeline(pipeline_file);
 
@@ -110,13 +108,14 @@ fn main() {
         jockey.imgui.io_mut().delta_time = (now - last_frame).as_secs_f32();
         last_frame = now;
 
-        let ui = jockey.imgui.frame();
-        ui.show_demo_window(&mut true); // Zhe magic
-
         // compute uniforms
         let (width, height) = jockey.window.size();
         let time = start_time.elapsed().as_secs_f32();
 
+        // run all shader stages
+        jockey.draw(width as _, height as _, time);
+
+        /*
         unsafe {
             //gl::ClearColor(0.0, 0.0, 0.0, 1.0);
             //gl::Clear(gl::COLOR_BUFFER_BIT);
@@ -164,6 +163,10 @@ fn main() {
 
             gl::DrawArrays(gl::TRIANGLES, 0, 6);
         }
+        */
+
+        let ui = jockey.imgui.frame();
+        ui.show_demo_window(&mut true); // Zhe magic
 
         jockey.imgui_sdl2.prepare_render(&ui, &jockey.window);
         jockey.renderer.render(ui);

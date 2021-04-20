@@ -74,3 +74,33 @@ pub fn link_program(vs: GLuint, fs: GLuint) -> GLuint {
         program
     }
 }
+
+pub fn empty_texture(width: GLsizei, height: GLsizei) -> GLuint {
+    unsafe {
+        let mut tex = 0;
+        gl::GenTextures(1, &mut tex);
+        gl::BindTexture(gl::TEXTURE_2D, tex);
+
+        gl::TexImage2D(
+            gl::TEXTURE_2D,
+            0,
+            gl::RGBA as _,
+            width,
+            height,
+            0,
+            gl::RGB as _,
+            gl::FLOAT,
+            std::ptr::null(),
+        );
+
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::REPEAT as i32);
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::REPEAT as i32);
+
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as i32);
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32);
+
+        gl::GenerateMipmap(gl::TEXTURE_2D);
+
+        tex
+    }
+}

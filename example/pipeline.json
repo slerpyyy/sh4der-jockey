@@ -1,7 +1,8 @@
 {
-    "PASSES": [
+    "stages": [
         {
-            "fs": "./scene.glsl"
+            "fs": "./scene.glsl",
+            "target": "tex"
         }, {
             "fs": "./post.glsl"
         }

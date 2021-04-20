@@ -1,5 +1,9 @@
-use std::io::Read;
 use crate::pipeline::Pipeline;
+use crate::util::*;
+use gl::types::*;
+use std::ffi::CString;
+use std::io::Read;
+use std::mem;
 
 pub struct Jockey {
     pub window: sdl2::video::Window,
@@ -8,8 +12,8 @@ pub struct Jockey {
     pub renderer: imgui_opengl_renderer::Renderer,
     pub gl_context: sdl2::video::GLContext,
     pub event_pump: sdl2::EventPump,
-    pub vao: gl::types::GLuint,
-    pub vbo: gl::types::GLuint,
+    pub vao: GLuint,
+    pub vbo: GLuint,
     pub pipeline: Option<Pipeline>,
 }
 
@@ -78,6 +82,91 @@ impl Jockey {
         let object = serde_json::from_reader(reader).ok()?;
         let update = Pipeline::from_json(object)?;
         self.pipeline = Some(update);
+        Some(())
+    }
+
+    pub fn draw(&self, width: f32, height: f32, time: f32) -> Option<()> {
+        let pl = self.pipeline.as_ref()?;
+
+        for stage in pl.stages.iter() {
+            let target: GLuint = stage
+                .target
+                .as_ref()
+                .and_then(|s| pl.buffers.get(s).cloned())
+                .unwrap_or(0);
+
+            unsafe {
+                gl::BindVertexArray(self.vao);
+
+                // Create a Vertex Buffer Object and copy the vertex data to it
+                gl::BindBuffer(gl::ARRAY_BUFFER, self.vao);
+                gl::BufferData(
+                    gl::ARRAY_BUFFER,
+                    (FULLSCREEN_RECT.len() * mem::size_of::<GLfloat>()) as GLsizeiptr,
+                    mem::transmute(&FULLSCREEN_RECT[0]),
+                    gl::STATIC_DRAW,
+                );
+
+                // Use shader program
+                gl::UseProgram(stage.prog_id);
+
+                // Add uniforms
+                {
+                    let r_name = CString::new("R").unwrap();
+                    let time_name = CString::new("time").unwrap();
+
+                    let r_loc = gl::GetUniformLocation(stage.prog_id, r_name.as_ptr());
+                    gl::Uniform3f(r_loc, width as _, height as _, time);
+
+                    let time_loc = gl::GetUniformLocation(stage.prog_id, time_name.as_ptr());
+                    gl::Uniform1f(time_loc, time);
+                }
+
+                // Add and bind uniform textures
+                for (k, (name, tex_id)) in pl.buffers.iter().enumerate() {
+                    let name = CString::new(name.as_bytes()).unwrap();
+                    let loc = gl::GetUniformLocation(stage.prog_id, name.as_ptr());
+
+                    gl::Uniform1i(loc, k as _);
+                    gl::ActiveTexture(gl::TEXTURE0 + k as GLenum);
+                    gl::BindTexture(gl::TEXTURE_2D, *tex_id);
+                }
+
+                // Specify render target
+                gl::BindFramebuffer(gl::FRAMEBUFFER, target);
+                if target != 0 {
+                    gl::Viewport(0, 0, 1080, 720);
+                }
+
+                // Specify fragment shader color output
+                #[allow(temporary_cstring_as_ptr)]
+                gl::BindFragDataLocation(
+                    stage.prog_id,
+                    0,
+                    CString::new("out_color").unwrap().as_ptr(),
+                );
+
+                // Specify the layout of the vertex data
+                #[allow(temporary_cstring_as_ptr)]
+                let pos_attr = gl::GetAttribLocation(
+                    stage.prog_id,
+                    CString::new("position").unwrap().as_ptr(),
+                );
+                gl::EnableVertexAttribArray(pos_attr as GLuint);
+                gl::VertexAttribPointer(
+                    pos_attr as GLuint,
+                    2,
+                    gl::FLOAT,
+                    gl::FALSE as GLboolean,
+                    0,
+                    std::ptr::null(),
+                );
+
+                // Draw stuff
+                gl::DrawArrays(gl::TRIANGLES, 0, 6);
+            }
+        }
+
         Some(())
     }
 }
