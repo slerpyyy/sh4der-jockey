@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use crate::texture::*;
 use crate::util::*;
 use gl::types::*;
 use serde_json::Value;
@@ -7,17 +8,15 @@ use serde_json::Value;
 const DEFAULT_VERTEX_SHADER: &str = include_str!("defaults/vs.glsl");
 const DEFAULT_FRAGMENT_SHADER: &str = include_str!("defaults/fs.glsl");
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Stage {
     pub prog_id: GLuint,
     pub target: Option<String>,
+    pub vs_id: Option<GLuint>,
+    pub fs_id: Option<GLuint>,
 }
 
 impl Stage {
-    pub fn new(prog_id: GLuint, target: Option<String>) -> Self {
-        Self { prog_id, target }
-    }
-
     pub fn from_json(object: Value) -> Option<Self> {
         let fs = match object.get("fs") {
             Some(Value::String(s)) => std::fs::read_to_string(s).expect("could not read file"),
@@ -37,19 +36,41 @@ impl Stage {
             s => panic!("expected string, got {:?}", s),
         };
 
-        let vs = compile_shader(&vs, gl::VERTEX_SHADER);
-        let fs = compile_shader(&fs, gl::FRAGMENT_SHADER);
+        let vs_id = compile_shader(&vs, gl::VERTEX_SHADER);
+        let fs_id = compile_shader(&fs, gl::FRAGMENT_SHADER);
+        let prog_id = link_program(vs_id, fs_id);
 
-        let prog_id = link_program(vs, fs);
-
-        Some(Stage::new(prog_id, target))
+        Some(Stage {
+            prog_id,
+            target,
+            vs_id: Some(vs_id),
+            fs_id: Some(fs_id),
+        })
     }
 }
 
-#[derive(Debug, Clone)]
+impl Drop for Stage {
+    fn drop(&mut self) {
+        unsafe {
+            if let Some(id) = self.vs_id {
+                gl::DetachShader(self.prog_id, id);
+                gl::DeleteShader(id);
+            }
+
+            if let Some(id) = self.fs_id {
+                gl::DetachShader(self.prog_id, id);
+                gl::DeleteShader(id);
+            }
+
+            gl::DeleteProgram(self.prog_id);
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct Pipeline {
     pub stages: Vec<Stage>,
-    pub buffers: HashMap<String, (GLuint, GLuint, GLuint)>,
+    pub buffers: HashMap<String, Texture>,
 }
 
 impl Pipeline {
@@ -79,8 +100,8 @@ impl Pipeline {
                 continue;
             }
 
-            let tuple = texture(1080, 720, k as _);
-            buffers.insert(target.clone(), tuple);
+            let texture = Texture::new(1080, 720, k as _);
+            buffers.insert(target.clone(), texture);
         }
 
         Some(Self { stages, buffers })

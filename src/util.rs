@@ -106,7 +106,11 @@ pub fn texture(width: GLsizei, height: GLsizei, index: GLuint) -> (GLuint, GLuin
         gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as i32);
         gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as i32);
 
-        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR_MIPMAP_LINEAR as i32);
+        gl::TexParameteri(
+            gl::TEXTURE_2D,
+            gl::TEXTURE_MIN_FILTER,
+            gl::LINEAR_MIPMAP_LINEAR as i32,
+        );
         gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32);
 
         gl::TexImage2D(
@@ -116,7 +120,7 @@ pub fn texture(width: GLsizei, height: GLsizei, index: GLuint) -> (GLuint, GLuin
             width,
             height,
             0,
-            gl::RGB as _,
+            gl::RGBA as _,
             gl::FLOAT,
             std::ptr::null(),
         );

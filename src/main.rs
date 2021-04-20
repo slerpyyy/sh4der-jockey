@@ -6,12 +6,13 @@ extern crate sdl2;
 
 mod jockey;
 mod pipeline;
+mod texture;
 mod util;
 
 use getopts::Options;
 use jockey::*;
 use sdl2::event::Event;
-use sdl2::keyboard::Keycode;
+use sdl2::keyboard::{Keycode, Mod};
 use std::fs::File;
 use std::str;
 use std::time::Instant;
@@ -46,11 +47,7 @@ fn main() {
 
     let mut jockey = Jockey::init();
 
-    let pipeline_file = File::open("pipeline.json").expect("could not open pipeline file");
-
-    jockey.update_pipeline(pipeline_file);
-
-    println!("{:#?}", jockey.pipeline);
+    let mut do_update_pipeline = true;
 
     let mut last_frame = Instant::now();
     let start_time = Instant::now();
@@ -69,8 +66,23 @@ fn main() {
                     keycode: Some(Keycode::Escape),
                     ..
                 } => break 'running,
+
+                Event::KeyDown {
+                    keycode: Some(Keycode::Return),
+                    keymod: Mod::LCTRLMOD,
+                    ..
+                } => do_update_pipeline = true,
+
                 _ => {}
             }
+        }
+
+        if do_update_pipeline {
+            let pipeline_file = File::open("pipeline.json").expect("could not open pipeline file");
+            jockey.update_pipeline(pipeline_file);
+            println!("{:#?}", jockey);
+
+            do_update_pipeline = false;
         }
 
         jockey.imgui_sdl2.prepare_frame(

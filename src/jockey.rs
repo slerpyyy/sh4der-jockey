@@ -16,6 +16,16 @@ pub struct Jockey {
     pub pipeline: Option<Pipeline>,
 }
 
+impl std::fmt::Debug for Jockey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct(stringify!(Jockey))
+            .field("vao", &self.vao)
+            .field("vbo", &self.vbo)
+            .field("pipeline", &self.pipeline)
+            .finish()
+    }
+}
+
 impl Jockey {
     pub fn init() -> Self {
         let sdl_context = sdl2::init().unwrap();
@@ -91,7 +101,7 @@ impl Jockey {
             let (target_tex, target_fb) = stage
                 .target
                 .as_ref()
-                .and_then(|s| pl.buffers.get(s).map(|(tex, fb, _)| (*tex, *fb)))
+                .and_then(|s| pl.buffers.get(s).map(|tex| (tex.id, tex.fb)))
                 .unwrap_or((0, 0));
 
             unsafe {
@@ -111,13 +121,13 @@ impl Jockey {
                 }
 
                 // Add and bind uniform textures
-                for (name, (tex_id, fb_id, k)) in pl.buffers.iter() {
+                for (name, tex) in pl.buffers.iter() {
                     let name = CString::new(name.as_bytes()).unwrap();
                     let loc = gl::GetUniformLocation(stage.prog_id, name.as_ptr());
 
-                    gl::BindFramebuffer(gl::FRAMEBUFFER, *fb_id);
-                    gl::BindTexture(gl::TEXTURE_2D, *tex_id);
-                    gl::Uniform1i(loc, *k as _);
+                    gl::BindFramebuffer(gl::FRAMEBUFFER, tex.fb);
+                    gl::BindTexture(gl::TEXTURE_2D, tex.id);
+                    gl::Uniform1i(loc, tex.slot as _);
                 }
 
                 // Specify render target
