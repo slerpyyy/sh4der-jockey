@@ -18,16 +18,12 @@ void main() {
 
     for(int i=0; i<iter; i++) {
         float x = float(i) / float(iter-1);
-        float s = 1.0 + 0.1 * (x - 0.5);
+        float s = 1.0 + 0.07 * (x - 0.5);
         vec2 tuv = 0.5 + s * (uv - 0.5);
         acc += vec4(gay(x), 1) * texture2D(tex, tuv);
     }
 
     acc /= float(iter);
-
-    // just so we see something if the texture isn't working
-    vec2 s = sin(vec2(4.0 * uv + R.z));
-    acc += 0.01 * (s.x + s.y);
 
     color = pow(acc, vec4(1) / 2.2);
 }

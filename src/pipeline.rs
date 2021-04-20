@@ -49,7 +49,7 @@ impl Stage {
 #[derive(Debug, Clone)]
 pub struct Pipeline {
     pub stages: Vec<Stage>,
-    pub buffers: HashMap<String, GLuint>,
+    pub buffers: HashMap<String, (GLuint, GLuint)>,
 }
 
 impl Pipeline {
@@ -60,12 +60,14 @@ impl Pipeline {
         }
         .clone();
 
+        // parse stages
         let mut stages = Vec::with_capacity(passes.len());
         for pass in passes {
             let stage = Stage::from_json(pass)?;
             stages.push(stage);
         }
 
+        // put buffers into hashmap
         let mut buffers = HashMap::new();
         for stage in stages.iter() {
             let target = match &stage.target {
@@ -77,17 +79,12 @@ impl Pipeline {
                 continue;
             }
 
-            let tex_id = empty_texture(1080, 720);
+            buffers.insert(target.clone(), (0, 0));
+        }
 
-            unsafe {
-                gl::FramebufferTexture(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0, tex_id, 0);
-                assert_eq!(
-                    gl::CheckFramebufferStatus(gl::FRAMEBUFFER),
-                    gl::FRAMEBUFFER_COMPLETE
-                );
-            }
-
-            buffers.insert(target.clone(), tex_id);
+        // init buffers in order
+        for (k, (_, tuple)) in buffers.iter_mut().enumerate() {
+            *tuple = empty_texture(1080, 720, k as _)
         }
 
         Some(Self { stages, buffers })

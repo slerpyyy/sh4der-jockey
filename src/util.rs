@@ -91,11 +91,23 @@ pub fn link_program(vs: GLuint, fs: GLuint) -> GLuint {
     }
 }
 
-pub fn empty_texture(width: GLsizei, height: GLsizei) -> GLuint {
+pub fn empty_texture(width: GLsizei, height: GLsizei, index: GLuint) -> (GLuint, GLuint) {
     unsafe {
         let mut tex = 0;
+        let mut fb = 0;
+
         gl::GenTextures(1, &mut tex);
+        gl::GenFramebuffers(1, &mut fb);
+
+        gl::ActiveTexture(gl::TEXTURE0 + index);
         gl::BindTexture(gl::TEXTURE_2D, tex);
+        gl::BindFramebuffer(gl::FRAMEBUFFER, fb);
+
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as i32);
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as i32);
+
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as i32);
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32);
 
         gl::TexImage2D(
             gl::TEXTURE_2D,
@@ -109,14 +121,19 @@ pub fn empty_texture(width: GLsizei, height: GLsizei) -> GLuint {
             std::ptr::null(),
         );
 
-        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::REPEAT as i32);
-        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::REPEAT as i32);
+        gl::FramebufferTexture2D(
+            gl::FRAMEBUFFER,
+            gl::COLOR_ATTACHMENT0,
+            gl::TEXTURE_2D,
+            tex,
+            0,
+        );
 
-        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as i32);
-        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32);
+        assert_eq!(
+            gl::CheckFramebufferStatus(gl::FRAMEBUFFER),
+            gl::FRAMEBUFFER_COMPLETE
+        );
 
-        gl::GenerateMipmap(gl::TEXTURE_2D);
-
-        tex
+        (tex, fb)
     }
 }

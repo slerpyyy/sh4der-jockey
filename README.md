@@ -8,9 +8,9 @@
 
 A non-exhaustive list of things we want our tool to be able to do, vaguely ordered by priority, from high to low:
 
-- [ ] fullscreen fragment shaders
+- [x] fullscreen fragment shaders
 - [ ] live shader reloading
-- [ ] dynamic / configurable render pipeline
+- [x] dynamic / configurable render pipeline
 - [ ] MIDI control
 - [ ] audio reactive / FFT
 - [ ] tap-to-sync / BPM calculator
