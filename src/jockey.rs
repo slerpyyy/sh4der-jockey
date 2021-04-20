@@ -91,7 +91,7 @@ impl Jockey {
             let target: GLuint = stage
                 .target
                 .as_ref()
-                .and_then(|s| pl.buffers.get(s).map(|(_, fb)| fb).cloned())
+                .and_then(|s| pl.buffers.get(s).map(|(_, fb, _)| fb).cloned())
                 .unwrap_or(0);
 
             unsafe {
@@ -111,13 +111,13 @@ impl Jockey {
                 }
 
                 // Add and bind uniform textures
-                for (k, (name, (tex_id, fb_id))) in pl.buffers.iter().enumerate() {
+                for (name, (tex_id, fb_id, k)) in pl.buffers.iter() {
                     let name = CString::new(name.as_bytes()).unwrap();
                     let loc = gl::GetUniformLocation(stage.prog_id, name.as_ptr());
 
                     gl::BindFramebuffer(gl::FRAMEBUFFER, *fb_id);
                     gl::BindTexture(gl::TEXTURE_2D, *tex_id);
-                    gl::Uniform1i(loc, k as _);
+                    gl::Uniform1i(loc, *k as _);
                 }
 
                 // Specify render target

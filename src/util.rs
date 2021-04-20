@@ -91,7 +91,7 @@ pub fn link_program(vs: GLuint, fs: GLuint) -> GLuint {
     }
 }
 
-pub fn empty_texture(width: GLsizei, height: GLsizei, index: GLuint) -> (GLuint, GLuint) {
+pub fn texture(width: GLsizei, height: GLsizei, index: GLuint) -> (GLuint, GLuint, GLuint) {
     unsafe {
         let mut tex = 0;
         let mut fb = 0;
@@ -134,6 +134,6 @@ pub fn empty_texture(width: GLsizei, height: GLsizei, index: GLuint) -> (GLuint,
             gl::FRAMEBUFFER_COMPLETE
         );
 
-        (tex, fb)
+        (tex, fb, index)
     }
 }

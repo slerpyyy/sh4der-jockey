@@ -49,7 +49,7 @@ impl Stage {
 #[derive(Debug, Clone)]
 pub struct Pipeline {
     pub stages: Vec<Stage>,
-    pub buffers: HashMap<String, (GLuint, GLuint)>,
+    pub buffers: HashMap<String, (GLuint, GLuint, GLuint)>,
 }
 
 impl Pipeline {
@@ -69,7 +69,7 @@ impl Pipeline {
 
         // put buffers into hashmap
         let mut buffers = HashMap::new();
-        for stage in stages.iter() {
+        for (k, stage) in stages.iter().enumerate() {
             let target = match &stage.target {
                 Some(s) => s,
                 None => continue,
@@ -79,12 +79,8 @@ impl Pipeline {
                 continue;
             }
 
-            buffers.insert(target.clone(), (0, 0));
-        }
-
-        // init buffers in order
-        for (k, (_, tuple)) in buffers.iter_mut().enumerate() {
-            *tuple = empty_texture(1080, 720, k as _)
+            let tuple = texture(1080, 720, k as _);
+            buffers.insert(target.clone(), tuple);
         }
 
         Some(Self { stages, buffers })

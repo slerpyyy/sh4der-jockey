@@ -3,7 +3,7 @@
 out vec4 color;
 
 uniform vec3 R;
-uniform sampler2D tex;
+uniform sampler2D distorted;
 
 vec3 gay(float x) {
     x = x * 3.0 - 1.5;
@@ -18,9 +18,9 @@ void main() {
 
     for(int i=0; i<iter; i++) {
         float x = float(i) / float(iter-1);
-        float s = 1.0 + 0.07 * (x - 0.5);
+        float s = 1.0 + 0.03 * (x - 0.5);
         vec2 tuv = 0.5 + s * (uv - 0.5);
-        acc += vec4(gay(x), 1) * texture2D(tex, tuv);
+        acc += vec4(gay(x), 1) * texture2D(distorted, tuv);
     }
 
     acc /= float(iter);
