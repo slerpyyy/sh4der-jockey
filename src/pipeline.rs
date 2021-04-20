@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::util::*;
 use gl::types::*;
 use serde_json::Value;
@@ -16,7 +18,7 @@ impl Stage {
         Self { prog_id, target }
     }
 
-    pub fn from_json(object: Value) -> Self {
+    pub fn from_json(object: Value) -> Option<Self> {
         let fs = match object.get("fs") {
             Some(Value::String(s)) => std::fs::read_to_string(s).expect("could not read file"),
             None => DEFAULT_FRAGMENT_SHADER.to_string(),
@@ -40,41 +42,48 @@ impl Stage {
 
         let prog_id = link_program(vs, fs);
 
-        Stage::new(prog_id, target)
+        Some(Stage::new(prog_id, target))
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct Pipeline {
     pub stages: Vec<Stage>,
-    pub buffers: Vec<String>,
+    pub buffers: HashMap<String, GLuint>,
 }
 
 impl Pipeline {
-    pub fn new() -> Self {
-        Self {
-            stages: Vec::new(),
-            buffers: Vec::new(),
-        }
-    }
-
-    pub fn from_json(object: Value) -> Self {
+    pub fn from_json(object: Value) -> Option<Self> {
         let passes = match object.get("PASSES") {
             Some(serde_json::Value::Array(s)) => s,
             s => panic!("expected array, got {:?}", s),
         }
         .clone();
 
-        let stages = passes
-            .into_iter()
-            .map(|pass| Stage::from_json(pass))
-            .collect::<Vec<_>>();
+        let mut stages = Vec::with_capacity(passes.len());
+        for pass in passes {
+            let stage = Stage::from_json(pass)?;
+            stages.push(stage);
+        }
 
-        let buffers = stages
-            .iter()
-            .filter_map(|stage| stage.target.clone())
-            .collect::<Vec<_>>();
+        let mut buffers = HashMap::new();
+        for stage in stages.iter() {
+            let target = match &stage.target {
+                Some(s) => s,
+                None => continue,
+            };
 
-        Self { stages, buffers }
+            if buffers.contains_key(target) {
+                continue;
+            }
+
+            let mut tex_id = 0;
+            unsafe {
+                gl::GenFramebuffers(1, &mut tex_id);
+            }
+            buffers.insert(target.clone(), tex_id);
+        }
+
+        Some(Self { stages, buffers })
     }
 }

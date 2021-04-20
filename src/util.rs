@@ -25,7 +25,7 @@ pub fn compile_shader(src: &str, ty: GLenum) -> GLuint {
             let mut len = 0;
             gl::GetShaderiv(shader, gl::INFO_LOG_LENGTH, &mut len);
             let mut buf = Vec::with_capacity(len as usize);
-            buf.set_len((len as usize) - 1); // subtract 1 to skip the trailing null character
+            buf.set_len((len as usize).saturating_sub(1)); // subtract 1 to skip the trailing null character
             gl::GetShaderInfoLog(
                 shader,
                 len,

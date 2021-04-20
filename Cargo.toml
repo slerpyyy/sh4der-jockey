@@ -5,6 +5,7 @@ edition = "2018"
 build = "build.rs"
 
 [dependencies]
+getopts = "0.2.21"
 gl = "0.14.0"
 imgui = "0.7.0"
 imgui-opengl-renderer = "0.11.0"
