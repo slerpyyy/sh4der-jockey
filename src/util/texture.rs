@@ -19,7 +19,7 @@ impl Texture {
             gl::GenTextures(1, &mut id);
             gl::GenFramebuffers(1, &mut fb);
 
-            gl::ActiveTexture(gl::TEXTURE0 + slot);
+            gl::ActiveTexture(gl::TEXTURE0);
             gl::BindTexture(gl::TEXTURE_2D, id);
             gl::BindFramebuffer(gl::FRAMEBUFFER, fb);
 

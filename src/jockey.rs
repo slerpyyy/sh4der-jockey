@@ -219,13 +219,14 @@ impl Jockey {
                 }
 
                 // Add and bind uniform textures
-                for (name, tex) in self.pipeline.buffers.iter() {
+                for (k, (name, tex)) in self.pipeline.buffers.iter().enumerate() {
                     let name = CString::new(name.as_bytes()).unwrap();
                     let loc = gl::GetUniformLocation(stage.prog_id, name.as_ptr());
 
-                    gl::BindFramebuffer(gl::FRAMEBUFFER, tex.fb);
+                    gl::ActiveTexture(gl::TEXTURE0 + k as GLenum);
                     gl::BindTexture(gl::TEXTURE_2D, tex.id);
-                    gl::Uniform1i(loc, tex.slot as _);
+                    gl::BindFramebuffer(gl::FRAMEBUFFER, tex.fb);
+                    gl::Uniform1i(loc, k as _);
                 }
 
                 // Specify render target
