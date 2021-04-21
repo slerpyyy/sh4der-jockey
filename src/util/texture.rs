@@ -2,8 +2,11 @@ use gl::types::*;
 
 #[derive(Debug)]
 pub struct Texture {
+    /// The id of the texture object
     pub id: GLuint,
+    /// The id of the framebuffer which is attached to this texture
     pub fb: GLuint,
+    /// The active texture slot the texture is in (i.e. `gl::TEXTURE0 + slot`)
     pub slot: GLuint,
 }
 

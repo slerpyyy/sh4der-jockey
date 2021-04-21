@@ -12,6 +12,7 @@ A non-exhaustive list of things we want our tool to be able to do, vaguely order
 - [x] live shader reloading
 - [x] dynamic / configurable render pipeline
 - [ ] MIDI control
+- [ ] shader preprocessor / common file
 - [ ] audio reactive / FFT
 - [ ] tap-to-sync / BPM calculator
 - [x] mip maps
