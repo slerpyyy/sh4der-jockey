@@ -59,9 +59,9 @@ impl Jockey {
 
         let title = Self::title();
         let window = video
-            .window(&title, 1080, 720)
+            .window(&title, 1280, 720)
             .position_centered()
-            //.resizable()  // currently not working properly
+            .resizable()
             .opengl()
             .allow_highdpi()
             .build()

@@ -70,9 +70,9 @@ fn main() {
 
                 Event::KeyDown {
                     keycode: Some(Keycode::Return),
-                    keymod: Mod::LCTRLMOD,
+                    keymod,
                     ..
-                } => do_update_pipeline = true,
+                } if keymod & Mod::LCTRLMOD != Mod::NOMOD => do_update_pipeline = true,
 
                 //Event::Window {
                 //    win_event: WindowEvent::Resized(width, height),
