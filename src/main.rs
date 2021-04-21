@@ -73,13 +73,13 @@ fn main() {
                     ..
                 } => do_update_pipeline = true,
 
-                Event::Window {
-                    win_event: WindowEvent::Resized(width, height),
-                    ..
-                } => {
-                    println!("resize detected {:?}", (width, height));
-                    jockey.window.set_size(width as _, height as _).unwrap();
-                }
+                //Event::Window {
+                //    win_event: WindowEvent::Resized(width, height),
+                //    ..
+                //} => {
+                //    println!("resize detected {:?}", (width, height));
+                //    jockey.window.set_size(width as _, height as _).unwrap();
+                //}
 
                 _ => {}
             }
@@ -127,7 +127,7 @@ fn main() {
         ui.plot_lines(im_str!("dt [ms]"), &total_perf.buffer)
             .build();
         let mut stage_sum_ms = 0.0;
-        for (k, stage) in jockey.pipeline.as_ref().unwrap().stages.iter().enumerate() {
+        for (k, stage) in jockey.pipeline.stages.iter().enumerate() {
             let stage_ms = stage.perf.get();
             stage_sum_ms += stage_ms;
             if let Some(tex_name) = stage.target.as_ref() {

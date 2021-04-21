@@ -13,7 +13,7 @@ pub struct Jockey {
     pub event_pump: sdl2::EventPump,
     pub vao: GLuint,
     pub vbo: GLuint,
-    pub pipeline: Option<Pipeline>,
+    pub pipeline: Pipeline,
     pub start_time: Instant,
 }
 
@@ -50,7 +50,7 @@ impl Jockey {
         let window = video
             .window(&title, 1080, 720)
             .position_centered()
-            .resizable()
+            //.resizable()  // currently not working properly
             .opengl()
             .allow_highdpi()
             .build()
@@ -78,6 +78,8 @@ impl Jockey {
             gl::GenBuffers(1, &mut vbo);
         }
 
+        let pipeline = Pipeline::new();
+
         let start_time = Instant::now();
 
         Self {
@@ -89,7 +91,7 @@ impl Jockey {
             vao,
             vbo,
             gl_context,
-            pipeline: None,
+            pipeline,
             start_time,
         }
     }
@@ -97,30 +99,28 @@ impl Jockey {
     pub fn update_pipeline<R: Read>(&mut self, reader: R) -> Option<()> {
         let object = serde_json::from_reader(reader).ok()?;
         let update = Pipeline::from_json(object)?;
-        self.pipeline = Some(update);
+        self.pipeline = update;
         Some(())
     }
 
     pub fn draw(&mut self) -> Option<()> {
-        let pl = self.pipeline.as_mut()?;
 
         // compute uniforms
         let (width, height) = self.window.size();
         let time = self.start_time.elapsed().as_secs_f32();
 
         // render all shader stages
-        for stage in pl.stages.iter_mut() {
+        for stage in self.pipeline.stages.iter_mut() {
             let stage_start = Instant::now();
 
             // get render target id
             let (target_tex, target_fb) = if let Some(name) = stage.target.as_ref() {
-                let tex = &pl.buffers[name];
+                let tex = &self.pipeline.buffers[name];
                 (tex.id, tex.fb)
             } else {
                 (0, 0)
             };
 
-            // oh boi here we go
             unsafe {
                 // Use shader program
                 gl::UseProgram(stage.prog_id);
@@ -138,7 +138,7 @@ impl Jockey {
                 }
 
                 // Add and bind uniform textures
-                for (name, tex) in pl.buffers.iter() {
+                for (name, tex) in self.pipeline.buffers.iter() {
                     let name = CString::new(name.as_bytes()).unwrap();
                     let loc = gl::GetUniformLocation(stage.prog_id, name.as_ptr());
 

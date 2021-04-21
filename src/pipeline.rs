@@ -78,6 +78,10 @@ pub struct Pipeline {
 }
 
 impl Pipeline {
+    pub fn new() -> Self {
+        Self { stages: Vec::new(), buffers: HashMap::new() }
+    }
+
     pub fn from_json(object: Value) -> Option<Self> {
         let passes = match object.get("stages") {
             Some(serde_json::Value::Array(s)) => s,
