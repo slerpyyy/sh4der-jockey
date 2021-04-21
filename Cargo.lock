@@ -626,6 +626,7 @@ dependencies = [
  "imgui",
  "imgui-opengl-renderer",
  "imgui-sdl2",
+ "lazy_static",
  "sdl2",
  "serde_json",
  "vergen",

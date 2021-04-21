@@ -1,8 +1,20 @@
 use crate::pipeline::Pipeline;
 use crate::util::*;
 use gl::types::*;
+use imgui::im_str;
+use lazy_static::lazy_static;
 use std::io::Read;
 use std::{ffi::CString, time::Instant};
+
+lazy_static! {
+    static ref TITLE: String = {
+        format!(
+            "Sh4derJockey (version {}-{})",
+            env!("VERGEN_BUILD_SEMVER"),
+            &env!("VERGEN_GIT_SHA")[0..7]
+        )
+    };
+}
 
 /// A struct to keep the state of the tool.
 ///
@@ -20,6 +32,8 @@ pub struct Jockey {
     pub vbo: GLuint,
     pub pipeline: Pipeline,
     pub start_time: Instant,
+    pub last_frame: Instant,
+    pub frame_perf: RunningAverage<f32, 128>,
 }
 
 impl std::fmt::Debug for Jockey {
@@ -36,11 +50,7 @@ impl Jockey {
     /// Returns a string containing the name of the program, the current
     /// version and commit hash.
     pub fn title() -> String {
-        format!(
-            "Sh4derJockey (version {}-{})",
-            env!("VERGEN_BUILD_SEMVER"),
-            &env!("VERGEN_GIT_SHA")[0..7]
-        )
+        TITLE.clone()
     }
 
     /// Initializes the tool.
@@ -90,8 +100,9 @@ impl Jockey {
         }
 
         let pipeline = Pipeline::new();
-
+        let frame_perf = RunningAverage::new();
         let start_time = Instant::now();
+        let last_frame = start_time;
 
         Self {
             window,
@@ -104,6 +115,8 @@ impl Jockey {
             gl_context,
             pipeline,
             start_time,
+            frame_perf,
+            last_frame,
         }
     }
 
@@ -211,5 +224,64 @@ impl Jockey {
         }
 
         Some(())
+    }
+
+    /// Wrapper function for all the imgui stuff.
+    pub fn build_ui(&mut self) {
+        self.imgui_sdl2.prepare_frame(
+            self.imgui.io_mut(),
+            &self.window,
+            &self.event_pump.mouse_state(),
+        );
+
+        // tell imgui what time it is
+        let now = Instant::now();
+        let delta_time = (now - self.last_frame).as_secs_f32();
+        self.imgui.io_mut().delta_time = delta_time;
+        self.last_frame = now;
+
+        // record frame time
+        self.frame_perf.push(1000.0 * delta_time);
+        let frame_ms = self.frame_perf.get();
+
+        // ui magic
+        let ui = self.imgui.frame();
+        ui.text(&*TITLE);
+        ui.separator();
+
+        ui.text("...");
+        ui.separator();
+
+        ui.text(format!(
+            "FPS: {:.2} ({:.2} ms)",
+            1000.0 / frame_ms,
+            frame_ms
+        ));
+
+        ui.plot_lines(im_str!("dt [ms]"), &self.frame_perf.buffer)
+            .build();
+
+        let mut stage_sum_ms = 0.0;
+        for (k, stage) in self.pipeline.stages.iter().enumerate() {
+            let stage_ms = stage.perf.get();
+            stage_sum_ms += stage_ms;
+            if let Some(tex_name) = stage.target.as_ref() {
+                ui.text(format!(
+                    "Stage {}: {:.4} ms (-> {:?})",
+                    k, stage_ms, tex_name
+                ));
+            } else {
+                ui.text(format!("Stage {}: {:.4} ms", k, stage_ms));
+            }
+        }
+
+        ui.text(format!(
+            "Total: {:.4} ms ({:.2}% stress)",
+            stage_sum_ms,
+            100.0 * stage_sum_ms / frame_ms
+        ));
+
+        self.imgui_sdl2.prepare_render(&ui, &self.window);
+        self.renderer.render(ui);
     }
 }
