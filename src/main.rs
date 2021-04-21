@@ -14,9 +14,6 @@ mod util;
 
 use getopts::Options;
 use jockey::Jockey;
-use sdl2::event::Event;
-use sdl2::keyboard::{Keycode, Mod};
-use std::fs::File;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -44,49 +41,16 @@ fn main() {
         //return;
     }
 
+    // create the jockey
     let mut jockey = Jockey::init();
 
-    let mut do_update_pipeline = true;
+    loop {
+        // do event stuff
+        jockey.handle_events();
 
-    'running: loop {
-        for event in jockey.event_pump.poll_iter() {
-            jockey.imgui_sdl2.handle_event(&mut jockey.imgui, &event);
-
-            if jockey.imgui_sdl2.ignore_event(&event) {
-                continue;
-            }
-
-            match event {
-                Event::Quit { .. }
-                | Event::KeyDown {
-                    keycode: Some(Keycode::Escape),
-                    ..
-                } => break 'running,
-
-                Event::KeyDown {
-                    keycode: Some(Keycode::Return),
-                    keymod,
-                    ..
-                } if keymod & Mod::LCTRLMOD != Mod::NOMOD => do_update_pipeline = true,
-
-                //Event::Window {
-                //    win_event: WindowEvent::Resized(width, height),
-                //    ..
-                //} => {
-                //    println!("resize detected {:?}", (width, height));
-                //    jockey.window.set_size(width as _, height as _).unwrap();
-                //}
-                _ => {}
-            }
-        }
-
-        // live shader reloading
-        if do_update_pipeline {
-            let pipeline_file = File::open("pipeline.json").expect("could not open pipeline file");
-            jockey.update_pipeline(pipeline_file);
-            println!("{:#?}", jockey);
-
-            do_update_pipeline = false;
+        // exit loop
+        if jockey.done {
+            break;
         }
 
         // run all shader stages

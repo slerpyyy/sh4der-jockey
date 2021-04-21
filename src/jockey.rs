@@ -3,11 +3,12 @@ use crate::util::*;
 use gl::types::*;
 use imgui::im_str;
 use lazy_static::lazy_static;
-use std::io::Read;
+use sdl2::event::Event;
+use sdl2::keyboard::{Keycode, Mod};
 use std::{ffi::CString, time::Instant};
 
 lazy_static! {
-    static ref TITLE: String = {
+    static ref JOCKEY_TITLE: String = {
         format!(
             "Sh4derJockey (version {}-{})",
             env!("VERGEN_BUILD_SEMVER"),
@@ -34,6 +35,7 @@ pub struct Jockey {
     pub start_time: Instant,
     pub last_frame: Instant,
     pub frame_perf: RunningAverage<f32, 128>,
+    pub done: bool,
 }
 
 impl std::fmt::Debug for Jockey {
@@ -50,7 +52,7 @@ impl Jockey {
     /// Returns a string containing the name of the program, the current
     /// version and commit hash.
     pub fn title() -> String {
-        TITLE.clone()
+        JOCKEY_TITLE.clone()
     }
 
     /// Initializes the tool.
@@ -101,10 +103,11 @@ impl Jockey {
 
         let pipeline = Pipeline::new();
         let frame_perf = RunningAverage::new();
+
         let start_time = Instant::now();
         let last_frame = start_time;
 
-        Self {
+        let mut this = Self {
             window,
             event_pump,
             imgui,
@@ -117,7 +120,11 @@ impl Jockey {
             start_time,
             frame_perf,
             last_frame,
-        }
+            done: false,
+        };
+
+        this.update_pipeline();
+        this
     }
 
     /// Reload the render pipeline and replace the old one.
@@ -125,11 +132,52 @@ impl Jockey {
     /// This will load the `pipeline.json` from the specified file and
     /// attempt to read and compile all necessary shaders. If everything loaded
     /// successfully, the new Pipeline struct will stomp the old one.
-    pub fn update_pipeline<R: Read>(&mut self, reader: R) -> Option<()> {
+    pub fn update_pipeline(&mut self) -> Option<()> {
+        let reader = std::fs::File::open("pipeline.json").expect("could not open pipeline file");
         let object = serde_json::from_reader(reader).ok()?;
         let update = Pipeline::from_json(object)?;
         self.pipeline = update;
         Some(())
+    }
+
+    pub fn handle_events(&mut self) {
+        let mut do_update_pipeline = false;
+
+        for event in self.event_pump.poll_iter() {
+            self.imgui_sdl2.handle_event(&mut self.imgui, &event);
+
+            if self.imgui_sdl2.ignore_event(&event) {
+                continue;
+            }
+
+            match event {
+                Event::Quit { .. }
+                | Event::KeyDown {
+                    keycode: Some(Keycode::Escape),
+                    ..
+                } => self.done = true,
+
+                Event::KeyDown {
+                    keycode: Some(Keycode::Return),
+                    keymod,
+                    ..
+                } if keymod & Mod::LCTRLMOD != Mod::NOMOD => do_update_pipeline = true,
+
+                //Event::Window {
+                //    win_event: WindowEvent::Resized(width, height),
+                //    ..
+                //} => {
+                //    println!("resize detected {:?}", (width, height));
+                //    self.window.set_size(width as _, height as _).unwrap();
+                //}
+                _ => {}
+            }
+        }
+
+        // live shader reloading hype
+        if do_update_pipeline {
+            self.update_pipeline();
+        }
     }
 
     /// Does all the OpenGL magic.
@@ -246,7 +294,7 @@ impl Jockey {
 
         // ui magic
         let ui = self.imgui.frame();
-        ui.text(&*TITLE);
+        ui.text(&*JOCKEY_TITLE);
         ui.separator();
 
         ui.text("...");
