@@ -1,3 +1,6 @@
+//#![feature(external_doc)]
+//#![doc(include = "../README.md")]
+
 extern crate gl;
 extern crate imgui;
 extern crate imgui_opengl_renderer;
@@ -6,14 +9,12 @@ extern crate sdl2;
 
 mod jockey;
 mod pipeline;
-mod texture;
 mod util;
 
 use getopts::Options;
 use imgui::im_str;
 use jockey::Jockey;
 use sdl2::event::Event;
-use sdl2::event::WindowEvent;
 use sdl2::keyboard::{Keycode, Mod};
 use std::fs::File;
 use std::time::Instant;
@@ -48,7 +49,7 @@ fn main() {
     let title = Jockey::title();
     let mut jockey = Jockey::init();
 
-    let mut total_perf = RunningAverage::new();
+    let mut total_perf = RunningAverage::<f32, 128>::new();
     let mut do_update_pipeline = true;
     let mut last_frame = Instant::now();
 
@@ -80,7 +81,6 @@ fn main() {
                 //    println!("resize detected {:?}", (width, height));
                 //    jockey.window.set_size(width as _, height as _).unwrap();
                 //}
-
                 _ => {}
             }
         }
@@ -131,13 +131,16 @@ fn main() {
             let stage_ms = stage.perf.get();
             stage_sum_ms += stage_ms;
             if let Some(tex_name) = stage.target.as_ref() {
-                ui.text(format!("Stage {}: {:.4} ms (-> {:?})", k, stage_ms, tex_name));
+                ui.text(format!(
+                    "Stage {}: {:.4} ms (-> {:?})",
+                    k, stage_ms, tex_name
+                ));
             } else {
                 ui.text(format!("Stage {}: {:.4} ms", k, stage_ms));
             }
         }
         ui.text(format!(
-            "Total: {:.4} ms ({:.2}% stess)",
+            "Total: {:.4} ms ({:.2}% stress)",
             stage_sum_ms,
             100.0 * stage_sum_ms / total_ms
         ));

@@ -4,6 +4,11 @@ use gl::types::*;
 use std::io::Read;
 use std::{ffi::CString, time::Instant};
 
+/// A struct to keep the state of the tool.
+///
+/// This struct holds the render pipeline, as well as every type of context
+/// required to keep the window alive. The main point of this struct is to
+/// hide all the nasty details and keep the main function clean.
 pub struct Jockey {
     pub window: sdl2::video::Window,
     pub imgui: imgui::Context,
@@ -28,6 +33,8 @@ impl std::fmt::Debug for Jockey {
 }
 
 impl Jockey {
+    /// Returns a string containing the name of the program, the current
+    /// version and commit hash.
     pub fn title() -> String {
         format!(
             "Sh4derJockey (version {}-{})",
@@ -36,6 +43,10 @@ impl Jockey {
         )
     }
 
+    /// Initializes the tool.
+    ///
+    /// This will spin up a SDL2 window, initialize Imgui,
+    /// create a OpenGL context and more!
     pub fn init() -> Self {
         let sdl_context = sdl2::init().unwrap();
         let video = sdl_context.video().unwrap();
@@ -96,6 +107,11 @@ impl Jockey {
         }
     }
 
+    /// Reload the render pipeline and replace the old one.
+    ///
+    /// This will load the `pipeline.json` from the specified file and
+    /// attempt to read and compile all necessary shaders. If everything loaded
+    /// successfully, the new Pipeline struct will stomp the old one.
     pub fn update_pipeline<R: Read>(&mut self, reader: R) -> Option<()> {
         let object = serde_json::from_reader(reader).ok()?;
         let update = Pipeline::from_json(object)?;
@@ -103,8 +119,12 @@ impl Jockey {
         Some(())
     }
 
+    /// Does all the OpenGL magic.
+    ///
+    /// This function iterates over all stages in the pipeline and renders
+    /// them front to back. The only reason this function takes an `&mut self`
+    /// is to record performance statistics.
     pub fn draw(&mut self) -> Option<()> {
-
         // compute uniforms
         let (width, height) = self.window.size();
         let time = self.start_time.elapsed().as_secs_f32();
@@ -118,7 +138,7 @@ impl Jockey {
                 let tex = &self.pipeline.buffers[name];
                 (tex.id, tex.fb)
             } else {
-                (0, 0)
+                (0, 0) // The screen is always id=0
             };
 
             unsafe {
@@ -131,9 +151,9 @@ impl Jockey {
                     let time_name = CString::new("time").unwrap();
 
                     let r_loc = gl::GetUniformLocation(stage.prog_id, r_name.as_ptr());
-                    gl::Uniform3f(r_loc, width as _, height as _, time);
-
                     let time_loc = gl::GetUniformLocation(stage.prog_id, time_name.as_ptr());
+
+                    gl::Uniform3f(r_loc, width as _, height as _, time);
                     gl::Uniform1f(time_loc, time);
                 }
 
@@ -150,7 +170,7 @@ impl Jockey {
                 // Specify render target
                 gl::BindFramebuffer(gl::FRAMEBUFFER, target_fb);
                 if target_fb != 0 {
-                    gl::Viewport(0, 0, 1080, 720);
+                    gl::Viewport(0, 0, width as _, height as _);
                 }
 
                 // Specify fragment shader color output

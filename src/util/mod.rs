@@ -1,6 +1,12 @@
 use gl::types::*;
 use std::ffi::CString;
 
+mod average;
+mod texture;
+
+pub use average::*;
+pub use texture::*;
+
 const FULLSCREEN_RECT: [GLfloat; 12] = [
     -1.0, -1.0, -1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, -1.0, -1.0, -1.0,
 ];
@@ -91,7 +97,8 @@ pub fn link_program(vs: GLuint, fs: GLuint) -> GLuint {
     }
 }
 
-pub fn texture(width: GLsizei, height: GLsizei, index: GLuint) -> (GLuint, GLuint, GLuint) {
+#[allow(dead_code)]
+pub fn create_texture(width: GLsizei, height: GLsizei, index: GLuint) -> (GLuint, GLuint, GLuint) {
     unsafe {
         let mut tex = 0;
         let mut fb = 0;
@@ -141,76 +148,5 @@ pub fn texture(width: GLsizei, height: GLsizei, index: GLuint) -> (GLuint, GLuin
         );
 
         (tex, fb, index)
-    }
-}
-
-#[derive(Clone, Copy)]
-pub struct RunningAverage {
-    pub buffer: [f32; Self::SIZE],
-    pub index: usize,
-}
-
-impl std::fmt::Debug for RunningAverage {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct(stringify!(RunningAverage))
-            .field("buffer", &"[..]")
-            .field("index", &self.index)
-            .finish()
-    }
-}
-
-impl RunningAverage {
-    const SIZE: usize = 128;
-
-    pub fn new() -> Self {
-        assert!(Self::SIZE.is_power_of_two());
-        Self {
-            buffer: [0.0; Self::SIZE],
-            index: 0,
-        }
-    }
-
-    pub fn push(&mut self, value: f32) {
-        self.buffer[self.index] = value;
-        self.index = (self.index + 1) % Self::SIZE;
-    }
-
-    pub fn get(&self) -> f32 {
-        fn recurse(slice: &[f32]) -> f32 {
-            if let &[x] = slice {
-                return x;
-            }
-
-            let mid = slice.len() / 2;
-            let (a, b) = slice.split_at(mid);
-            (recurse(a) + recurse(b)) / 2.0
-        }
-
-        recurse(&self.buffer)
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::RunningAverage;
-
-    #[test]
-    fn running_average_simple() {
-        let mut ra = RunningAverage::new();
-        assert_eq!(ra.get(), 0.0);
-
-        let size = ra.buffer.len();
-
-        ra.push(size as _);
-        assert_eq!(ra.get(), 1.0);
-
-        ra.push(size as _);
-        assert_eq!(ra.get(), 2.0);
-
-        for _ in 0..size {
-            ra.push(2.0);
-            ra.push(4.0);
-        }
-        assert_eq!(ra.get(), 3.0);
     }
 }

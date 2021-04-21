@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use crate::texture::*;
 use crate::util::*;
 use gl::types::*;
 use serde_json::Value;
@@ -8,13 +7,20 @@ use serde_json::Value;
 const DEFAULT_VERTEX_SHADER: &str = include_str!("defaults/vs.glsl");
 const DEFAULT_FRAGMENT_SHADER: &str = include_str!("defaults/fs.glsl");
 
+/// The rendering pipeline
+///
+/// This struct holds the structure of the rendering pipeline. Note that it
+/// does not render anything itself, it merely holds the information and takes
+/// care of resource management, i.e. it compiles all shaders and links all
+/// programs on initialization and makes sure all shaders and programs are
+/// deleted once they're no longer needed.
 #[derive(Debug)]
 pub struct Stage {
     pub prog_id: GLuint,
     pub target: Option<String>,
     pub vs_id: Option<GLuint>,
     pub fs_id: Option<GLuint>,
-    pub perf: RunningAverage,
+    pub perf: RunningAverage<f32, 128>,
 }
 
 impl Stage {
@@ -71,6 +77,11 @@ impl Drop for Stage {
     }
 }
 
+/// The rendering pipeline
+///
+/// This struct holds the structure of the rendering pipeline. Note that it
+/// does not render anything itself, it merely holds the information and takes
+/// care of resource management.
 #[derive(Debug)]
 pub struct Pipeline {
     pub stages: Vec<Stage>,
@@ -79,7 +90,10 @@ pub struct Pipeline {
 
 impl Pipeline {
     pub fn new() -> Self {
-        Self { stages: Vec::new(), buffers: HashMap::new() }
+        Self {
+            stages: Vec::new(),
+            buffers: HashMap::new(),
+        }
     }
 
     pub fn from_json(object: Value) -> Option<Self> {
