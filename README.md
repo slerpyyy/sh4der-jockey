@@ -22,7 +22,7 @@ A non-exhaustive list of things we want our tool to be able to do, vaguely order
 - [ ] color palette
 - [x] performance profiler
 - [ ] 3D noise texture
-- [ ] resizable window
+- [x] resizable window
 
 ## Setup
 
