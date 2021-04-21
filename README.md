@@ -11,19 +11,28 @@ A non-exhaustive list of things we want our tool to be able to do, vaguely order
 - [x] fullscreen fragment shaders
 - [x] live shader reloading
 - [x] dynamic / configurable render pipeline
-- [ ] MIDI control
 - [ ] shader preprocessor / common file
+- [ ] input system
+    - [ ] MIDI control
+    - [ ] tap-to-sync / BPM calculator
+    - [ ] OSC? not really useful for me but maybe someone else
 - [ ] audio reactive / FFT
-- [ ] tap-to-sync / BPM calculator
 - [x] mip maps
-- [ ] code view
+- [ ] code view / screen capture
+    - [ ] NDI input? Direct Screen Capture?
 - [ ] vertex shaders
+    - [ ] loading models and textures
+- [ ] geometry shaders
 - [ ] compute shaders
 - [ ] curve editor
 - [ ] color palette
 - [x] performance profiler
 - [ ] 3D noise texture
 - [x] resizable window
+
+Low priority:
+
+- [ ] cubemaps
 
 ## Setup
 
