@@ -20,7 +20,7 @@ A non-exhaustive list of things we want our tool to be able to do, vaguely order
 - [ ] compute shaders
 - [ ] curve editor
 - [ ] color palette
-- [ ] preformance profiler
+- [x] preformance profiler
 
 ## Setup
 

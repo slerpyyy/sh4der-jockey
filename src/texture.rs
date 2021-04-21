@@ -27,10 +27,10 @@ impl Texture {
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR_MIPMAP_LINEAR as _);
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as _);
 
-            gl::TexStorage2D(gl::TEXTURE_2D, 8, gl::RGBA32F, width, height);
+            gl::TexStorage2D(gl::TEXTURE_2D, 4, gl::RGBA32F, width, height);
             gl::TexSubImage2D(
                 gl::TEXTURE_2D,
-                0,
+                4,
                 0,
                 0,
                 width,

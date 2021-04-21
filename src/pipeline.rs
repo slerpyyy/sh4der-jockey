@@ -14,6 +14,7 @@ pub struct Stage {
     pub target: Option<String>,
     pub vs_id: Option<GLuint>,
     pub fs_id: Option<GLuint>,
+    pub perf: RunningAverage,
 }
 
 impl Stage {
@@ -40,11 +41,14 @@ impl Stage {
         let fs_id = compile_shader(&fs, gl::FRAGMENT_SHADER);
         let prog_id = link_program(vs_id, fs_id);
 
+        let perf = RunningAverage::new();
+
         Some(Stage {
             prog_id,
             target,
             vs_id: Some(vs_id),
             fs_id: Some(fs_id),
+            perf,
         })
     }
 }

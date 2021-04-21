@@ -1,8 +1,8 @@
 use crate::pipeline::Pipeline;
 use crate::util::*;
 use gl::types::*;
-use std::ffi::CString;
 use std::io::Read;
+use std::{ffi::CString, time::Instant};
 
 pub struct Jockey {
     pub window: sdl2::video::Window,
@@ -14,6 +14,7 @@ pub struct Jockey {
     pub vao: GLuint,
     pub vbo: GLuint,
     pub pipeline: Option<Pipeline>,
+    pub start_time: Instant,
 }
 
 impl std::fmt::Debug for Jockey {
@@ -27,6 +28,14 @@ impl std::fmt::Debug for Jockey {
 }
 
 impl Jockey {
+    pub fn title() -> String {
+        format!(
+            "Sh4derJockey (version {}-{})",
+            env!("VERGEN_BUILD_SEMVER"),
+            &env!("VERGEN_GIT_SHA")[0..7]
+        )
+    }
+
     pub fn init() -> Self {
         let sdl_context = sdl2::init().unwrap();
         let video = sdl_context.video().unwrap();
@@ -37,12 +46,7 @@ impl Jockey {
             gl_attr.set_context_version(3, 0);
         }
 
-        let title = format!(
-            "Sh4derJockey (version {}-{})",
-            env!("VERGEN_BUILD_SEMVER"),
-            &env!("VERGEN_GIT_SHA")[0..7]
-        );
-
+        let title = Self::title();
         let window = video
             .window(&title, 1080, 720)
             .position_centered()
@@ -74,6 +78,8 @@ impl Jockey {
             gl::GenBuffers(1, &mut vbo);
         }
 
+        let start_time = Instant::now();
+
         Self {
             window,
             event_pump,
@@ -84,6 +90,7 @@ impl Jockey {
             vbo,
             gl_context,
             pipeline: None,
+            start_time,
         }
     }
 
@@ -94,16 +101,26 @@ impl Jockey {
         Some(())
     }
 
-    pub fn draw(&self, width: f32, height: f32, time: f32) -> Option<()> {
-        let pl = self.pipeline.as_ref()?;
+    pub fn draw(&mut self) -> Option<()> {
+        let pl = self.pipeline.as_mut()?;
 
-        for stage in pl.stages.iter() {
-            let (target_tex, target_fb) = stage
-                .target
-                .as_ref()
-                .and_then(|s| pl.buffers.get(s).map(|tex| (tex.id, tex.fb)))
-                .unwrap_or((0, 0));
+        // compute uniforms
+        let (width, height) = self.window.size();
+        let time = self.start_time.elapsed().as_secs_f32();
 
+        // render all shader stages
+        for stage in pl.stages.iter_mut() {
+            let stage_start = Instant::now();
+
+            // get render target id
+            let (target_tex, target_fb) = if let Some(name) = stage.target.as_ref() {
+                let tex = &pl.buffers[name];
+                (tex.id, tex.fb)
+            } else {
+                (0, 0)
+            };
+
+            // oh boi here we go
             unsafe {
                 // Use shader program
                 gl::UseProgram(stage.prog_id);
@@ -167,6 +184,10 @@ impl Jockey {
                 gl::BindTexture(gl::TEXTURE_2D, target_tex);
                 gl::GenerateMipmap(gl::TEXTURE_2D);
             }
+
+            // log render time
+            let stage_time = stage_start.elapsed().as_secs_f32();
+            stage.perf.push(1000.0 * stage_time);
         }
 
         Some(())
