@@ -61,10 +61,10 @@ impl Pipeline {
             }
 
             let texture = match stage.kind {
-                StageKind::Frag { .. } => Texture::new(1280, 720),
+                StageKind::Frag { .. } => Texture::with_framebuffer(1280, 720),
                 StageKind::Comp {
                     tex_type, tex_dim, ..
-                } => Texture::create_image_texture(tex_type, tex_dim),
+                } => Texture::new(&tex_dim[..(tex_type as _)]),
             };
 
             buffers.insert(target.clone(), texture);

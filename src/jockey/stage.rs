@@ -54,9 +54,9 @@ impl Stage {
 
         if let Some(cs) = cs {
             let tex_type = match object.get("cs_type") {
-                Some(Value::String(s)) if s.as_str() == "1D" => gl::TEXTURE_1D,
-                Some(Value::String(s)) if s.as_str() == "2D" => gl::TEXTURE_2D,
-                Some(Value::String(s)) if s.as_str() == "3D" => gl::TEXTURE_3D,
+                Some(Value::String(s)) if s.as_str() == "1D" => 1,
+                Some(Value::String(s)) if s.as_str() == "2D" => 2,
+                Some(Value::String(s)) if s.as_str() == "3D" => 3,
                 s => return Err(format!("expected texture type, got {:?}", s)),
             };
 
