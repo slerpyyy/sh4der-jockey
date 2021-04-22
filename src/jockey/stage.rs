@@ -2,8 +2,8 @@ use crate::util::*;
 use gl::types::*;
 use serde_json::Value;
 
-const DEFAULT_VERTEX_SHADER: &str = include_str!("../defaults/vs.glsl");
-const DEFAULT_FRAGMENT_SHADER: &str = include_str!("../defaults/fs.glsl");
+const PASS_VERT: &str = include_str!("shaders/pass.vert");
+const PASS_FRAG: &str = include_str!("shaders/pass.frag");
 
 #[derive(Debug)]
 pub enum StageKind {
@@ -36,8 +36,8 @@ impl Stage {
         // get render target name
         let target = match object.get("target") {
             Some(Value::String(s)) => Some(s.clone()),
+            Some(s) => return Err(format!("Expected field \"target\" to be a string, got {:?}", s)),
             None => None,
-            s => return Err(format!("expected string, got {:?}", s)),
         };
 
         // read all shaders to strings
@@ -49,8 +49,8 @@ impl Stage {
                         Ok(s) => Some(s),
                         Err(e) => return Err(e.to_string()),
                     },
+                    Some(s) => return Err(format!("Expected shader field to be a filename, got {:?}", s)),
                     None => None,
-                    s => return Err(format!("expected string, got {:?}", s)),
                 }
             }
 
@@ -60,7 +60,7 @@ impl Stage {
         match shaders {
             // handle full screen fragment shader stages
             [None, Some(fs), None] => {
-                let vs = DEFAULT_VERTEX_SHADER;
+                let vs = PASS_VERT;
 
                 let vs_id = compile_shader(&vs, gl::VERTEX_SHADER)?;
                 let fs_id = compile_shader(&fs, gl::FRAGMENT_SHADER)?;
@@ -81,7 +81,7 @@ impl Stage {
 
             // handle vertex shader stages
             [Some(vs), fs_opt, None] => {
-                let fs = fs_opt.unwrap_or_else(|| DEFAULT_FRAGMENT_SHADER.to_string());
+                let fs = fs_opt.unwrap_or_else(|| PASS_FRAG.to_string());
 
                 let vs_id = compile_shader(&vs, gl::VERTEX_SHADER)?;
                 let fs_id = compile_shader(&fs, gl::FRAGMENT_SHADER)?;
@@ -109,7 +109,7 @@ impl Stage {
                     Some(Value::String(s)) if s.as_str() == "1D" => 1,
                     Some(Value::String(s)) if s.as_str() == "2D" => 2,
                     Some(Value::String(s)) if s.as_str() == "3D" => 3,
-                    s => return Err(format!("expected texture type, got {:?}", s)),
+                    s => return Err(format!("Expected texture type, got {:?}", s)),
                 };
 
                 let tex_dim = match object.get("cs_size") {
@@ -119,7 +119,7 @@ impl Stage {
                             let val = sz.as_u64();
                             tex_dim[i] = match val {
                                 Some(dim) => dim as _,
-                                _ => return Err(format!("texture size not an integer: {:?}", val)),
+                                _ => return Err(format!("Texture size not an integer: {:?}", val)),
                             };
                         }
                         tex_dim
@@ -128,13 +128,13 @@ impl Stage {
                     Some(Value::Number(n)) => [
                         match n.as_u64() {
                             Some(k) => k as _,
-                            _ => return Err(format!("texture size not an integer: {:?}", n)),
+                            _ => return Err(format!("Texture size not an integer: {:?}", n)),
                         },
                         0,
                         0,
                     ],
 
-                    s => return Err(format!("expected texture size, got {:?}", s)),
+                    s => return Err(format!("Expected texture size, got {:?}", s)),
                 };
 
                 let cs_id = compile_shader(&cs, gl::COMPUTE_SHADER)?;

@@ -38,7 +38,8 @@ impl Pipeline {
     pub fn from_json(object: Value) -> Result<Self, String> {
         let passes = match object.get("stages") {
             Some(Value::Array(s)) => s.clone(),
-            s => return Err(format!("expected array, got {:?}", s)),
+            None => return Err("Required field \"stages\" not found".to_string()),
+            s => return Err(format!("Expected \"stages\" to be an array, got {:?}", s)),
         };
 
         // parse stages

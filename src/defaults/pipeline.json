@@ -1,8 +1,7 @@
 {
-    "PASSES": [
+    "stages": [
         {
-            "vs": "./vs.glsl",
-            "fs": "./fs.glsl"
+            "fs": "./scene.frag"
         }
     ]
 }

@@ -1,6 +1,10 @@
-#define TAU 6.28318530718
+#version 140
+
+out vec4 v_color;
 
 uniform float time;
+
+const float pi = acos(-1.0);
 
 mat2 rot(float a)
 {
@@ -9,7 +13,7 @@ mat2 rot(float a)
 }
 
 void main() {
-  float a = 4. * TAU * gl_VertexID / 1000.0;
+  float a = 8. * pi * gl_VertexID / 1000.0;
 
   float r = 3.25;
   vec2 off = vec2(0.5 * sin(r*a) + 1., cos(r*a));
@@ -19,5 +23,6 @@ void main() {
   p.yz *= rot(0.8);
 
   gl_Position = vec4(p/(p.z+3.), 1);
-  //v_color = vec4(1./(p.z+2.));
+  gl_PointSize = 1.0 - abs(p.z);
+  v_color = vec4(1./(p.z+2.));
 }
