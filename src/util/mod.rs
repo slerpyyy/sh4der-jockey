@@ -63,96 +63,6 @@ pub fn compile_shader(src: &str, ty: GLenum) -> GLuint {
     }
 }
 
-pub fn test_compute_capabilities() {
-    unsafe {
-        let mut work_group_count_x = 0;
-        let mut work_group_count_y = 0;
-        let mut work_group_count_z = 0;
-        gl::GetIntegeri_v(gl::MAX_COMPUTE_WORK_GROUP_COUNT, 0, &mut work_group_count_x);
-        gl::GetIntegeri_v(gl::MAX_COMPUTE_WORK_GROUP_COUNT, 1, &mut work_group_count_y);
-        gl::GetIntegeri_v(gl::MAX_COMPUTE_WORK_GROUP_COUNT, 2, &mut work_group_count_z);
-
-        println!(
-            "Work group count: {:?}, {:?}, {:?}",
-            work_group_count_x, work_group_count_y, work_group_count_z
-        );
-        gl::GetIntegeri_v(gl::MAX_COMPUTE_WORK_GROUP_SIZE, 0, &mut work_group_count_x);
-        gl::GetIntegeri_v(gl::MAX_COMPUTE_WORK_GROUP_SIZE, 1, &mut work_group_count_y);
-        gl::GetIntegeri_v(gl::MAX_COMPUTE_WORK_GROUP_SIZE, 2, &mut work_group_count_z);
-        println!(
-            "Work group size: {:?}, {:?}, {:?}",
-            work_group_count_x, work_group_count_y, work_group_count_z
-        );
-
-        let mut work_group_invocations = 0;
-        gl::GetIntegerv(
-            gl::MAX_COMPUTE_WORK_GROUP_INVOCATIONS,
-            &mut work_group_invocations,
-        );
-
-        println!("Max work group invocations: {:?}", work_group_invocations);
-    }
-}
-
-pub fn create_compute_texture(tex_type: GLuint, tex_dim: [u32; 3]) -> GLuint {
-    unsafe {
-        let mut tex_id = 0;
-        match tex_type {
-            gl::TEXTURE_3D => todo!(),
-            gl::TEXTURE_2D => {
-                gl::GenTextures(1, &mut tex_id);
-                gl::ActiveTexture(gl::TEXTURE0);
-                gl::BindTexture(gl::TEXTURE_2D, tex_id);
-                gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as i32);
-                gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as i32);
-                gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
-                gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
-                gl::TexStorage2D(
-                    gl::TEXTURE_2D,
-                    0,
-                    gl::RGBA32F,
-                    tex_dim[0] as _,
-                    tex_dim[1] as _,
-                );
-                gl::TexSubImage2D(
-                    gl::TEXTURE_2D,
-                    4,
-                    0,
-                    0,
-                    tex_dim[0] as _,
-                    tex_dim[1] as _,
-                    gl::RGBA32F,
-                    gl::FLOAT,
-                    std::ptr::null(),
-                );
-            }
-            gl::TEXTURE_1D => {
-                gl::GenTextures(1, &mut tex_id);
-                gl::ActiveTexture(gl::TEXTURE0);
-                gl::BindTexture(gl::TEXTURE_1D, tex_id);
-                gl::TexParameteri(gl::TEXTURE_1D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as _);
-                gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as _);
-                gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as _);
-                gl::TexStorage1D(gl::TEXTURE_1D, 0, gl::RGBA32F, tex_dim[0] as _);
-                gl::TexSubImage1D(
-                    gl::TEXTURE_1D,
-                    0,
-                    0,
-                    tex_dim[0] as _,
-                    gl::RGBA32F,
-                    gl::FLOAT,
-                    std::ptr::null(),
-                );
-            }
-            _ => panic!("Expected texture type, got {:?}", tex_type),
-        }
-
-        gl::BindImageTexture(0, tex_id, 0, gl::FALSE, 0, gl::WRITE_ONLY, gl::RGBA32F);
-
-        tex_id
-    }
-}
-
 pub fn link_program(vs: GLuint, fs: GLuint) -> GLuint {
     unsafe {
         let program = gl::CreateProgram();
@@ -184,6 +94,47 @@ pub fn link_program(vs: GLuint, fs: GLuint) -> GLuint {
         }
 
         program
+    }
+}
+
+pub fn compute_program(cs_id: GLuint) -> GLuint {
+    unsafe {
+        let cs_prog = gl::CreateProgram();
+        gl::AttachShader(cs_prog, cs_id);
+        gl::LinkProgram(cs_prog);
+        cs_prog
+    }
+}
+
+#[allow(dead_code)]
+pub fn test_compute_capabilities() {
+    unsafe {
+        let mut work_group_count_x = 0;
+        let mut work_group_count_y = 0;
+        let mut work_group_count_z = 0;
+        gl::GetIntegeri_v(gl::MAX_COMPUTE_WORK_GROUP_COUNT, 0, &mut work_group_count_x);
+        gl::GetIntegeri_v(gl::MAX_COMPUTE_WORK_GROUP_COUNT, 1, &mut work_group_count_y);
+        gl::GetIntegeri_v(gl::MAX_COMPUTE_WORK_GROUP_COUNT, 2, &mut work_group_count_z);
+
+        println!(
+            "Work group count: {:?}, {:?}, {:?}",
+            work_group_count_x, work_group_count_y, work_group_count_z
+        );
+        gl::GetIntegeri_v(gl::MAX_COMPUTE_WORK_GROUP_SIZE, 0, &mut work_group_count_x);
+        gl::GetIntegeri_v(gl::MAX_COMPUTE_WORK_GROUP_SIZE, 1, &mut work_group_count_y);
+        gl::GetIntegeri_v(gl::MAX_COMPUTE_WORK_GROUP_SIZE, 2, &mut work_group_count_z);
+        println!(
+            "Work group size: {:?}, {:?}, {:?}",
+            work_group_count_x, work_group_count_y, work_group_count_z
+        );
+
+        let mut work_group_invocations = 0;
+        gl::GetIntegerv(
+            gl::MAX_COMPUTE_WORK_GROUP_INVOCATIONS,
+            &mut work_group_invocations,
+        );
+
+        println!("Max work group invocations: {:?}", work_group_invocations);
     }
 }
 

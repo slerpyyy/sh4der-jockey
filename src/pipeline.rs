@@ -16,6 +16,7 @@ const DEFAULT_FRAGMENT_SHADER: &str = include_str!("defaults/fs.glsl");
 /// deleted once they're no longer needed.
 #[derive(Debug)]
 pub struct ComputeStage {
+    pub cs_id: GLuint,
     pub tex_type: GLuint,
     pub tex_dim: [u32; 3],
 }
@@ -27,7 +28,7 @@ pub struct RegularStage {
 }
 
 #[derive(Debug)]
-enum StageKind {
+pub enum StageKind {
     Comp(ComputeStage),
     Frag(RegularStage),
 }
@@ -67,7 +68,7 @@ impl Stage {
 
             let tex_dim = match object.get("cs_size") {
                 Some(Value::Array(ar)) if ar.len() <= 3 => {
-                    let tex_dim: [u32; 3] = [0; 3];
+                    let mut tex_dim: [u32; 3] = [0; 3];
                     for (i, sz) in ar.iter().enumerate() {
                         let val = sz.as_u64();
                         tex_dim[i] =
@@ -87,10 +88,15 @@ impl Stage {
             };
 
             let cs_id = compile_shader(&cs.unwrap(), gl::COMPUTE_SHADER);
-            let kind = StageKind::Comp(ComputeStage { tex_type, tex_dim });
+            let cs_prog = compute_program(cs_id);
+            let kind = StageKind::Comp(ComputeStage {
+                cs_id,
+                tex_type,
+                tex_dim,
+            });
 
             return Some(Stage {
-                prog_id: cs_id,
+                prog_id: cs_prog,
                 target,
                 perf,
                 kind,
@@ -142,7 +148,10 @@ impl Drop for Stage {
                         gl::DeleteShader(id);
                     }
                 }
-                _ => (),
+                StageKind::Comp(ComputeStage { cs_id, .. }) => {
+                    gl::DetachShader(self.prog_id, cs_id);
+                    gl::DeleteShader(cs_id);
+                }
             }
 
             gl::DeleteProgram(self.prog_id);
@@ -185,7 +194,7 @@ impl Pipeline {
 
         // put buffers into hashmap
         let mut buffers = HashMap::new();
-        for (k, stage) in stages.iter().enumerate() {
+        for stage in stages.iter() {
             let target = match &stage.target {
                 Some(s) => s,
                 None => continue,
@@ -195,8 +204,10 @@ impl Pipeline {
                 continue;
             }
             let texture = match stage.kind {
-                StageKind::Frag(_) => Texture::new(1080, 720, k as _),
-                StageKind::Comp(_) => {}
+                StageKind::Frag(_) => Texture::new(1080, 720),
+                StageKind::Comp(ComputeStage {
+                    tex_type, tex_dim, ..
+                }) => Texture::create_image_texture(tex_type, tex_dim),
             };
             buffers.insert(target.clone(), texture);
         }
