@@ -9,7 +9,6 @@ extern crate lazy_static;
 extern crate sdl2;
 
 mod jockey;
-mod pipeline;
 mod util;
 
 use getopts::Options;

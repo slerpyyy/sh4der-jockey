@@ -63,12 +63,15 @@ pub fn compile_shader(src: &str, ty: GLenum) -> GLuint {
     }
 }
 
-pub fn link_program(vs: GLuint, fs: GLuint) -> GLuint {
+/// Creates a program from a slice of shaders.
+///
+/// Creates a new program and attaches the given shaders to that program.
+pub fn link_program(sh: &[GLuint]) -> GLuint {
     unsafe {
         let program = gl::CreateProgram();
 
-        gl::AttachShader(program, vs);
-        gl::AttachShader(program, fs);
+        // Link program
+        sh.iter().for_each(|&s| gl::AttachShader(program, s));
         gl::LinkProgram(program);
 
         // Get the link status
@@ -94,15 +97,6 @@ pub fn link_program(vs: GLuint, fs: GLuint) -> GLuint {
         }
 
         program
-    }
-}
-
-pub fn compute_program(cs_id: GLuint) -> GLuint {
-    unsafe {
-        let cs_prog = gl::CreateProgram();
-        gl::AttachShader(cs_prog, cs_id);
-        gl::LinkProgram(cs_prog);
-        cs_prog
     }
 }
 

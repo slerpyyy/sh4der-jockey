@@ -1,4 +1,3 @@
-use crate::pipeline::{Pipeline, StageKind};
 use crate::util::*;
 use gl::types::*;
 use imgui::im_str;
@@ -6,6 +5,12 @@ use lazy_static::lazy_static;
 use sdl2::event::Event;
 use sdl2::keyboard::{Keycode, Mod};
 use std::{ffi::CString, time::Instant};
+
+mod stage;
+mod pipeline;
+
+pub use stage::*;
+pub use pipeline::*;
 
 lazy_static! {
     static ref JOCKEY_TITLE: String = {
@@ -224,15 +229,11 @@ impl Jockey {
             }
 
             match &stage.kind {
-                StageKind::Comp(comp_stage) => unsafe {
-                    gl::DispatchCompute(
-                        comp_stage.tex_dim[0],
-                        1.max(comp_stage.tex_dim[1]),
-                        1.max(comp_stage.tex_dim[2]),
-                    );
+                StageKind::Comp { tex_dim, .. } => unsafe {
+                    gl::DispatchCompute(tex_dim[0], tex_dim[1].max(1), tex_dim[2].max(1));
                     gl::MemoryBarrier(gl::SHADER_IMAGE_ACCESS_BARRIER_BIT);
                 },
-                StageKind::Frag(_) => {
+                StageKind::Frag { .. } => {
                     // get render target id
                     let (target_tex, target_fb) = if let Some(name) = stage.target.as_ref() {
                         let tex = &self.pipeline.buffers[name];
