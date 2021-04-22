@@ -1,4 +1,4 @@
-use crate::pipeline::Pipeline;
+use crate::pipeline::{Pipeline, StageKind};
 use crate::util::*;
 use gl::types::*;
 use imgui::im_str;
@@ -177,6 +177,7 @@ impl Jockey {
         // live shader reloading hype
         if do_update_pipeline {
             self.update_pipeline();
+            println!("{:?}", self.pipeline);
         }
     }
 
@@ -193,14 +194,6 @@ impl Jockey {
         // render all shader stages
         for stage in self.pipeline.stages.iter_mut() {
             let stage_start = Instant::now();
-
-            // get render target id
-            let (target_tex, target_fb) = if let Some(name) = stage.target.as_ref() {
-                let tex = &self.pipeline.buffers[name];
-                (tex.id, tex.fb)
-            } else {
-                (0, 0) // The screen is always id=0
-            };
 
             unsafe {
                 // Use shader program
@@ -225,48 +218,69 @@ impl Jockey {
 
                     gl::ActiveTexture(gl::TEXTURE0 + k as GLenum);
                     gl::BindTexture(gl::TEXTURE_2D, tex.id);
-                    gl::BindFramebuffer(gl::FRAMEBUFFER, tex.fb);
+                    gl::BindImageTexture(0, tex.id, 0, gl::FALSE, 0, gl::WRITE_ONLY, gl::RGBA32F);
                     gl::Uniform1i(loc, k as _);
                 }
-
-                // Specify render target
-                gl::BindFramebuffer(gl::FRAMEBUFFER, target_fb);
-                if target_fb != 0 {
-                    gl::Viewport(0, 0, width as _, height as _);
-                }
-
-                // Specify fragment shader color output
-                #[allow(temporary_cstring_as_ptr)]
-                gl::BindFragDataLocation(
-                    stage.prog_id,
-                    0,
-                    CString::new("out_color").unwrap().as_ptr(),
-                );
-
-                // Specify the layout of the vertex data
-                #[allow(temporary_cstring_as_ptr)]
-                let pos_attr = gl::GetAttribLocation(
-                    stage.prog_id,
-                    CString::new("position").unwrap().as_ptr(),
-                );
-                gl::EnableVertexAttribArray(pos_attr as GLuint);
-                gl::VertexAttribPointer(
-                    pos_attr as GLuint,
-                    2,
-                    gl::FLOAT,
-                    gl::FALSE as GLboolean,
-                    0,
-                    std::ptr::null(),
-                );
-
-                // Draw stuff
-                draw_fullscreen_rect(self.vao);
-
-                // Generate mip maps
-                gl::BindTexture(gl::TEXTURE_2D, target_tex);
-                gl::GenerateMipmap(gl::TEXTURE_2D);
             }
 
+            match &stage.kind {
+                StageKind::Comp(comp_stage) => unsafe {
+                    gl::DispatchCompute(
+                        comp_stage.tex_dim[0],
+                        1.max(comp_stage.tex_dim[1]),
+                        1.max(comp_stage.tex_dim[2]),
+                    );
+                    gl::MemoryBarrier(gl::SHADER_IMAGE_ACCESS_BARRIER_BIT);
+                },
+                StageKind::Frag(_) => {
+                    // get render target id
+                    let (target_tex, target_fb) = if let Some(name) = stage.target.as_ref() {
+                        let tex = &self.pipeline.buffers[name];
+                        (tex.id, tex.fb.unwrap())
+                    } else {
+                        (0, 0) // The screen is always id=0
+                    };
+
+                    unsafe {
+                        // Specify render target
+                        gl::BindFramebuffer(gl::FRAMEBUFFER, target_fb);
+                        if target_fb != 0 {
+                            gl::Viewport(0, 0, width as _, height as _);
+                        }
+
+                        // Specify fragment shader color output
+                        #[allow(temporary_cstring_as_ptr)]
+                        gl::BindFragDataLocation(
+                            stage.prog_id,
+                            0,
+                            CString::new("out_color").unwrap().as_ptr(),
+                        );
+
+                        // Specify the layout of the vertex data
+                        #[allow(temporary_cstring_as_ptr)]
+                        let pos_attr = gl::GetAttribLocation(
+                            stage.prog_id,
+                            CString::new("position").unwrap().as_ptr(),
+                        );
+                        gl::EnableVertexAttribArray(pos_attr as GLuint);
+                        gl::VertexAttribPointer(
+                            pos_attr as GLuint,
+                            2,
+                            gl::FLOAT,
+                            gl::FALSE as GLboolean,
+                            0,
+                            std::ptr::null(),
+                        );
+
+                        // Draw stuff
+                        draw_fullscreen_rect(self.vao);
+
+                        // Generate mip maps
+                        gl::BindTexture(gl::TEXTURE_2D, target_tex);
+                        gl::GenerateMipmap(gl::TEXTURE_2D);
+                    }
+                }
+            }
             // log render time
             let stage_time = stage_start.elapsed().as_secs_f32();
             stage.perf.push(1000.0 * stage_time);

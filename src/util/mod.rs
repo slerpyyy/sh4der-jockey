@@ -97,6 +97,47 @@ pub fn link_program(vs: GLuint, fs: GLuint) -> GLuint {
     }
 }
 
+pub fn compute_program(cs_id: GLuint) -> GLuint {
+    unsafe {
+        let cs_prog = gl::CreateProgram();
+        gl::AttachShader(cs_prog, cs_id);
+        gl::LinkProgram(cs_prog);
+        cs_prog
+    }
+}
+
+#[allow(dead_code)]
+pub fn test_compute_capabilities() {
+    unsafe {
+        let mut work_group_count_x = 0;
+        let mut work_group_count_y = 0;
+        let mut work_group_count_z = 0;
+        gl::GetIntegeri_v(gl::MAX_COMPUTE_WORK_GROUP_COUNT, 0, &mut work_group_count_x);
+        gl::GetIntegeri_v(gl::MAX_COMPUTE_WORK_GROUP_COUNT, 1, &mut work_group_count_y);
+        gl::GetIntegeri_v(gl::MAX_COMPUTE_WORK_GROUP_COUNT, 2, &mut work_group_count_z);
+
+        println!(
+            "Work group count: {:?}, {:?}, {:?}",
+            work_group_count_x, work_group_count_y, work_group_count_z
+        );
+        gl::GetIntegeri_v(gl::MAX_COMPUTE_WORK_GROUP_SIZE, 0, &mut work_group_count_x);
+        gl::GetIntegeri_v(gl::MAX_COMPUTE_WORK_GROUP_SIZE, 1, &mut work_group_count_y);
+        gl::GetIntegeri_v(gl::MAX_COMPUTE_WORK_GROUP_SIZE, 2, &mut work_group_count_z);
+        println!(
+            "Work group size: {:?}, {:?}, {:?}",
+            work_group_count_x, work_group_count_y, work_group_count_z
+        );
+
+        let mut work_group_invocations = 0;
+        gl::GetIntegerv(
+            gl::MAX_COMPUTE_WORK_GROUP_INVOCATIONS,
+            &mut work_group_invocations,
+        );
+
+        println!("Max work group invocations: {:?}", work_group_invocations);
+    }
+}
+
 #[allow(dead_code)]
 pub fn create_texture(width: GLsizei, height: GLsizei, index: GLuint) -> (GLuint, GLuint, GLuint) {
     unsafe {
