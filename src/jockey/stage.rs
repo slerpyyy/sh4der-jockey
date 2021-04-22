@@ -89,9 +89,31 @@ impl Stage {
                 let sh_ids = vec![vs_id, fs_id];
                 let prog_id = link_program(&sh_ids)?;
 
+                let count = match object.get("count") {
+                    Some(s) => match s.as_u64() {
+                        Some(n) => n as _,
+                        _ => return Err(format!("Expected vertex count to be an unsigned int, got {:?}", s))
+                    },
+                    _ => 1024,
+                };
+
+                let mode = match object.get("mode") {
+                    Some(s) => match s.as_str() {
+                        Some("LINE_LOOP") => gl::LINE_LOOP,
+                        Some("LINE_STRIP") => gl::LINE_STRIP,
+                        Some("LINES") => gl::LINES,
+                        Some("POINTS") => gl::POINTS,
+                        Some("TRIANGLE_FAN") => gl::TRIANGLE_FAN,
+                        Some("TRIANGLE_STRIP") => gl::TRIANGLE_STRIP,
+                        Some("TRIANGLES") => gl::TRIANGLES,
+                        _ => return Err(format!("Expected vertex count to be an unsigned int, got {:?}", s))
+                    },
+                    _ => gl::TRIANGLES,
+                };
+
                 let kind = StageKind::Vert {
-                    count: 1000,
-                    mode: gl::LINES,
+                    count,
+                    mode,
                 };
 
                 Ok(Stage {
