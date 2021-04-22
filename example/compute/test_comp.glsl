@@ -8,7 +8,7 @@ void main() {
   vec4 pixel = vec4(0.0, 0.0, 1.0, 1.0);
   // get index in global work group i.e x,y position
   ivec2 pixel_coords = ivec2(gl_GlobalInvocationID.xy);
-  pixel.rg = pixel_coords;
+  pixel.rg = pixel_coords / vec2(512.);
   //
   // interesting stuff happens here later
   //

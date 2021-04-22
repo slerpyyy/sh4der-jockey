@@ -218,29 +218,20 @@ impl Jockey {
 
                     gl::ActiveTexture(gl::TEXTURE0 + k as GLenum);
                     gl::BindTexture(gl::TEXTURE_2D, tex.id);
+                    gl::BindImageTexture(0, tex.id, 0, gl::FALSE, 0, gl::WRITE_ONLY, gl::RGBA32F);
                     gl::Uniform1i(loc, k as _);
                 }
             }
 
             match &stage.kind {
-                StageKind::Comp(comp_stage) => {
-                    let target_tex = if let Some(name) = stage.target.as_ref() {
-                        let tex = &self.pipeline.buffers[name];
-                        tex.id
-                    } else {
-                        panic!("Cannot find compute shader buffer");
-                    };
-
-                    unsafe {
-                        gl::UseProgram(stage.prog_id);
-                        gl::DispatchCompute(
-                            comp_stage.tex_dim[0],
-                            1.max(comp_stage.tex_dim[1]),
-                            1.max(comp_stage.tex_dim[2]),
-                        );
-                        gl::MemoryBarrier(gl::SHADER_IMAGE_ACCESS_BARRIER_BIT);
-                    }
-                }
+                StageKind::Comp(comp_stage) => unsafe {
+                    gl::DispatchCompute(
+                        comp_stage.tex_dim[0],
+                        1.max(comp_stage.tex_dim[1]),
+                        1.max(comp_stage.tex_dim[2]),
+                    );
+                    gl::MemoryBarrier(gl::SHADER_IMAGE_ACCESS_BARRIER_BIT);
+                },
                 StageKind::Frag(_) => {
                     // get render target id
                     let (target_tex, target_fb) = if let Some(name) = stage.target.as_ref() {
@@ -288,12 +279,11 @@ impl Jockey {
                         gl::BindTexture(gl::TEXTURE_2D, target_tex);
                         gl::GenerateMipmap(gl::TEXTURE_2D);
                     }
-
-                    // log render time
-                    let stage_time = stage_start.elapsed().as_secs_f32();
-                    stage.perf.push(1000.0 * stage_time);
                 }
             }
+            // log render time
+            let stage_time = stage_start.elapsed().as_secs_f32();
+            stage.perf.push(1000.0 * stage_time);
         }
 
         Some(())
