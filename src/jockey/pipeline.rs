@@ -21,12 +21,25 @@ impl Pipeline {
         }
     }
 
-    pub fn from_json(object: Value) -> Option<Self> {
+    pub fn load() -> Result<Self, String> {
+        let reader = match std::fs::File::open("pipeline.json") {
+            Ok(s) => s,
+            Err(e) => return Err(e.to_string()),
+        };
+
+        let object = match serde_json::from_reader(reader) {
+            Ok(s) => s,
+            Err(e) => return Err(e.to_string()),
+        };
+
+        Pipeline::from_json(object)
+    }
+
+    pub fn from_json(object: Value) -> Result<Self, String> {
         let passes = match object.get("stages") {
-            Some(Value::Array(s)) => s,
-            s => panic!("expected array, got {:?}", s),
-        }
-        .clone();
+            Some(Value::Array(s)) => s.clone(),
+            s => return Err(format!("expected array, got {:?}", s)),
+        };
 
         // parse stages
         let mut stages = Vec::with_capacity(passes.len());
@@ -46,15 +59,17 @@ impl Pipeline {
             if buffers.contains_key(target) {
                 continue;
             }
+
             let texture = match stage.kind {
                 StageKind::Frag { .. } => Texture::new(1280, 720),
                 StageKind::Comp {
                     tex_type, tex_dim, ..
                 } => Texture::create_image_texture(tex_type, tex_dim),
             };
+
             buffers.insert(target.clone(), texture);
         }
 
-        Some(Self { stages, buffers })
+        Ok(Self { stages, buffers })
     }
 }

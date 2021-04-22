@@ -29,7 +29,7 @@ pub fn draw_fullscreen_rect(vao: GLuint) {
     }
 }
 
-pub fn compile_shader(src: &str, ty: GLenum) -> GLuint {
+pub fn compile_shader(src: &str, ty: GLenum) -> Result<GLuint, String> {
     unsafe {
         let shader = gl::CreateShader(ty);
 
@@ -46,27 +46,29 @@ pub fn compile_shader(src: &str, ty: GLenum) -> GLuint {
         if status != (gl::TRUE as GLint) {
             let mut len = 0;
             gl::GetShaderiv(shader, gl::INFO_LOG_LENGTH, &mut len);
+
             let mut buf = Vec::with_capacity(len as usize);
-            buf.set_len((len as usize).saturating_sub(1)); // subtract 1 to skip the trailing null character
+            buf.set_len((len as usize).saturating_sub(1));
+
             gl::GetShaderInfoLog(
                 shader,
                 len,
                 std::ptr::null_mut(),
                 buf.as_mut_ptr() as *mut GLchar,
             );
-            panic!(
-                "{}",
-                std::str::from_utf8(&buf).expect("ShaderInfoLog not valid utf8")
-            );
+
+            let msg = std::str::from_utf8_unchecked(&buf);
+            return Err(msg.into());
         }
-        shader
+
+        Ok(shader)
     }
 }
 
 /// Creates a program from a slice of shaders.
 ///
 /// Creates a new program and attaches the given shaders to that program.
-pub fn link_program(sh: &[GLuint]) -> GLuint {
+pub fn link_program(sh: &[GLuint]) -> Result<GLuint, String> {
     unsafe {
         let program = gl::CreateProgram();
 
@@ -82,21 +84,22 @@ pub fn link_program(sh: &[GLuint]) -> GLuint {
         if status != (gl::TRUE as GLint) {
             let mut len: GLint = 0;
             gl::GetProgramiv(program, gl::INFO_LOG_LENGTH, &mut len);
+
             let mut buf = Vec::with_capacity(len as usize);
-            buf.set_len((len as usize).saturating_sub(1)); // subtract 1 to skip the trailing null character
+            buf.set_len((len as usize).saturating_sub(1));
+
             gl::GetProgramInfoLog(
                 program,
                 len,
                 std::ptr::null_mut(),
                 buf.as_mut_ptr() as *mut GLchar,
             );
-            panic!(
-                "{}",
-                std::str::from_utf8(&buf).expect("ProgramInfoLog not valid utf8")
-            );
+
+            let msg = std::str::from_utf8_unchecked(&buf);
+            return Err(msg.into());
         }
 
-        program
+        Ok(program)
     }
 }
 

@@ -137,12 +137,17 @@ impl Jockey {
     /// This will load the `pipeline.json` from the specified file and
     /// attempt to read and compile all necessary shaders. If everything loaded
     /// successfully, the new Pipeline struct will stomp the old one.
-    pub fn update_pipeline(&mut self) -> Option<()> {
-        let reader = std::fs::File::open("pipeline.json").expect("could not open pipeline file");
-        let object = serde_json::from_reader(reader).ok()?;
-        let update = Pipeline::from_json(object)?;
+    pub fn update_pipeline(&mut self) {
+        let update = match Pipeline::load() {
+            Ok(pl) => pl,
+            Err(err) => {
+                eprintln!("Failed to load pipeline:\n{}", err);
+                return;
+            }
+        };
+
         self.pipeline = update;
-        Some(())
+        println!("{:#?}", self.pipeline);
     }
 
     pub fn handle_events(&mut self) {
@@ -173,8 +178,8 @@ impl Jockey {
                 //    ..
                 //} => {
                 //    println!("resize detected {:?}", (width, height));
-                //    self.window.set_size(width as _, height as _).unwrap();
                 //}
+
                 _ => {}
             }
         }
@@ -182,7 +187,6 @@ impl Jockey {
         // live shader reloading hype
         if do_update_pipeline {
             self.update_pipeline();
-            println!("{:?}", self.pipeline);
         }
     }
 
