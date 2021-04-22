@@ -1,0 +1,17 @@
+{
+    "stages": [
+        {
+            "cs": "./test_comp.glsl",
+            "target": "img_output",
+            "cs_type": "2D",
+            "cs_size": [
+                512,
+                512,
+                0
+            ]
+        },
+        {
+            "fs": "./present.glsl"
+        }
+    ]
+}
