@@ -110,7 +110,10 @@ impl Texture {
 
             gl::BindImageTexture(0, tex_id, 0, gl::FALSE, 0, gl::READ_WRITE, gl::RGBA32F);
 
-            Self { id: tex_id, fb: None }
+            Self {
+                id: tex_id,
+                fb: None,
+            }
         }
     }
 }

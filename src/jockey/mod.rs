@@ -6,11 +6,11 @@ use sdl2::event::Event;
 use sdl2::keyboard::{Keycode, Mod};
 use std::{ffi::CString, time::Instant};
 
-mod stage;
 mod pipeline;
+mod stage;
 
-pub use stage::*;
 pub use pipeline::*;
+pub use stage::*;
 
 lazy_static! {
     static ref JOCKEY_TITLE: String = {
@@ -179,7 +179,6 @@ impl Jockey {
                 //} => {
                 //    println!("resize detected {:?}", (width, height));
                 //}
-
                 _ => {}
             }
         }
@@ -237,7 +236,7 @@ impl Jockey {
                     gl::DispatchCompute(tex_dim[0], tex_dim[1].max(1), tex_dim[2].max(1));
                     gl::MemoryBarrier(gl::SHADER_IMAGE_ACCESS_BARRIER_BIT);
                 },
-                StageKind::Frag { .. } => {
+                _ => {
                     // get render target id
                     let (target_tex, target_fb) = if let Some(name) = stage.target.as_ref() {
                         let tex = &self.pipeline.buffers[name];
@@ -249,9 +248,7 @@ impl Jockey {
                     unsafe {
                         // Specify render target
                         gl::BindFramebuffer(gl::FRAMEBUFFER, target_fb);
-                        if target_fb != 0 {
-                            gl::Viewport(0, 0, width as _, height as _);
-                        }
+                        gl::Viewport(0, 0, width as _, height as _);
 
                         // Specify fragment shader color output
                         #[allow(temporary_cstring_as_ptr)]
@@ -278,7 +275,13 @@ impl Jockey {
                         );
 
                         // Draw stuff
-                        draw_fullscreen_rect(self.vao);
+                        if let StageKind::Vert { count, mode } = stage.kind {
+                            gl::ClearColor(0.0, 0.0, 0.0, 1.0);
+                            gl::Clear(gl::COLOR_BUFFER_BIT);
+                            draw_anything(self.vao, count, mode)
+                        } else {
+                            draw_fullscreen_rect(self.vao);
+                        }
 
                         // Generate mip maps
                         gl::BindTexture(gl::TEXTURE_2D, target_tex);

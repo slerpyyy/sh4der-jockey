@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 use crate::jockey::*;
 use serde_json::Value;
+use std::collections::HashMap;
 
 /// The rendering pipeline struct
 ///
@@ -61,7 +61,9 @@ impl Pipeline {
             }
 
             let texture = match stage.kind {
-                StageKind::Frag { .. } => Texture::with_framebuffer(1280, 720),
+                StageKind::Frag { .. } | StageKind::Vert { .. } => {
+                    Texture::with_framebuffer(1280, 720)
+                }
                 StageKind::Comp {
                     tex_type, tex_dim, ..
                 } => Texture::new(&tex_dim[..(tex_type as _)]),
