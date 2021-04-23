@@ -219,6 +219,13 @@ impl Jockey {
                     gl::Uniform1f(time_loc, time);
                 }
 
+                // Add vertex count uniform
+                if let StageKind::Vert {count, ..} = stage.kind {
+                    let name = CString::new("vertexCount").unwrap();
+                    let loc = gl::GetUniformLocation(stage.prog_id, name.as_ptr());
+                    gl::Uniform1f(loc, count as _);
+                }
+
                 // Add and bind uniform textures
                 for (k, (name, tex)) in self.pipeline.buffers.iter().enumerate() {
                     let name = CString::new(name.as_bytes()).unwrap();

@@ -1,7 +1,9 @@
 {
     "stages": [
         {
-            "vs": "./shader.vert"
+            "vs": "./shader.vert",
+            "mode": "LINES",
+            "count": 200
         }
     ]
 }
