@@ -52,17 +52,26 @@ impl Pipeline {
         }
 
         // put buffers into hashmap
-        let mut buffers = HashMap::new();
+        let mut buffers = HashMap::<String, Texture>::new();
         for stage in stages.iter() {
             let target = match &stage.target {
                 Some(s) => s,
                 None => continue,
             };
 
-            if buffers.contains_key(target) {
+            // check if target exists already
+            if let Some(tex) = buffers.get(target) {
+                if Some(tex.resolution()) != stage.resolution() {
+                    return Err(format!(
+                        "Texture {} already has a different resolution",
+                        target
+                    ));
+                }
+
                 continue;
             }
 
+            // create textures
             let texture = match stage.kind {
                 StageKind::Frag { resolution } | StageKind::Vert { resolution, .. } => {
                     let (width, height) = resolution.unwrap_or(screen_size);
@@ -73,6 +82,7 @@ impl Pipeline {
                 } => Texture::new(&tex_dim[..(tex_type as _)]),
             };
 
+            // insert texture into hashmap
             buffers.insert(target.clone(), texture);
         }
 
