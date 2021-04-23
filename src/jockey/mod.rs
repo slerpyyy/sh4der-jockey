@@ -2,15 +2,15 @@ use crate::util::*;
 use gl::types::*;
 use imgui::im_str;
 use lazy_static::lazy_static;
-use sdl2::event::Event;
+use sdl2::event::{Event, WindowEvent};
 use sdl2::keyboard::{Keycode, Mod};
 use std::{ffi::CString, time::Instant};
 
-mod stage;
 mod pipeline;
+mod stage;
 
-pub use stage::*;
 pub use pipeline::*;
+pub use stage::*;
 
 lazy_static! {
     static ref JOCKEY_TITLE: String = {
@@ -138,7 +138,7 @@ impl Jockey {
     /// attempt to read and compile all necessary shaders. If everything loaded
     /// successfully, the new Pipeline struct will stomp the old one.
     pub fn update_pipeline(&mut self) {
-        let update = match Pipeline::load() {
+        let update = match Pipeline::load(&self.window) {
             Ok(pl) => pl,
             Err(err) => {
                 eprintln!("Failed to load pipeline:\n{}", err);
@@ -173,13 +173,12 @@ impl Jockey {
                     ..
                 } if keymod & Mod::LCTRLMOD != Mod::NOMOD => do_update_pipeline = true,
 
-                //Event::Window {
-                //    win_event: WindowEvent::Resized(width, height),
-                //    ..
-                //} => {
-                //    println!("resize detected {:?}", (width, height));
-                //}
-
+                Event::Window {
+                    win_event: WindowEvent::Resized(width, height),
+                    ..
+                } if !do_update_pipeline => {
+                    self.pipeline.resize_buffers(width as _, height as _);
+                }
                 _ => {}
             }
         }
@@ -241,7 +240,11 @@ impl Jockey {
                     // get render target id
                     let (target_tex, target_fb) = if let Some(name) = stage.target.as_ref() {
                         let tex = &self.pipeline.buffers[name];
-                        (tex.id, tex.fb.unwrap())
+                        if let TextureKind::FrameBuffer { fb, .. } = tex.kind {
+                            (tex.id, fb)
+                        } else {
+                            panic!("No framebuffer for render target!")
+                        }
                     } else {
                         (0, 0) // The screen is always id=0
                     };
@@ -278,7 +281,13 @@ impl Jockey {
                         );
 
                         // Draw stuff
-                        draw_fullscreen_rect(self.vao);
+                        if let StageKind::Vert { count, mode, .. } = stage.kind {
+                            gl::ClearColor(0.0, 0.0, 0.0, 1.0);
+                            gl::Clear(gl::COLOR_BUFFER_BIT);
+                            draw_anything(self.vao, count, mode)
+                        } else {
+                            draw_fullscreen_rect(self.vao);
+                        }
 
                         // Generate mip maps
                         gl::BindTexture(gl::TEXTURE_2D, target_tex);

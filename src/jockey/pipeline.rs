@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 use crate::jockey::*;
 use serde_json::Value;
+use std::collections::HashMap;
 
 /// The rendering pipeline struct
 ///
@@ -21,7 +21,7 @@ impl Pipeline {
         }
     }
 
-    pub fn load() -> Result<Self, String> {
+    pub fn load(window: &sdl2::video::Window) -> Result<Self, String> {
         let reader = match std::fs::File::open("pipeline.json") {
             Ok(s) => s,
             Err(e) => return Err(e.to_string()),
@@ -32,10 +32,12 @@ impl Pipeline {
             Err(e) => return Err(e.to_string()),
         };
 
-        Pipeline::from_json(object)
+        let screen_size = window.size();
+
+        Pipeline::from_json(object, screen_size)
     }
 
-    pub fn from_json(object: Value) -> Result<Self, String> {
+    pub fn from_json(object: Value, screen_size: (u32, u32)) -> Result<Self, String> {
         let passes = match object.get("stages") {
             Some(Value::Array(s)) => s.clone(),
             s => return Err(format!("expected array, got {:?}", s)),
@@ -61,7 +63,10 @@ impl Pipeline {
             }
 
             let texture = match stage.kind {
-                StageKind::Frag { .. } => Texture::new(1280, 720),
+                StageKind::Frag { resolution } | StageKind::Vert { resolution, .. } => {
+                    let (width, height) = resolution.unwrap_or(screen_size);
+                    Texture::with_framebuffer(width as _, height as _)
+                }
                 StageKind::Comp {
                     tex_type, tex_dim, ..
                 } => Texture::create_image_texture(tex_type, tex_dim),
@@ -71,5 +76,26 @@ impl Pipeline {
         }
 
         Ok(Self { stages, buffers })
+    }
+
+    pub fn resize_buffers(&mut self, width: u32, height: u32) {
+        for stage in &self.stages {
+            let target = &stage.target;
+            match target {
+                Some(s) => {
+                    let tex = match stage.kind {
+                        StageKind::Frag {
+                            resolution: None, ..
+                        }
+                        | StageKind::Vert {
+                            resolution: None, ..
+                        } => Texture::with_framebuffer(width, height),
+                        _ => continue,
+                    };
+                    self.buffers.insert(s.clone(), tex);
+                }
+                None => continue,
+            }
+        }
     }
 }

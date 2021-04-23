@@ -11,7 +11,14 @@ pub enum StageKind {
         tex_type: GLuint,
         tex_dim: [u32; 3],
     },
-    Frag,
+    Vert {
+        count: GLsizei,
+        mode: GLenum,
+        resolution: Option<(u32, u32)>,
+    },
+    Frag {
+        resolution: Option<(u32, u32)>,
+    },
 }
 
 /// The stage struct
@@ -37,92 +44,86 @@ impl Stage {
 
         let target = match object.get("target") {
             Some(Value::String(s)) => Some(s.clone()),
+            Some(s) => {
+                return Err(format!(
+                    "Expected field \"target\" to be a string, got {:?}",
+                    s
+                ))
+            }
             None => None,
             s => return Err(format!("expected string, got {:?}", s)),
         };
 
-        let cs = match object.get("cs") {
-            Some(Value::String(s)) => {
-                match std::fs::read_to_string(s) {
-                    Ok(s) => Some(s),
-                    Err(e) => return Err(e.to_string()),
+        let resolution = match object.get("resolution") {
+            Some(Value::Array(ar)) if ar.len() == 2 => {
+                let err_msg = "resolution not a positive integer";
+                Some((
+                    ar[0].as_u64().expect(err_msg) as _,
+                    ar[0].as_u64().expect(err_msg) as _,
+                ))
+            }
+            _ => None,
+        };
+
+        // read all shaders to strings
+        let shaders: [Option<String>; 3] = {
+            let mut out = [None, None, None];
+            for (k, name) in ["vs", "fs", "cs"].iter().enumerate() {
+                out[k] = match object.get(name) {
+                    Some(Value::String(s)) => match std::fs::read_to_string(s) {
+                        Ok(s) => Some(s),
+                        Err(e) => return Err(e.to_string()),
+                    },
+                    Some(s) => {
+                        return Err(format!(
+                            "Expected shader field to be a filename, got {:?}",
+                            s
+                        ))
+                    }
+                    None => None,
                 }
             }
             None => None,
             s => return Err(format!("expected string, got {:?}", s)),
         };
 
-        if let Some(cs) = cs {
-            let tex_type = match object.get("cs_type") {
-                Some(Value::String(s)) if s.as_str() == "1D" => gl::TEXTURE_1D,
-                Some(Value::String(s)) if s.as_str() == "2D" => gl::TEXTURE_2D,
-                Some(Value::String(s)) if s.as_str() == "3D" => gl::TEXTURE_3D,
-                s => return Err(format!("expected texture type, got {:?}", s)),
-            };
+        match shaders {
+            // handle full screen fragment shader stages
+            [None, Some(fs), None] => {
+                let vs = PASS_VERT;
 
-            let tex_dim = match object.get("cs_size") {
-                Some(Value::Array(ar)) if ar.len() <= 3 => {
-                    let mut tex_dim: [u32; 3] = [0; 3];
-                    for (i, sz) in ar.iter().enumerate() {
-                        let val = sz.as_u64();
-                        tex_dim[i] = match val {
-                            Some(dim) => dim as _,
-                            _ => return Err(format!("texture size not an integer: {:?}", val)),
-                        };
-                    }
-                    tex_dim
-                }
+                let vs_id = compile_shader(&vs, gl::VERTEX_SHADER)?;
+                let fs_id = compile_shader(&fs, gl::FRAGMENT_SHADER)?;
 
-                Some(Value::Number(n)) => [
-                    match n.as_u64() {
-                        Some(k) => k as _,
-                        _ => return Err(format!("texture size not an integer: {:?}", n)),
-                    },
-                    0,
-                    0,
-                ],
+                let sh_ids = vec![vs_id, fs_id];
+                let prog_id = link_program(&sh_ids)?;
 
-                s => return Err(format!("expected texture size, got {:?}", s)),
-            };
+                let kind = StageKind::Frag { resolution };
 
-            let cs_id = compile_shader(&cs, gl::COMPUTE_SHADER)?;
-            let sh_ids = vec![cs_id];
-            let prog_id = link_program(&sh_ids)?;
+                Ok(Stage {
+                    prog_id,
+                    target,
+                    sh_ids,
+                    perf,
+                    kind,
+                })
+            }
 
-            let kind = StageKind::Comp {
-                tex_type,
-                tex_dim,
-            };
+            // handle vertex shader stages
+            [Some(vs), fs_opt, None] => {
+                let fs = fs_opt.unwrap_or_else(|| PASS_FRAG.to_string());
 
-            Ok(Stage {
-                prog_id,
-                target,
-                perf,
-                sh_ids,
-                kind,
-            })
-        } else {
-            let fs = match object.get("fs") {
-                Some(Value::String(s)) => {
-                    match std::fs::read_to_string(s) {
-                        Ok(s) => s,
-                        Err(e) => return Err(e.to_string()),
-                    }
-                }
-                None => DEFAULT_FRAGMENT_SHADER.to_string(),
-                s => return Err(format!("expected string, got {:?}", s)),
-            };
+                let vs_id = compile_shader(&vs, gl::VERTEX_SHADER)?;
+                let fs_id = compile_shader(&fs, gl::FRAGMENT_SHADER)?;
 
-            let vs = match object.get("vs") {
-                Some(Value::String(s)) => {
-                    match std::fs::read_to_string(s) {
-                        Ok(s) => s,
-                        Err(e) => return Err(e.to_string()),
-                    }
-                }
-                None => DEFAULT_VERTEX_SHADER.to_string(),
-                s => return Err(format!("expected string, got {:?}", s)),
-            };
+                let sh_ids = vec![vs_id, fs_id];
+                let prog_id = link_program(&sh_ids)?;
+
+                let kind = StageKind::Vert {
+                    count: 1000,
+                    mode: gl::LINES,
+                    resolution,
+                };
 
             let vs_id = compile_shader(&vs, gl::VERTEX_SHADER)?;
             let fs_id = compile_shader(&fs, gl::FRAGMENT_SHADER)?;
