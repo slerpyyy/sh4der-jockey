@@ -1,14 +1,22 @@
 use gl::types::*;
+
+#[derive(Debug)]
+pub enum TextureKind {
+    FrameBuffer { fb: GLuint, resolution: (u32, u32) },
+    Image1D { resolution: u32 },
+    Image2D { resolution: (u32, u32) },
+    Image3D { resolution: (u32, u32, u32) },
+}
+
 #[derive(Debug)]
 pub struct Texture {
     /// The id of the texture object
     pub id: GLuint,
-    /// The id of the framebuffer which is attached to this texture
-    pub fb: Option<GLuint>,
+    pub kind: TextureKind,
 }
 
 impl Texture {
-    pub fn with_framebuffer(width: GLsizei, height: GLsizei) -> Self {
+    pub fn with_framebuffer(width: u32, height: u32) -> Self {
         unsafe {
             let mut id = 0;
             let mut fb = 0;
@@ -27,14 +35,14 @@ impl Texture {
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR_MIPMAP_LINEAR as _);
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as _);
 
-            gl::TexStorage2D(gl::TEXTURE_2D, 4, gl::RGBA32F, width, height);
+            gl::TexStorage2D(gl::TEXTURE_2D, 4, gl::RGBA32F, width as _, height as _);
             gl::TexSubImage2D(
                 gl::TEXTURE_2D,
                 4,
                 0,
                 0,
-                width,
-                height,
+                width as _,
+                height as _,
                 gl::RGBA32F,
                 gl::FLOAT,
                 std::ptr::null(),
@@ -55,7 +63,13 @@ impl Texture {
                 gl::FRAMEBUFFER_COMPLETE
             );
 
-            Self { id, fb: Some(fb) }
+            Self {
+                id,
+                kind: TextureKind::FrameBuffer {
+                    fb,
+                    resolution: (width, height),
+                },
+            }
         }
     }
 
@@ -66,7 +80,7 @@ impl Texture {
             gl::GenTextures(1, &mut tex_id);
             gl::ActiveTexture(gl::TEXTURE0);
 
-            match resolution {
+            let kind = match resolution {
                 &[_, _, _] => todo!(),
 
                 &[width, height] => {
@@ -86,6 +100,9 @@ impl Texture {
                         gl::FLOAT,
                         std::ptr::null(),
                     );
+                    TextureKind::Image2D {
+                        resolution: (width, height),
+                    }
                 }
 
                 &[width] => {
@@ -103,17 +120,15 @@ impl Texture {
                         gl::FLOAT,
                         std::ptr::null(),
                     );
+                    TextureKind::Image1D { resolution: width }
                 }
 
                 s => panic!("Invalid texture resolution: {:?}", s),
-            }
+            };
 
             gl::BindImageTexture(0, tex_id, 0, gl::FALSE, 0, gl::READ_WRITE, gl::RGBA32F);
 
-            Self {
-                id: tex_id,
-                fb: None,
-            }
+            Self { id: tex_id, kind }
         }
     }
 }
@@ -123,7 +138,7 @@ impl Drop for Texture {
         unsafe {
             gl::DeleteTextures(1, &self.id);
 
-            if let Some(fb) = self.fb {
+            if let TextureKind::FrameBuffer { fb, .. } = self.kind {
                 gl::DeleteFramebuffers(1, &fb)
             }
         }
