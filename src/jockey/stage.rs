@@ -23,7 +23,7 @@ pub enum StageKind {
 
 /// The stage struct
 ///
-/// This struct holds all data accosiated to a stage in the render pipeline.
+/// This struct holds all data associated to a stage in the render pipeline.
 ///
 /// Note that it does not render anything itself, it merely holds the
 /// information and takes care of resource management, i.e. it compiles
@@ -217,6 +217,21 @@ impl Stage {
 
             // Handle everything else
             _ => Err("Invalid shader configuration".to_string()),
+        }
+    }
+
+    pub fn resolution(&self) -> Option<[u32; 3]> {
+        match self.kind {
+            StageKind::Comp { tex_dim, .. } => Some(tex_dim),
+            StageKind::Frag {
+                resolution: Some((width, height)),
+                ..
+            }
+            | StageKind::Vert {
+                resolution: Some((width, height)),
+                ..
+            } => Some([width, height, 0]),
+            _ => None,
         }
     }
 }

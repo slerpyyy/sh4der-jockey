@@ -203,6 +203,12 @@ impl Jockey {
         for stage in self.pipeline.stages.iter_mut() {
             let stage_start = Instant::now();
 
+            // get size of the render target
+            let target_res = match stage.resolution() {
+                Some([w, h, 0]) => (w, h),
+                _ => (width, height),
+            };
+
             unsafe {
                 // Use shader program
                 gl::UseProgram(stage.prog_id);
@@ -215,7 +221,7 @@ impl Jockey {
                     let r_loc = gl::GetUniformLocation(stage.prog_id, r_name.as_ptr());
                     let time_loc = gl::GetUniformLocation(stage.prog_id, time_name.as_ptr());
 
-                    gl::Uniform3f(r_loc, width as _, height as _, time);
+                    gl::Uniform3f(r_loc, target_res.0 as _, target_res.1 as _, time);
                     gl::Uniform1f(time_loc, time);
                 }
 
@@ -245,7 +251,7 @@ impl Jockey {
                 },
                 _ => {
                     // get render target id
-                    let (target_tex, target_fb) = if let Some(name) = stage.target.as_ref() {
+                    let (target_tex, target_fb) = if let Some(name) = &stage.target {
                         let tex = &self.pipeline.buffers[name];
                         if let TextureKind::FrameBuffer { fb, .. } = tex.kind {
                             (tex.id, fb)
@@ -259,7 +265,7 @@ impl Jockey {
                     unsafe {
                         // Specify render target
                         gl::BindFramebuffer(gl::FRAMEBUFFER, target_fb);
-                        gl::Viewport(0, 0, width as _, height as _);
+                        gl::Viewport(0, 0, target_res.0 as _, target_res.1 as _);
 
                         // Specify fragment shader color output
                         #[allow(temporary_cstring_as_ptr)]
