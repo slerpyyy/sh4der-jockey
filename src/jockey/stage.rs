@@ -14,10 +14,10 @@ pub enum StageKind {
     Vert {
         count: GLsizei,
         mode: GLenum,
-        resolution: Option<(u32, u32)>,
+        res: Option<(u32, u32)>,
     },
     Frag {
-        resolution: Option<(u32, u32)>,
+        res: Option<(u32, u32)>,
     },
 }
 
@@ -54,12 +54,12 @@ impl Stage {
             None => None,
         };
 
-        let resolution = match object.get("resolution") {
-            Some(Value::Array(ar)) if ar.len() == 2 => {
-                let err_msg = "resolution not a positive integer";
+        let res = match object.get("res").or_else(|| object.get("resolution")) {
+            Some(Value::Array(arr)) if arr.len() == 2 => {
+                let err_msg = "Resolution not a positive integer";
                 Some((
-                    ar[0].as_u64().expect(err_msg) as _,
-                    ar[0].as_u64().expect(err_msg) as _,
+                    arr[0].as_u64().expect(err_msg) as _,
+                    arr[1].as_u64().expect(err_msg) as _,
                 ))
             }
             _ => None,
@@ -98,7 +98,7 @@ impl Stage {
                 let sh_ids = vec![vs_id, fs_id];
                 let prog_id = link_program(&sh_ids)?;
 
-                let kind = StageKind::Frag { resolution };
+                let kind = StageKind::Frag { res };
 
                 Ok(Stage {
                     prog_id,
@@ -141,21 +141,12 @@ impl Stage {
                         Some("TRIANGLE_FAN") => gl::TRIANGLE_FAN,
                         Some("TRIANGLE_STRIP") => gl::TRIANGLE_STRIP,
                         Some("TRIANGLES") => gl::TRIANGLES,
-                        _ => {
-                            return Err(format!(
-                                "Expected vertex count to be an unsigned int, got {:?}",
-                                s
-                            ))
-                        }
+                        _ => return Err(format!("Invalid vertex mode: {:?}", s)),
                     },
                     _ => gl::TRIANGLES,
                 };
 
-                let kind = StageKind::Vert {
-                    resolution,
-                    count,
-                    mode,
-                };
+                let kind = StageKind::Vert { res, count, mode };
 
                 Ok(Stage {
                     prog_id,
@@ -224,11 +215,11 @@ impl Stage {
         match self.kind {
             StageKind::Comp { tex_dim, .. } => Some(tex_dim),
             StageKind::Frag {
-                resolution: Some((width, height)),
+                res: Some((width, height)),
                 ..
             }
             | StageKind::Vert {
-                resolution: Some((width, height)),
+                res: Some((width, height)),
                 ..
             } => Some([width, height, 0]),
             _ => None,

@@ -73,8 +73,8 @@ impl Pipeline {
 
             // create textures
             let texture = match stage.kind {
-                StageKind::Frag { resolution } | StageKind::Vert { resolution, .. } => {
-                    let (width, height) = resolution.unwrap_or(screen_size);
+                StageKind::Frag { res } | StageKind::Vert { res, .. } => {
+                    let (width, height) = res.unwrap_or(screen_size);
                     Texture::with_framebuffer(width as _, height as _)
                 }
                 StageKind::Comp {
@@ -95,12 +95,9 @@ impl Pipeline {
             match target {
                 Some(s) => {
                     let tex = match stage.kind {
-                        StageKind::Frag {
-                            resolution: None, ..
+                        StageKind::Frag { res: None, .. } | StageKind::Vert { res: None, .. } => {
+                            Texture::with_framebuffer(width, height)
                         }
-                        | StageKind::Vert {
-                            resolution: None, ..
-                        } => Texture::with_framebuffer(width, height),
                         _ => continue,
                     };
                     self.buffers.insert(s.clone(), tex);

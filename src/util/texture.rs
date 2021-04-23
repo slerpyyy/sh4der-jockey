@@ -2,10 +2,10 @@ use gl::types::*;
 
 #[derive(Debug)]
 pub enum TextureKind {
-    FrameBuffer { fb: GLuint, resolution: [u32; 2] },
-    Image1D { resolution: [u32; 1] },
-    Image2D { resolution: [u32; 2] },
-    Image3D { resolution: [u32; 3] },
+    FrameBuffer { fb: GLuint, res: [u32; 2] },
+    Image1D { res: [u32; 1] },
+    Image2D { res: [u32; 2] },
+    Image3D { res: [u32; 3] },
 }
 
 #[derive(Debug)]
@@ -69,7 +69,7 @@ impl Texture {
                 id,
                 kind: TextureKind::FrameBuffer {
                     fb,
-                    resolution: [width, height],
+                    res: [width, height],
                 },
             }
         }
@@ -108,7 +108,7 @@ impl Texture {
                         std::ptr::null(),
                     );
                     TextureKind::Image3D {
-                        resolution: [width, height, depth],
+                        res: [width, height, depth],
                     }
                 }
 
@@ -130,7 +130,7 @@ impl Texture {
                         std::ptr::null(),
                     );
                     TextureKind::Image2D {
-                        resolution: [width, height],
+                        res: [width, height],
                     }
                 }
 
@@ -149,9 +149,7 @@ impl Texture {
                         gl::FLOAT,
                         std::ptr::null(),
                     );
-                    TextureKind::Image1D {
-                        resolution: [width],
-                    }
+                    TextureKind::Image1D { res: [width] }
                 }
 
                 s => panic!("Invalid texture resolution: {:?}", s),
@@ -167,19 +165,10 @@ impl Texture {
         let mut out = [0; 3];
 
         match self.kind {
-            TextureKind::FrameBuffer {
-                resolution, ..
-            } => out.copy_from_slice(&resolution),
-            TextureKind::Image1D {
-                resolution, ..
-            } => out.copy_from_slice(&resolution),
-            TextureKind::Image2D {
-                resolution, ..
-            } => out.copy_from_slice(&resolution),
-            TextureKind::Image3D {
-                resolution,
-                ..
-            } => out.copy_from_slice(&resolution),
+            TextureKind::FrameBuffer { res, .. } => out.copy_from_slice(&res),
+            TextureKind::Image1D { res, .. } => out.copy_from_slice(&res),
+            TextureKind::Image2D { res, .. } => out.copy_from_slice(&res),
+            TextureKind::Image3D { res, .. } => out.copy_from_slice(&res),
         }
 
         out
