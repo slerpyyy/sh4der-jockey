@@ -3,8 +3,9 @@
 out vec4 color;
 
 uniform vec3 R;
+uniform float time;
 
 void main() {
     vec2 uv = gl_FragCoord.xy / R.xy;
-    color = vec4(uv, 0.5 + 0.5 * sin(R.z), 1);
+    color = vec4(uv, 0.5 + 0.5 * sin(time), 1);
 }

@@ -16,7 +16,7 @@ pub struct Texture {
 }
 
 impl Texture {
-    pub fn with_framebuffer(width: u32, height: u32) -> Self {
+    pub fn with_framebuffer(width: GLsizei, height: GLsizei) -> Self {
         unsafe {
             let mut id = 0;
             let mut fb = 0;
@@ -73,28 +73,28 @@ impl Texture {
         }
     }
 
-    pub fn create_image_texture(tex_type: GLuint, tex_dim: [u32; 3]) -> Self {
+    pub fn new(resolution: &[u32]) -> Self {
         unsafe {
             let mut tex_id = 0;
 
             gl::GenTextures(1, &mut tex_id);
             gl::ActiveTexture(gl::TEXTURE0);
 
-            let kind = match resolution {
+            match resolution {
                 &[_, _, _] => todo!(),
 
                 &[width, height] => {
                     gl::BindTexture(gl::TEXTURE_2D, tex_id);
-                    gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as i32);
-                    gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as i32);
-                    gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
-                    gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
+                    gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as _);
+                    gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as _);
+                    gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as _);
+                    gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as _);
                     gl::TexImage2D(
                         gl::TEXTURE_2D,
                         0,
                         gl::RGBA32F as _,
-                        tex_dim[0] as _,
-                        tex_dim[1] as _,
+                        width as _,
+                        height as _,
                         0,
                         gl::RGBA,
                         gl::FLOAT,
@@ -104,18 +104,17 @@ impl Texture {
                         resolution: (width, height),
                     }
                 }
-                gl::TEXTURE_1D => {
-                    gl::GenTextures(1, &mut tex_id);
-                    gl::ActiveTexture(gl::TEXTURE0);
+
+                &[width] => {
                     gl::BindTexture(gl::TEXTURE_1D, tex_id);
                     gl::TexParameteri(gl::TEXTURE_1D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as _);
-                    gl::TexParameteri(gl::TEXTURE_1D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as _);
-                    gl::TexParameteri(gl::TEXTURE_1D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as _);
+                    gl::TexParameteri(gl::TEXTURE_1D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as _);
+                    gl::TexParameteri(gl::TEXTURE_1D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as _);
                     gl::TexImage1D(
                         gl::TEXTURE_1D,
                         0,
                         gl::RGBA32F as _,
-                        tex_dim[0] as _,
+                        width as _,
                         0,
                         gl::RGBA,
                         gl::FLOAT,
@@ -125,11 +124,14 @@ impl Texture {
                 }
 
                 s => panic!("Invalid texture resolution: {:?}", s),
-            };
+            }
 
             gl::BindImageTexture(0, tex_id, 0, gl::FALSE, 0, gl::READ_WRITE, gl::RGBA32F);
 
-            Self { id: tex_id, kind }
+            Self {
+                id: tex_id,
+                fb: None,
+            }
         }
     }
 }
@@ -139,7 +141,7 @@ impl Drop for Texture {
         unsafe {
             gl::DeleteTextures(1, &self.id);
 
-            if let TextureKind::FrameBuffer { fb, .. } = self.kind {
+            if let Some(fb) = self.fb {
                 gl::DeleteFramebuffers(1, &fb)
             }
         }

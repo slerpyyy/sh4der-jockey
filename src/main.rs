@@ -33,11 +33,21 @@ fn main() {
     }
 
     if matches.opt_present("i") {
-        todo!()
-        //std::fs::write("./pipeline.json", include_str!("defaults/pipeline.json")).unwrap();
-        //std::fs::write("./fs.glsl", include_str!("defaults/fs.glsl")).unwrap();
-        //std::fs::write("./vs.glsl", include_str!("defaults/vs.glsl")).unwrap();
-        //return;
+        let plf = std::path::Path::new("./pipeline.json");
+        let shf = std::path::Path::new("./scene.frag");
+
+        if plf.exists() || shf.exists() {
+            eprintln!("Error: File with same name already exists.\n");
+            eprintln!("Please make sure there is no file named \"pipeline.json\" or \"scene.json\"");
+            eprintln!("in your current working directory already. Try renaming or deleting these");
+            eprintln!("files and running the command again.\n");
+            return;
+        }
+
+        std::fs::write(plf, include_str!("defaults/pipeline.json")).unwrap();
+        std::fs::write(shf, include_str!("defaults/scene.frag")).unwrap();
+
+        return;
     }
 
     // create the jockey

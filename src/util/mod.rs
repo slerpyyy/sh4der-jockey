@@ -29,6 +29,17 @@ pub fn draw_fullscreen_rect(vao: GLuint) {
     }
 }
 
+pub fn draw_anything(vao: GLuint, count: GLsizei, mode: GLenum) {
+    unsafe {
+        gl::BindVertexArray(vao);
+        gl::BindBuffer(gl::ARRAY_BUFFER, vao);
+
+        gl::BufferData(gl::ARRAY_BUFFER, 0, std::ptr::null(), gl::STATIC_DRAW);
+
+        gl::DrawArrays(mode, 0, count);
+    }
+}
+
 pub fn compile_shader(src: &str, ty: GLenum) -> Result<GLuint, String> {
     unsafe {
         let shader = gl::CreateShader(ty);

@@ -1,24 +1,15 @@
-use gl::types::*;
 use crate::util::*;
+use gl::types::*;
 use serde_json::Value;
 
-const DEFAULT_VERTEX_SHADER: &str = include_str!("../defaults/vs.glsl");
-const DEFAULT_FRAGMENT_SHADER: &str = include_str!("../defaults/fs.glsl");
+const PASS_VERT: &str = include_str!("shaders/pass.vert");
+const PASS_FRAG: &str = include_str!("shaders/pass.frag");
 
 #[derive(Debug)]
 pub enum StageKind {
-    Comp {
-        tex_type: GLuint,
-        tex_dim: [u32; 3],
-    },
-    Vert {
-        count: GLsizei,
-        mode: GLenum,
-        resolution: Option<(u32, u32)>,
-    },
-    Frag {
-        resolution: Option<(u32, u32)>,
-    },
+    Comp { tex_type: GLuint, tex_dim: [u32; 3] },
+    Vert { count: GLsizei, mode: GLenum },
+    Frag,
 }
 
 /// The stage struct
@@ -42,6 +33,7 @@ impl Stage {
     pub fn from_json(object: Value) -> Result<Self, String> {
         let perf = RunningAverage::new();
 
+        // get render target name
         let target = match object.get("target") {
             Some(Value::String(s)) => Some(s.clone()),
             Some(s) => {
@@ -51,18 +43,6 @@ impl Stage {
                 ))
             }
             None => None,
-            s => return Err(format!("expected string, got {:?}", s)),
-        };
-
-        let resolution = match object.get("resolution") {
-            Some(Value::Array(ar)) if ar.len() == 2 => {
-                let err_msg = "resolution not a positive integer";
-                Some((
-                    ar[0].as_u64().expect(err_msg) as _,
-                    ar[0].as_u64().expect(err_msg) as _,
-                ))
-            }
-            _ => None,
         };
 
         // read all shaders to strings
@@ -83,8 +63,8 @@ impl Stage {
                     None => None,
                 }
             }
-            None => None,
-            s => return Err(format!("expected string, got {:?}", s)),
+
+            out
         };
 
         match shaders {
@@ -98,7 +78,7 @@ impl Stage {
                 let sh_ids = vec![vs_id, fs_id];
                 let prog_id = link_program(&sh_ids)?;
 
-                let kind = StageKind::Frag { resolution };
+                let kind = StageKind::Frag {};
 
                 Ok(Stage {
                     prog_id,
@@ -122,26 +102,69 @@ impl Stage {
                 let kind = StageKind::Vert {
                     count: 1000,
                     mode: gl::LINES,
-                    resolution,
                 };
 
-            let vs_id = compile_shader(&vs, gl::VERTEX_SHADER)?;
-            let fs_id = compile_shader(&fs, gl::FRAGMENT_SHADER)?;
+                Ok(Stage {
+                    prog_id,
+                    target,
+                    sh_ids,
+                    perf,
+                    kind,
+                })
+            }
 
-            let sh_ids = vec![vs_id, fs_id];
-            let prog_id = link_program(&sh_ids)?;
+            // handle compute shader stages
+            [None, None, Some(cs)] => {
+                let tex_type = match object.get("cs_type") {
+                    Some(Value::String(s)) if s.as_str() == "1D" => 1,
+                    Some(Value::String(s)) if s.as_str() == "2D" => 2,
+                    Some(Value::String(s)) if s.as_str() == "3D" => 3,
+                    s => return Err(format!("Expected texture type, got {:?}", s)),
+                };
 
-            let kind = StageKind::Frag {};
+                let tex_dim = match object.get("cs_size") {
+                    Some(Value::Array(ar)) if ar.len() <= 3 => {
+                        let mut tex_dim: [u32; 3] = [0; 3];
+                        for (i, sz) in ar.iter().enumerate() {
+                            let val = sz.as_u64();
+                            tex_dim[i] = match val {
+                                Some(dim) => dim as _,
+                                _ => return Err(format!("Texture size not an integer: {:?}", val)),
+                            };
+                        }
+                        tex_dim
+                    }
 
-            Ok(Stage {
-                prog_id,
-                target,
-                sh_ids,
-                perf,
-                kind,
-            })
+                    Some(Value::Number(n)) => [
+                        match n.as_u64() {
+                            Some(k) => k as _,
+                            _ => return Err(format!("Texture size not an integer: {:?}", n)),
+                        },
+                        0,
+                        0,
+                    ],
+
+                    s => return Err(format!("Expected texture size, got {:?}", s)),
+                };
+
+                let cs_id = compile_shader(&cs, gl::COMPUTE_SHADER)?;
+                let sh_ids = vec![cs_id];
+                let prog_id = link_program(&sh_ids)?;
+
+                let kind = StageKind::Comp { tex_type, tex_dim };
+
+                Ok(Stage {
+                    prog_id,
+                    target,
+                    perf,
+                    sh_ids,
+                    kind,
+                })
+            }
+
+            // Handle everything else
+            _ => Err("Invalid shader configuration".to_string()),
         }
-
     }
 }
 

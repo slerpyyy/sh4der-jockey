@@ -173,12 +173,12 @@ impl Jockey {
                     ..
                 } if keymod & Mod::LCTRLMOD != Mod::NOMOD => do_update_pipeline = true,
 
-                Event::Window {
-                    win_event: WindowEvent::Resized(width, height),
-                    ..
-                } if !do_update_pipeline => {
-                    self.pipeline.resize_buffers(width as _, height as _);
-                }
+                //Event::Window {
+                //    win_event: WindowEvent::Resized(width, height),
+                //    ..
+                //} => {
+                //    println!("resize detected {:?}", (width, height));
+                //}
                 _ => {}
             }
         }
@@ -236,7 +236,7 @@ impl Jockey {
                     gl::DispatchCompute(tex_dim[0], tex_dim[1].max(1), tex_dim[2].max(1));
                     gl::MemoryBarrier(gl::SHADER_IMAGE_ACCESS_BARRIER_BIT);
                 },
-                StageKind::Frag { .. } => {
+                _ => {
                     // get render target id
                     let (target_tex, target_fb) = if let Some(name) = stage.target.as_ref() {
                         let tex = &self.pipeline.buffers[name];
@@ -252,9 +252,7 @@ impl Jockey {
                     unsafe {
                         // Specify render target
                         gl::BindFramebuffer(gl::FRAMEBUFFER, target_fb);
-                        if target_fb != 0 {
-                            gl::Viewport(0, 0, width as _, height as _);
-                        }
+                        gl::Viewport(0, 0, width as _, height as _);
 
                         // Specify fragment shader color output
                         #[allow(temporary_cstring_as_ptr)]
@@ -281,7 +279,7 @@ impl Jockey {
                         );
 
                         // Draw stuff
-                        if let StageKind::Vert { count, mode, .. } = stage.kind {
+                        if let StageKind::Vert { count, mode } = stage.kind {
                             gl::ClearColor(0.0, 0.0, 0.0, 1.0);
                             gl::Clear(gl::COLOR_BUFFER_BIT);
                             draw_anything(self.vao, count, mode)

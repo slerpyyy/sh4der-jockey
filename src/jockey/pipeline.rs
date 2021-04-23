@@ -40,7 +40,8 @@ impl Pipeline {
     pub fn from_json(object: Value, screen_size: (u32, u32)) -> Result<Self, String> {
         let passes = match object.get("stages") {
             Some(Value::Array(s)) => s.clone(),
-            s => return Err(format!("expected array, got {:?}", s)),
+            None => return Err("Required field \"stages\" not found".to_string()),
+            s => return Err(format!("Expected \"stages\" to be an array, got {:?}", s)),
         };
 
         // parse stages
@@ -63,13 +64,12 @@ impl Pipeline {
             }
 
             let texture = match stage.kind {
-                StageKind::Frag { resolution } | StageKind::Vert { resolution, .. } => {
-                    let (width, height) = resolution.unwrap_or(screen_size);
-                    Texture::with_framebuffer(width as _, height as _)
+                StageKind::Frag { .. } | StageKind::Vert { .. } => {
+                    Texture::with_framebuffer(1280, 720)
                 }
                 StageKind::Comp {
                     tex_type, tex_dim, ..
-                } => Texture::create_image_texture(tex_type, tex_dim),
+                } => Texture::new(&tex_dim[..(tex_type as _)]),
             };
 
             buffers.insert(target.clone(), texture);
