@@ -64,8 +64,9 @@ impl Pipeline {
             }
 
             let texture = match stage.kind {
-                StageKind::Frag { .. } | StageKind::Vert { .. } => {
-                    Texture::with_framebuffer(1280, 720)
+                StageKind::Frag { resolution } | StageKind::Vert { resolution, .. } => {
+                    let (width, height) = resolution.unwrap_or(screen_size);
+                    Texture::with_framebuffer(width as _, height as _)
                 }
                 StageKind::Comp {
                     tex_type, tex_dim, ..

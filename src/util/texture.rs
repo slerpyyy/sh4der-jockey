@@ -16,7 +16,7 @@ pub struct Texture {
 }
 
 impl Texture {
-    pub fn with_framebuffer(width: GLsizei, height: GLsizei) -> Self {
+    pub fn with_framebuffer(width: u32, height: u32) -> Self {
         unsafe {
             let mut id = 0;
             let mut fb = 0;
@@ -80,7 +80,7 @@ impl Texture {
             gl::GenTextures(1, &mut tex_id);
             gl::ActiveTexture(gl::TEXTURE0);
 
-            match resolution {
+            let kind = match resolution {
                 &[_, _, _] => todo!(),
 
                 &[width, height] => {
@@ -124,14 +124,11 @@ impl Texture {
                 }
 
                 s => panic!("Invalid texture resolution: {:?}", s),
-            }
+            };
 
             gl::BindImageTexture(0, tex_id, 0, gl::FALSE, 0, gl::READ_WRITE, gl::RGBA32F);
 
-            Self {
-                id: tex_id,
-                fb: None,
-            }
+            Self { id: tex_id, kind }
         }
     }
 }
@@ -141,7 +138,7 @@ impl Drop for Texture {
         unsafe {
             gl::DeleteTextures(1, &self.id);
 
-            if let Some(fb) = self.fb {
+            if let TextureKind::FrameBuffer { fb, .. } = self.kind {
                 gl::DeleteFramebuffers(1, &fb)
             }
         }

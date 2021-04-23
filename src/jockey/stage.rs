@@ -7,9 +7,18 @@ const PASS_FRAG: &str = include_str!("shaders/pass.frag");
 
 #[derive(Debug)]
 pub enum StageKind {
-    Comp { tex_type: GLuint, tex_dim: [u32; 3] },
-    Vert { count: GLsizei, mode: GLenum },
-    Frag,
+    Comp {
+        tex_type: GLuint,
+        tex_dim: [u32; 3],
+    },
+    Vert {
+        count: GLsizei,
+        mode: GLenum,
+        resolution: Option<(u32, u32)>,
+    },
+    Frag {
+        resolution: Option<(u32, u32)>,
+    },
 }
 
 /// The stage struct
@@ -45,6 +54,17 @@ impl Stage {
             None => None,
         };
 
+        let resolution = match object.get("resolution") {
+            Some(Value::Array(ar)) if ar.len() == 2 => {
+                let err_msg = "resolution not a positive integer";
+                Some((
+                    ar[0].as_u64().expect(err_msg) as _,
+                    ar[0].as_u64().expect(err_msg) as _,
+                ))
+            }
+            _ => None,
+        };
+
         // read all shaders to strings
         let shaders: [Option<String>; 3] = {
             let mut out = [None, None, None];
@@ -78,7 +98,7 @@ impl Stage {
                 let sh_ids = vec![vs_id, fs_id];
                 let prog_id = link_program(&sh_ids)?;
 
-                let kind = StageKind::Frag {};
+                let kind = StageKind::Frag { resolution };
 
                 Ok(Stage {
                     prog_id,
@@ -102,6 +122,7 @@ impl Stage {
                 let kind = StageKind::Vert {
                     count: 1000,
                     mode: gl::LINES,
+                    resolution,
                 };
 
                 Ok(Stage {

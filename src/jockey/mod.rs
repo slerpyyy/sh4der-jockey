@@ -173,12 +173,12 @@ impl Jockey {
                     ..
                 } if keymod & Mod::LCTRLMOD != Mod::NOMOD => do_update_pipeline = true,
 
-                //Event::Window {
-                //    win_event: WindowEvent::Resized(width, height),
-                //    ..
-                //} => {
-                //    println!("resize detected {:?}", (width, height));
-                //}
+                Event::Window {
+                    win_event: WindowEvent::Resized(width, height),
+                    ..
+                } if !do_update_pipeline => {
+                    self.pipeline.resize_buffers(width as _, height as _);
+                }
                 _ => {}
             }
         }
@@ -279,7 +279,7 @@ impl Jockey {
                         );
 
                         // Draw stuff
-                        if let StageKind::Vert { count, mode } = stage.kind {
+                        if let StageKind::Vert { count, mode, .. } = stage.kind {
                             gl::ClearColor(0.0, 0.0, 0.0, 1.0);
                             gl::Clear(gl::COLOR_BUFFER_BIT);
                             draw_anything(self.vao, count, mode)
