@@ -38,7 +38,9 @@ fn main() {
 
         if plf.exists() || shf.exists() {
             eprintln!("Error: File with same name already exists.\n");
-            eprintln!("Please make sure there is no file named \"pipeline.json\" or \"scene.json\"");
+            eprintln!(
+                "Please make sure there is no file named \"pipeline.json\" or \"scene.json\""
+            );
             eprintln!("in your current working directory already. Try renaming or deleting these");
             eprintln!("files and running the command again.\n");
             return;

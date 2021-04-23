@@ -10,12 +10,15 @@ pub enum TextureKind {
 
 #[derive(Debug)]
 pub struct Texture {
-    /// The id of the texture object
     pub id: GLuint,
     pub kind: TextureKind,
 }
 
 impl Texture {
+    pub fn new(resolution: &[u32]) -> Self {
+        Self::with_params(resolution, gl::LINEAR, gl::LINEAR, gl::REPEAT)
+    }
+
     pub fn with_framebuffer(width: u32, height: u32) -> Self {
         unsafe {
             let mut id = 0;
@@ -28,12 +31,11 @@ impl Texture {
             gl::BindTexture(gl::TEXTURE_2D, id);
             gl::BindFramebuffer(gl::FRAMEBUFFER, fb);
 
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as _);
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as _);
-
             #[rustfmt::skip]
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR_MIPMAP_LINEAR as _);
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as _);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as _);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as _);
 
             gl::TexStorage2D(gl::TEXTURE_2D, 4, gl::RGBA32F, width as _, height as _);
             gl::TexSubImage2D(
@@ -73,7 +75,12 @@ impl Texture {
         }
     }
 
-    pub fn new(resolution: &[u32]) -> Self {
+    pub fn with_params(
+        resolution: &[u32],
+        min_filter: GLenum,
+        mag_filter: GLenum,
+        wrap_mode: GLenum,
+    ) -> Self {
         unsafe {
             let mut tex_id = 0;
 
@@ -81,14 +88,36 @@ impl Texture {
             gl::ActiveTexture(gl::TEXTURE0);
 
             let kind = match resolution {
-                &[_, _, _] => todo!(),
+                &[width, height, depth] => {
+                    gl::BindTexture(gl::TEXTURE_3D, tex_id);
+                    gl::TexParameteri(gl::TEXTURE_3D, gl::TEXTURE_MIN_FILTER, min_filter as _);
+                    gl::TexParameteri(gl::TEXTURE_3D, gl::TEXTURE_MAG_FILTER, mag_filter as _);
+                    gl::TexParameteri(gl::TEXTURE_3D, gl::TEXTURE_WRAP_S, wrap_mode as _);
+                    gl::TexParameteri(gl::TEXTURE_3D, gl::TEXTURE_WRAP_T, wrap_mode as _);
+                    gl::TexParameteri(gl::TEXTURE_3D, gl::TEXTURE_WRAP_R, wrap_mode as _);
+                    gl::TexImage3D(
+                        gl::TEXTURE_3D,
+                        0,
+                        gl::RGBA32F as _,
+                        width as _,
+                        height as _,
+                        depth as _,
+                        0,
+                        gl::RGBA,
+                        gl::FLOAT,
+                        std::ptr::null(),
+                    );
+                    TextureKind::Image3D {
+                        resolution: (width, height, depth),
+                    }
+                }
 
                 &[width, height] => {
                     gl::BindTexture(gl::TEXTURE_2D, tex_id);
-                    gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as _);
-                    gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as _);
-                    gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as _);
-                    gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as _);
+                    gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, min_filter as _);
+                    gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, mag_filter as _);
+                    gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, wrap_mode as _);
+                    gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, wrap_mode as _);
                     gl::TexImage2D(
                         gl::TEXTURE_2D,
                         0,
@@ -107,9 +136,9 @@ impl Texture {
 
                 &[width] => {
                     gl::BindTexture(gl::TEXTURE_1D, tex_id);
-                    gl::TexParameteri(gl::TEXTURE_1D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as _);
-                    gl::TexParameteri(gl::TEXTURE_1D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as _);
-                    gl::TexParameteri(gl::TEXTURE_1D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as _);
+                    gl::TexParameteri(gl::TEXTURE_1D, gl::TEXTURE_MIN_FILTER, min_filter as _);
+                    gl::TexParameteri(gl::TEXTURE_1D, gl::TEXTURE_MAG_FILTER, mag_filter as _);
+                    gl::TexParameteri(gl::TEXTURE_1D, gl::TEXTURE_WRAP_S, wrap_mode as _);
                     gl::TexImage1D(
                         gl::TEXTURE_1D,
                         0,

@@ -220,7 +220,7 @@ impl Jockey {
                 }
 
                 // Add vertex count uniform
-                if let StageKind::Vert {count, ..} = stage.kind {
+                if let StageKind::Vert { count, .. } = stage.kind {
                     let name = CString::new("vertexCount").unwrap();
                     let loc = gl::GetUniformLocation(stage.prog_id, name.as_ptr());
                     gl::Uniform1f(loc, count as _);
