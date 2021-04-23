@@ -24,6 +24,9 @@ A non-exhaustive list of things we want our tool to be able to do, vaguely order
     - [ ] loading models and textures
 - [ ] geometry shaders
 - [ ] compute shaders
+    - [x] a compute shader runs
+    - [ ] multiple render targets
+    - [ ] work group size config
 - [ ] curve editor
 - [ ] color palette
 - [x] performance profiler
