@@ -27,14 +27,12 @@ A non-exhaustive list of things we want our tool to be able to do, vaguely order
     - [x] a compute shader runs
     - [ ] multiple render targets
     - [ ] work group size config
+- [ ] hardware instancing
 - [ ] curve editor
 - [ ] color palette
 - [x] performance profiler
 - [ ] 3D noise texture
 - [x] resizable window
-
-Low priority:
-
 - [ ] cubemaps
 
 ## Setup
