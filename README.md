@@ -34,6 +34,10 @@ A non-exhaustive list of things we want our tool to be able to do, vaguely order
 - [ ] 3D noise texture
 - [x] resizable window
 - [ ] cubemaps
+- [ ] text rendering
+- [ ] custom textures/LUTs
+    - [ ] videos
+- [ ] recording mode
 
 ## Setup
 
