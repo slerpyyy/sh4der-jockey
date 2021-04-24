@@ -116,29 +116,27 @@ pub fn link_program(sh: &[GLuint]) -> Result<GLuint, String> {
     }
 }
 
-// based on the "glsl-include" crate, which almost does what we want
 pub fn preprocess(code: &str) -> Result<String, String> {
     lazy_static! {
+        // based on the "glsl-include" crate, which almost does what we want
         static ref INCLUDE_RE: Regex = Regex::new(
             r#"#\s*(pragma\s*)?include\s+[<"](?P<file>.*)[>"]"#
-        ).expect("failed to compile INCLUDE_RE regex");
+        ).expect("failed to compile regex");
     }
 
-    if let Some(pragma) = INCLUDE_RE.find(code) {
-        let caps = INCLUDE_RE.captures(pragma.as_str()).unwrap();
+    if let Some(include) = INCLUDE_RE.find(code) {
+        let caps = INCLUDE_RE.captures(include.as_str()).unwrap();
         let mat: Match = caps.name("file").unwrap();
         let file = match std::fs::read_to_string(mat.as_str()) {
             Ok(s) => s,
             Err(e) => return Err(e.to_string()),
         };
 
-        let prefix = &code[..pragma.start()];
+        let prefix = &code[..include.start()];
         let file = preprocess(&file)?;
-        let postfix = preprocess(&code[pragma.end()..])?;
+        let postfix = preprocess(&code[include.end()..])?;
 
-        let output = format!("{}{}{}", prefix, file, postfix);
-        println!("{}", output);
-        Ok(output)
+        Ok(format!("{}{}{}", prefix, file, postfix))
     } else {
         Ok(code.to_string())
     }
