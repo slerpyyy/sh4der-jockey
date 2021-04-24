@@ -1,13 +1,6 @@
 //#![feature(external_doc)]
 //#![doc(include = "../README.md")]
 
-extern crate gl;
-extern crate imgui;
-extern crate imgui_opengl_renderer;
-extern crate imgui_sdl2;
-extern crate lazy_static;
-extern crate sdl2;
-
 mod jockey;
 mod util;
 

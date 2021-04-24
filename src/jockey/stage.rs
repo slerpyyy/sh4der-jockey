@@ -68,7 +68,7 @@ impl Stage {
         // read all shaders to strings
         let shaders: [Option<String>; 3] = {
             let mut out = [None, None, None];
-            for (k, name) in ["vs", "fs", "cs"].iter().enumerate() {
+            for (k, &name) in ["vs", "fs", "cs"].iter().enumerate() {
                 out[k] = match object.get(name) {
                     Some(Value::String(s)) => match std::fs::read_to_string(s) {
                         Ok(s) => Some(s),
@@ -91,6 +91,7 @@ impl Stage {
             // handle full screen fragment shader stages
             [None, Some(fs), None] => {
                 let vs = PASS_VERT;
+                let fs = preprocess(&fs)?;
 
                 let vs_id = compile_shader(&vs, gl::VERTEX_SHADER)?;
                 let fs_id = compile_shader(&fs, gl::FRAGMENT_SHADER)?;
@@ -112,6 +113,8 @@ impl Stage {
             // handle vertex shader stages
             [Some(vs), fs_opt, None] => {
                 let fs = fs_opt.unwrap_or_else(|| PASS_FRAG.to_string());
+                let vs = preprocess(&vs)?;
+                let fs = preprocess(&fs)?;
 
                 let vs_id = compile_shader(&vs, gl::VERTEX_SHADER)?;
                 let fs_id = compile_shader(&fs, gl::FRAGMENT_SHADER)?;
@@ -159,6 +162,8 @@ impl Stage {
 
             // handle compute shader stages
             [None, None, Some(cs)] => {
+                let cs = preprocess(&cs)?;
+
                 let tex_type = match object.get("cs_type") {
                     Some(Value::String(s)) if s.as_str() == "1D" => 1,
                     Some(Value::String(s)) if s.as_str() == "2D" => 2,

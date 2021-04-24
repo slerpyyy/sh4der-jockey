@@ -5,10 +5,7 @@ out vec4 color;
 uniform vec3 R;
 uniform sampler2D distorted;
 
-vec3 gay(float x) {
-    x = x * 3.0 - 1.5;
-    return clamp(vec3(-x, 1.0-abs(x), x), 0.0, 1.0);
-}
+#pragma include "common.glsl"
 
 void main() {
     vec2 uv = gl_FragCoord.xy / R.xy;
