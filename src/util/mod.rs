@@ -1,7 +1,7 @@
 use gl::types::*;
-use std::ffi::CString;
 use lazy_static::lazy_static;
-use regex::{Match, Regex};
+use regex::Regex;
+use std::{collections::HashSet, ffi::CString};
 
 mod average;
 mod texture;
@@ -124,22 +124,35 @@ pub fn preprocess(code: &str) -> Result<String, String> {
         ).expect("failed to compile regex");
     }
 
-    if let Some(include) = INCLUDE_RE.find(code) {
-        let caps = INCLUDE_RE.captures(include.as_str()).unwrap();
-        let mat: Match = caps.name("file").unwrap();
-        let file = match std::fs::read_to_string(mat.as_str()) {
-            Ok(s) => s,
-            Err(e) => return Err(e.to_string()),
-        };
+    fn recurse(code: &str, mut seen: HashSet<String>) -> Result<String, String> {
+        if let Some(include) = INCLUDE_RE.find(code) {
+            let caps = INCLUDE_RE.captures(include.as_str()).unwrap();
+            let file_name = caps.name("file").unwrap().as_str();
 
-        let prefix = &code[..include.start()];
-        let file = preprocess(&file)?;
-        let postfix = preprocess(&code[include.end()..])?;
+            // detect include cycles
+            if !seen.insert(file_name.to_owned()) {
+                return Err(format!(
+                    "Cycle detected! File {} has been included further down the tree",
+                    file_name
+                ));
+            }
 
-        Ok(format!("{}{}{}", prefix, file, postfix))
-    } else {
-        Ok(code.to_string())
+            let file = match std::fs::read_to_string(file_name) {
+                Ok(s) => s,
+                Err(e) => return Err(e.to_string()),
+            };
+
+            let prefix = &code[..include.start()];
+            let file = recurse(&file, seen.clone())?;
+            let postfix = recurse(&code[include.end()..], seen)?;
+
+            Ok(format!("{}{}{}", prefix, file, postfix))
+        } else {
+            Ok(code.to_owned())
+        }
     }
+
+    recurse(code, HashSet::new())
 }
 
 #[allow(dead_code)]
