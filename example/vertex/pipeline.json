@@ -3,7 +3,7 @@
         {
             "vs": "./shader.vert",
             "mode": "LINES",
-            "count": 200
+            "count": 500
         }
     ]
 }

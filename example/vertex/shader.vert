@@ -3,7 +3,7 @@
 out vec4 v_color;
 
 uniform float vertexCount;
-uniform float time;
+uniform vec3 R;
 
 const float pi = acos(-1.0);
 
@@ -14,16 +14,20 @@ mat2 rot(float a)
 }
 
 void main() {
-  float a = 8. * pi * gl_VertexID / vertexCount;
+  float a = 8.0 * pi * gl_VertexID / vertexCount;
 
-  float r = 3.25;
-  vec2 off = vec2(0.5 * sin(r*a) + 1., cos(r*a));
+  float r = 26.0 / 8.0;
+  vec2 off = vec2(sin(r*a) + 2.3, cos(r*a) + 1.0);
   vec3 p = vec3(sin(a), 1, cos(a)) * off.xyx;
 
-  p.xz *= rot(time);
-  p.yz *= rot(0.8);
+  p.xz *= rot(R.z);
+  p.yz *= rot(0.6);
 
-  gl_Position = vec4(p/(p.z+3.), 1);
-  gl_PointSize = 4.0;
-  v_color = vec4(1./(p.z+2.));
+  v_color = vec4(1.0 / abs(p.z + 1.0));
+
+  p.z += 5;
+  p.x *= R.y / R.x;
+
+  gl_Position = vec4(p, p.z);
+  gl_PointSize = 1.0;
 }
