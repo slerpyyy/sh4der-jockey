@@ -4,7 +4,11 @@ use imgui::im_str;
 use lazy_static::lazy_static;
 use sdl2::event::{Event, WindowEvent};
 use sdl2::keyboard::{Keycode, Mod};
-use std::{ffi::CString, time::Instant};
+use std::{
+    ffi::CString,
+    sync::atomic::{AtomicBool, Ordering},
+    time::Instant,
+};
 
 mod pipeline;
 mod stage;
@@ -22,7 +26,7 @@ lazy_static! {
     };
 }
 
-static mut FILE_CHANGE: bool = false;
+static mut FILE_CHANGE: AtomicBool = AtomicBool::new(false);
 
 /// A struct for all the ugly internals.
 pub struct MegaContext {
@@ -103,7 +107,7 @@ impl Jockey {
         imgui.set_ini_filename(None);
 
         let imgui_sdl2 = imgui_sdl2::ImguiSdl2::new(&mut imgui, &window);
-        let renderer: imgui_opengl_renderer::Renderer =
+        let renderer =
             imgui_opengl_renderer::Renderer::new(&mut imgui, |s| video.gl_get_proc_address(s) as _);
         let event_pump = sdl_context.event_pump().unwrap();
 
@@ -117,8 +121,13 @@ impl Jockey {
 
         let pipeline = Pipeline::new();
         let frame_perf = RunningAverage::new();
+
+        #[rustfmt::skip]
         let mut watcher = notify::immediate_watcher(
-             |_| unsafe { FILE_CHANGE = true }
+            |_| unsafe {
+                println!("\nFile change detected!");
+                FILE_CHANGE.store(true, Ordering::Relaxed)
+            }
         ).unwrap();
 
         notify::Watcher::watch(&mut watcher, ".", notify::RecursiveMode::Recursive).unwrap();
@@ -175,15 +184,12 @@ impl Jockey {
     }
 
     pub fn handle_events(&mut self) {
-        let mut do_update_pipeline = false;
-
-        unsafe {
-            do_update_pipeline |= FILE_CHANGE;
-            FILE_CHANGE = false;
-        }
+        let mut do_update_pipeline = unsafe { FILE_CHANGE.swap(false, Ordering::Relaxed) };
 
         for event in self.ctx.event_pump.poll_iter() {
-            self.ctx.imgui_sdl2.handle_event(&mut self.ctx.imgui, &event);
+            self.ctx
+                .imgui_sdl2
+                .handle_event(&mut self.ctx.imgui, &event);
 
             if self.ctx.imgui_sdl2.ignore_event(&event) {
                 continue;
