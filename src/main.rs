@@ -64,6 +64,6 @@ fn main() {
         jockey.build_ui();
 
         // update ui
-        jockey.window.gl_swap_window();
+        jockey.ctx.window.gl_swap_window();
     }
 }

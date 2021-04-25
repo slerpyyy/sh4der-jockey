@@ -24,34 +24,39 @@ lazy_static! {
 
 static mut FILE_CHANGE: bool = false;
 
+/// A struct for all the ugly internals.
+pub struct MegaContext {
+    pub event_pump: sdl2::EventPump,
+    pub gl_context: sdl2::video::GLContext,
+    pub imgui_sdl2: imgui_sdl2::ImguiSdl2,
+    pub imgui: imgui::Context,
+    pub renderer: imgui_opengl_renderer::Renderer,
+    pub vao: GLuint,
+    pub vbo: GLuint,
+    pub watcher: notify::RecommendedWatcher,
+    pub window: sdl2::video::Window,
+}
+
 /// A struct to keep the state of the tool.
 ///
 /// This struct holds the render pipeline, as well as every type of context
 /// required to keep the window alive. The main point of this struct is to
 /// hide all the nasty details and keep the main function clean.
 pub struct Jockey {
-    pub window: sdl2::video::Window,
-    pub imgui: imgui::Context,
-    pub imgui_sdl2: imgui_sdl2::ImguiSdl2,
-    pub renderer: imgui_opengl_renderer::Renderer,
-    pub gl_context: sdl2::video::GLContext,
-    pub event_pump: sdl2::EventPump,
-    pub vao: GLuint,
-    pub vbo: GLuint,
-    pub pipeline: Pipeline,
-    pub start_time: Instant,
-    pub last_frame: Instant,
-    pub frame_perf: RunningAverage<f32, 128>,
-    pub watcher: notify::RecommendedWatcher,
+    pub ctx: MegaContext,
     pub done: bool,
+    pub frame_perf: RunningAverage<f32, 128>,
+    pub last_frame: Instant,
+    pub pipeline: Pipeline,
     pub sliders: [f32; 8],
+    pub start_time: Instant,
 }
 
 impl std::fmt::Debug for Jockey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct(stringify!(Jockey))
-            .field("vao", &self.vao)
-            .field("vbo", &self.vbo)
+            .field("vao", &self.ctx.vao)
+            .field("vbo", &self.ctx.vbo)
             .field("pipeline", &self.pipeline)
             .finish()
     }
@@ -113,33 +118,34 @@ impl Jockey {
         let pipeline = Pipeline::new();
         let frame_perf = RunningAverage::new();
         let mut watcher = notify::immediate_watcher(
-             |res| {
-                println!("\nFile change detected!");
-                unsafe { FILE_CHANGE = true }
-            }
+             |_| unsafe { FILE_CHANGE = true }
         ).unwrap();
 
         notify::Watcher::watch(&mut watcher, ".", notify::RecursiveMode::Recursive).unwrap();
+
+        let ctx = MegaContext {
+            event_pump,
+            gl_context,
+            imgui_sdl2,
+            imgui,
+            renderer,
+            vao,
+            vbo,
+            watcher,
+            window,
+        };
 
         let start_time = Instant::now();
         let last_frame = start_time;
 
         let mut this = Self {
-            window,
-            event_pump,
-            imgui,
-            imgui_sdl2,
-            renderer,
-            vao,
-            vbo,
-            gl_context,
-            pipeline,
-            start_time,
+            ctx,
+            done: false,
             frame_perf,
             last_frame,
-            watcher,
+            pipeline,
             sliders: [0.0; 8],
-            done: false,
+            start_time,
         };
 
         this.update_pipeline();
@@ -153,7 +159,7 @@ impl Jockey {
     /// successfully, the new Pipeline struct will stomp the old one.
     pub fn update_pipeline(&mut self) {
         let start_time = Instant::now();
-        let update = match Pipeline::load(&self.window) {
+        let update = match Pipeline::load(&self.ctx.window) {
             Ok(pl) => pl,
             Err(err) => {
                 eprintln!("Failed to load pipeline:\n{}", err);
@@ -176,10 +182,10 @@ impl Jockey {
             FILE_CHANGE = false;
         }
 
-        for event in self.event_pump.poll_iter() {
-            self.imgui_sdl2.handle_event(&mut self.imgui, &event);
+        for event in self.ctx.event_pump.poll_iter() {
+            self.ctx.imgui_sdl2.handle_event(&mut self.ctx.imgui, &event);
 
-            if self.imgui_sdl2.ignore_event(&event) {
+            if self.ctx.imgui_sdl2.ignore_event(&event) {
                 continue;
             }
 
@@ -228,7 +234,7 @@ impl Jockey {
         }
 
         // compute uniforms
-        let (width, height) = self.window.size();
+        let (width, height) = self.ctx.window.size();
         let time = self.start_time.elapsed().as_secs_f32();
 
         // render all shader stages
@@ -320,9 +326,9 @@ impl Jockey {
                         if let StageKind::Vert { count, mode, .. } = stage.kind {
                             gl::ClearColor(0.0, 0.0, 0.0, 1.0);
                             gl::Clear(gl::COLOR_BUFFER_BIT);
-                            draw_anything(self.vao, count, mode)
+                            draw_anything(self.ctx.vao, count, mode)
                         } else {
-                            draw_fullscreen_rect(self.vao);
+                            draw_fullscreen_rect(self.ctx.vao);
                         }
 
                         // Generate mip maps
@@ -341,16 +347,16 @@ impl Jockey {
 
     /// Wrapper function for all the imgui stuff.
     pub fn build_ui(&mut self) {
-        self.imgui_sdl2.prepare_frame(
-            self.imgui.io_mut(),
-            &self.window,
-            &self.event_pump.mouse_state(),
+        self.ctx.imgui_sdl2.prepare_frame(
+            self.ctx.imgui.io_mut(),
+            &self.ctx.window,
+            &self.ctx.event_pump.mouse_state(),
         );
 
         // tell imgui what time it is
         let now = Instant::now();
         let delta_time = (now - self.last_frame).as_secs_f32();
-        self.imgui.io_mut().delta_time = delta_time;
+        self.ctx.imgui.io_mut().delta_time = delta_time;
         self.last_frame = now;
 
         // record frame time
@@ -358,7 +364,7 @@ impl Jockey {
         let frame_ms = self.frame_perf.get();
 
         // ui magic
-        let ui = self.imgui.frame();
+        let ui = self.ctx.imgui.frame();
         ui.text(&*JOCKEY_TITLE);
         ui.separator();
 
@@ -400,7 +406,7 @@ impl Jockey {
             100.0 * stage_sum_ms / frame_ms
         ));
 
-        self.imgui_sdl2.prepare_render(&ui, &self.window);
-        self.renderer.render(ui);
+        self.ctx.imgui_sdl2.prepare_render(&ui, &self.ctx.window);
+        self.ctx.renderer.render(ui);
     }
 }
