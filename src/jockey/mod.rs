@@ -41,6 +41,7 @@ pub struct Jockey {
     pub last_frame: Instant,
     pub frame_perf: RunningAverage<f32, 128>,
     pub done: bool,
+    pub sliders: [f32; 8],
 }
 
 impl std::fmt::Debug for Jockey {
@@ -125,6 +126,7 @@ impl Jockey {
             start_time,
             frame_perf,
             last_frame,
+            sliders: [0.0; 8],
             done: false,
         };
 
@@ -213,7 +215,7 @@ impl Jockey {
                 // Use shader program
                 gl::UseProgram(stage.prog_id);
 
-                // Add uniforms
+                // Add time and resolution
                 {
                     let r_name = CString::new("R").unwrap();
                     let time_name = CString::new("time").unwrap();
@@ -223,6 +225,13 @@ impl Jockey {
 
                     gl::Uniform3f(r_loc, target_res.0 as _, target_res.1 as _, time);
                     gl::Uniform1f(time_loc, time);
+                }
+
+                // Add slider values
+                {
+                    let name = CString::new("sliders").unwrap();
+                    let loc = gl::GetUniformLocation(stage.prog_id, name.as_ptr());
+                    gl::Uniform1fv(loc, self.sliders.len() as _, &self.sliders as _);
                 }
 
                 // Add vertex count uniform
@@ -268,19 +277,12 @@ impl Jockey {
                         gl::Viewport(0, 0, target_res.0 as _, target_res.1 as _);
 
                         // Specify fragment shader color output
-                        #[allow(temporary_cstring_as_ptr)]
-                        gl::BindFragDataLocation(
-                            stage.prog_id,
-                            0,
-                            CString::new("out_color").unwrap().as_ptr(),
-                        );
+                        let out_color = CString::new("out_color").unwrap();
+                        gl::BindFragDataLocation(stage.prog_id, 0, out_color.as_ptr());
 
                         // Specify the layout of the vertex data
-                        #[allow(temporary_cstring_as_ptr)]
-                        let pos_attr = gl::GetAttribLocation(
-                            stage.prog_id,
-                            CString::new("position").unwrap().as_ptr(),
-                        );
+                        let position = CString::new("position").unwrap();
+                        let pos_attr = gl::GetAttribLocation(stage.prog_id, position.as_ptr());
                         gl::EnableVertexAttribArray(pos_attr as GLuint);
                         gl::VertexAttribPointer(
                             pos_attr as GLuint,
@@ -337,7 +339,15 @@ impl Jockey {
         ui.text(&*JOCKEY_TITLE);
         ui.separator();
 
-        ui.text("...");
+        // sliders
+        for (k, slider) in self.sliders.iter_mut().enumerate() {
+            let name = format!("slider{}", k);
+            let cst = std::ffi::CString::new(name).unwrap();
+            let ims = unsafe { imgui::ImStr::from_cstr_unchecked(&cst) };
+            imgui::Slider::new(ims)
+                .range(0.0..=1.0)
+                .build(&ui, slider);
+        }
         ui.separator();
 
         ui.text(format!(

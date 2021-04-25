@@ -21,7 +21,7 @@ pub fn draw_fullscreen_rect(vao: GLuint) {
         let data_size = FULLSCREEN_RECT.len() * std::mem::size_of::<GLfloat>();
         gl::BufferData(
             gl::ARRAY_BUFFER,
-            data_size as GLsizeiptr,
+            data_size as _,
             std::mem::transmute(&FULLSCREEN_RECT[0]),
             gl::STATIC_DRAW,
         );
@@ -67,7 +67,7 @@ pub fn compile_shader(src: &str, ty: GLenum) -> Result<GLuint, String> {
                 shader,
                 len,
                 std::ptr::null_mut(),
-                buf.as_mut_ptr() as *mut GLchar,
+                buf.as_mut_ptr() as _,
             );
 
             let msg = std::str::from_utf8_unchecked(&buf);
@@ -105,7 +105,7 @@ pub fn link_program(sh: &[GLuint]) -> Result<GLuint, String> {
                 program,
                 len,
                 std::ptr::null_mut(),
-                buf.as_mut_ptr() as *mut GLchar,
+                buf.as_mut_ptr() as _,
             );
 
             let msg = std::str::from_utf8_unchecked(&buf);
