@@ -10,7 +10,7 @@ use std::{collections::HashMap, ffi::CString};
 #[derive(Debug)]
 pub struct Pipeline {
     pub stages: Vec<Stage>,
-    pub buffers: HashMap<String, Texture>,
+    pub buffers: HashMap<CString, Texture>,
 }
 
 impl Pipeline {
@@ -52,7 +52,7 @@ impl Pipeline {
         }
 
         // put buffers into hashmap
-        let mut buffers = HashMap::<String, Texture>::new();
+        let mut buffers = HashMap::<CString, Texture>::new();
         for stage in stages.iter() {
             let target = match &stage.target {
                 Some(s) => s,
@@ -63,7 +63,7 @@ impl Pipeline {
             if let Some(tex) = buffers.get(target) {
                 if Some(tex.resolution()) != stage.resolution() {
                     return Err(format!(
-                        "Texture {} already has a different resolution",
+                        "Texture {:?} already has a different resolution",
                         target
                     ));
                 }
@@ -91,8 +91,7 @@ impl Pipeline {
             for tex_name in buffers.keys() {
                 // try to locate the uniform in the program
                 let required = unsafe {
-                    let c_name = CString::new(tex_name.as_str()).unwrap();
-                    let loc = gl::GetUniformLocation(stage.prog_id, c_name.as_ptr());
+                    let loc = gl::GetUniformLocation(stage.prog_id, tex_name.as_ptr());
                     loc != -1
                 };
 

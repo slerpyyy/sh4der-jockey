@@ -1,6 +1,7 @@
 use crate::util::*;
 use gl::types::*;
 use serde_json::Value;
+use std::ffi::CString;
 
 const PASS_VERT: &str = include_str!("shaders/pass.vert");
 const PASS_FRAG: &str = include_str!("shaders/pass.frag");
@@ -32,10 +33,10 @@ pub enum StageKind {
 #[derive(Debug)]
 pub struct Stage {
     pub prog_id: GLuint,
-    pub target: Option<String>,
+    pub target: Option<CString>,
     pub kind: StageKind,
     pub sh_ids: Vec<GLuint>,
-    pub deps: Vec<String>,
+    pub deps: Vec<CString>,
     pub perf: RunningAverage<f32, 128>,
 }
 
@@ -46,7 +47,7 @@ impl Stage {
 
         // get render target name
         let target = match object.get("target") {
-            Some(Value::String(s)) => Some(s.clone()),
+            Some(Value::String(s)) => Some(CString::new(s.as_str()).unwrap()),
             Some(s) => {
                 return Err(format!(
                     "Expected field \"target\" to be a string, got {:?}",

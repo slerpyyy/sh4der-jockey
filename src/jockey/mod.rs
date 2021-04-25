@@ -197,6 +197,15 @@ impl Jockey {
     /// them front to back. The only reason this function takes an `&mut self`
     /// is to record performance statistics.
     pub fn draw(&mut self) -> Option<()> {
+        lazy_static! {
+            static ref R_NAME: CString = CString::new("R").unwrap();
+            static ref TIME_NAME: CString = CString::new("time").unwrap();
+            static ref SLIDERS_NAME: CString = CString::new("sliders").unwrap();
+            static ref VERTEX_COUNT_NAME: CString = CString::new("vertexCount").unwrap();
+            static ref OUT_COLOR_NAME: CString = CString::new("out_color").unwrap();
+            static ref POSITION_NAME: CString = CString::new("position").unwrap();
+        }
+
         // compute uniforms
         let (width, height) = self.window.size();
         let time = self.start_time.elapsed().as_secs_f32();
@@ -217,11 +226,8 @@ impl Jockey {
 
                 // Add time and resolution
                 {
-                    let r_name = CString::new("R").unwrap();
-                    let time_name = CString::new("time").unwrap();
-
-                    let r_loc = gl::GetUniformLocation(stage.prog_id, r_name.as_ptr());
-                    let time_loc = gl::GetUniformLocation(stage.prog_id, time_name.as_ptr());
+                    let r_loc = gl::GetUniformLocation(stage.prog_id, R_NAME.as_ptr());
+                    let time_loc = gl::GetUniformLocation(stage.prog_id, TIME_NAME.as_ptr());
 
                     gl::Uniform3f(r_loc, target_res.0 as _, target_res.1 as _, time);
                     gl::Uniform1f(time_loc, time);
@@ -229,22 +235,19 @@ impl Jockey {
 
                 // Add slider values
                 {
-                    let name = CString::new("sliders").unwrap();
-                    let loc = gl::GetUniformLocation(stage.prog_id, name.as_ptr());
+                    let loc = gl::GetUniformLocation(stage.prog_id, SLIDERS_NAME.as_ptr());
                     gl::Uniform1fv(loc, self.sliders.len() as _, &self.sliders as _);
                 }
 
                 // Add vertex count uniform
                 if let StageKind::Vert { count, .. } = stage.kind {
-                    let name = CString::new("vertexCount").unwrap();
-                    let loc = gl::GetUniformLocation(stage.prog_id, name.as_ptr());
+                    let loc = gl::GetUniformLocation(stage.prog_id, VERTEX_COUNT_NAME.as_ptr());
                     gl::Uniform1f(loc, count as _);
                 }
 
                 // Add and bind uniform texture dependencies
                 for (k, name) in stage.deps.iter().enumerate() {
                     let tex = self.pipeline.buffers.get(name).unwrap();
-                    let name = CString::new(name.as_bytes()).unwrap();
                     let loc = gl::GetUniformLocation(stage.prog_id, name.as_ptr());
 
                     gl::ActiveTexture(gl::TEXTURE0 + k as GLenum);
@@ -278,12 +281,10 @@ impl Jockey {
                         gl::Viewport(0, 0, target_res.0 as _, target_res.1 as _);
 
                         // Specify fragment shader color output
-                        let out_color = CString::new("out_color").unwrap();
-                        gl::BindFragDataLocation(stage.prog_id, 0, out_color.as_ptr());
+                        gl::BindFragDataLocation(stage.prog_id, 0, OUT_COLOR_NAME.as_ptr());
 
                         // Specify the layout of the vertex data
-                        let position = CString::new("position").unwrap();
-                        let pos_attr = gl::GetAttribLocation(stage.prog_id, position.as_ptr());
+                        let pos_attr = gl::GetAttribLocation(stage.prog_id, POSITION_NAME.as_ptr());
                         gl::EnableVertexAttribArray(pos_attr as GLuint);
                         gl::VertexAttribPointer(
                             pos_attr as GLuint,
