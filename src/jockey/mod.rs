@@ -22,6 +22,8 @@ lazy_static! {
     };
 }
 
+static mut FILE_CHANGE: bool = false;
+
 /// A struct to keep the state of the tool.
 ///
 /// This struct holds the render pipeline, as well as every type of context
@@ -40,6 +42,7 @@ pub struct Jockey {
     pub start_time: Instant,
     pub last_frame: Instant,
     pub frame_perf: RunningAverage<f32, 128>,
+    pub watcher: notify::RecommendedWatcher,
     pub done: bool,
     pub sliders: [f32; 8],
 }
@@ -109,6 +112,14 @@ impl Jockey {
 
         let pipeline = Pipeline::new();
         let frame_perf = RunningAverage::new();
+        let mut watcher = notify::immediate_watcher(
+             |res| {
+                println!("\nFile change detected!");
+                unsafe { FILE_CHANGE = true }
+            }
+        ).unwrap();
+
+        notify::Watcher::watch(&mut watcher, ".", notify::RecursiveMode::Recursive).unwrap();
 
         let start_time = Instant::now();
         let last_frame = start_time;
@@ -126,6 +137,7 @@ impl Jockey {
             start_time,
             frame_perf,
             last_frame,
+            watcher,
             sliders: [0.0; 8],
             done: false,
         };
@@ -158,6 +170,11 @@ impl Jockey {
 
     pub fn handle_events(&mut self) {
         let mut do_update_pipeline = false;
+
+        unsafe {
+            do_update_pipeline |= FILE_CHANGE;
+            FILE_CHANGE = false;
+        }
 
         for event in self.event_pump.poll_iter() {
             self.imgui_sdl2.handle_event(&mut self.imgui, &event);

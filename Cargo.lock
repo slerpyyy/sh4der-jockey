@@ -16,6 +16,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "28b2cd92db5cbd74e8e5028f7e27dd7aa3090e89e4f2a197cc7c8dfb69c7063b"
 
 [[package]]
+name = "anymap"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "33954243bd79057c2de7338850b85983a44588021f8a5fee574a8888c6de4344"
+
+[[package]]
 name = "autocfg"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -151,6 +157,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "filetime"
+version = "0.2.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1d34cfa13a63ae058bfa601fe9e313bbdb3746427c1459185464ce0fcf62e1e8"
+dependencies = [
+ "cfg-if 1.0.0",
+ "libc",
+ "redox_syscall",
+ "winapi",
+]
+
+[[package]]
 name = "form_urlencoded"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -158,6 +176,25 @@ checksum = "5fc25a87fa4fd2094bffb06925852034d90a17f0d1e05197d4956d3555752191"
 dependencies = [
  "matches",
  "percent-encoding",
+]
+
+[[package]]
+name = "fsevent"
+version = "2.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "97f347202c95c98805c216f9e1df210e8ebaec9fdb2365700a43c10797a35e63"
+dependencies = [
+ "bitflags",
+ "fsevent-sys",
+]
+
+[[package]]
+name = "fsevent-sys"
+version = "3.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "77a29c77f1ca394c3e73a9a5d24cfcabb734682d9634fc398f2204a63c994120"
+dependencies = [
+ "libc",
 ]
 
 [[package]]
@@ -286,6 +323,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "inotify"
+version = "0.9.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d19f57db1baad9d09e43a3cd76dcf82ebdafd37d75c9498b87762dba77c93f15"
+dependencies = [
+ "bitflags",
+ "inotify-sys",
+ "libc",
+]
+
+[[package]]
+name = "inotify-sys"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e05c02b5e89bff3b946cedeca278abc628fe811e604f027c45a8aa3cf793d0eb"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "instant"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -388,6 +445,47 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f83fb6581e8ed1f85fd45c116db8405483899489e38406156c25eb743554361d"
 dependencies = [
  "autocfg",
+]
+
+[[package]]
+name = "mio"
+version = "0.7.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cf80d3e903b34e0bd7282b218398aec54e082c840d9baf8339e0080a0c542956"
+dependencies = [
+ "libc",
+ "log",
+ "miow",
+ "ntapi",
+ "winapi",
+]
+
+[[package]]
+name = "miow"
+version = "0.3.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b9f1c5b025cda876f66ef43a113f91ebc9f4ccef34843000e0adf6ebbab84e21"
+dependencies = [
+ "winapi",
+]
+
+[[package]]
+name = "notify"
+version = "5.0.0-pre.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1ebe7699a0f8c5759450716ee03d231685c22b4fe8f406c42c22e0ad94d40ce7"
+dependencies = [
+ "anymap",
+ "bitflags",
+ "crossbeam-channel",
+ "filetime",
+ "fsevent",
+ "fsevent-sys",
+ "inotify",
+ "libc",
+ "mio",
+ "walkdir",
+ "winapi",
 ]
 
 [[package]]
@@ -595,6 +693,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "71d301d4193d031abdd79ff7e3dd721168a9572ef3fe51a1517aba235bd8f86e"
 
 [[package]]
+name = "same-file"
+version = "1.0.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "93fc1dc3aaa9bfed95e02e6eadabb4baf7e3078b0bd1b4d7b6b0b68378900502"
+dependencies = [
+ "winapi-util",
+]
+
+[[package]]
 name = "scopeguard"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -670,6 +777,7 @@ dependencies = [
  "imgui-opengl-renderer",
  "imgui-sdl2",
  "lazy_static",
+ "notify",
  "regex",
  "sdl2",
  "serde_json",
@@ -840,6 +948,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5fecdca9a5291cc2b8dcf7dc02453fee791a280f3743cb0905f8822ae463b3fe"
 
 [[package]]
+name = "walkdir"
+version = "2.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "808cf2735cd4b6866113f648b791c6adc5714537bc222d9347bb203386ffda56"
+dependencies = [
+ "same-file",
+ "winapi",
+ "winapi-util",
+]
+
+[[package]]
 name = "wasi"
 version = "0.10.0+wasi-snapshot-preview1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -860,6 +979,15 @@ name = "winapi-i686-pc-windows-gnu"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ac3b87c63620426dd9b991e5ce0329eff545bccbbb34f3be09ff6fb6ab51b7b6"
+
+[[package]]
+name = "winapi-util"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "70ec6ce85bb158151cae5e5c87f95a8e97d2c0c4b001223f33a334e3ce5de178"
+dependencies = [
+ "winapi",
+]
 
 [[package]]
 name = "winapi-x86_64-pc-windows-gnu"
