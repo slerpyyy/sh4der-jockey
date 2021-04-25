@@ -140,6 +140,7 @@ impl Jockey {
     /// attempt to read and compile all necessary shaders. If everything loaded
     /// successfully, the new Pipeline struct will stomp the old one.
     pub fn update_pipeline(&mut self) {
+        let start_time = Instant::now();
         let update = match Pipeline::load(&self.window) {
             Ok(pl) => pl,
             Err(err) => {
@@ -149,7 +150,10 @@ impl Jockey {
         };
 
         self.pipeline = update;
-        println!("{:#?}", self.pipeline);
+        println!("\n{:?}\n", self.pipeline);
+
+        let time = start_time.elapsed().as_secs_f64();
+        println!("Build pipeline in {}ms", 1000.0 * time);
     }
 
     pub fn handle_events(&mut self) {

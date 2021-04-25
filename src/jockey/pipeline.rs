@@ -90,13 +90,10 @@ impl Pipeline {
         for stage in stages.iter_mut() {
             for tex_name in buffers.keys() {
                 // try to locate the uniform in the program
-                let required = unsafe {
-                    let loc = gl::GetUniformLocation(stage.prog_id, tex_name.as_ptr());
-                    loc != -1
-                };
+                let loc = unsafe { gl::GetUniformLocation(stage.prog_id, tex_name.as_ptr()) };
 
                 // add uniform to list of dependencies
-                if required {
+                if loc != -1 {
                     stage.deps.push(tex_name.clone());
                 }
             }
@@ -106,9 +103,8 @@ impl Pipeline {
     }
 
     pub fn resize_buffers(&mut self, width: u32, height: u32) {
-        for stage in &self.stages {
-            let target = &stage.target;
-            match target {
+        for stage in self.stages.iter() {
+            match &stage.target {
                 Some(s) => {
                     let tex = match stage.kind {
                         StageKind::Frag { res: None, .. } | StageKind::Vert { res: None, .. } => {
