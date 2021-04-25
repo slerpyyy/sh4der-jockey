@@ -63,12 +63,7 @@ pub fn compile_shader(src: &str, ty: GLenum) -> Result<GLuint, String> {
             let mut buf = Vec::with_capacity(len as usize);
             buf.set_len((len as usize).saturating_sub(1));
 
-            gl::GetShaderInfoLog(
-                shader,
-                len,
-                std::ptr::null_mut(),
-                buf.as_mut_ptr() as _,
-            );
+            gl::GetShaderInfoLog(shader, len, std::ptr::null_mut(), buf.as_mut_ptr() as _);
 
             let msg = std::str::from_utf8_unchecked(&buf);
             return Err(msg.into());
@@ -101,12 +96,7 @@ pub fn link_program(sh: &[GLuint]) -> Result<GLuint, String> {
             let mut buf = Vec::with_capacity(len as usize);
             buf.set_len((len as usize).saturating_sub(1));
 
-            gl::GetProgramInfoLog(
-                program,
-                len,
-                std::ptr::null_mut(),
-                buf.as_mut_ptr() as _,
-            );
+            gl::GetProgramInfoLog(program, len, std::ptr::null_mut(), buf.as_mut_ptr() as _);
 
             let msg = std::str::from_utf8_unchecked(&buf);
             return Err(msg.into());

@@ -241,8 +241,9 @@ impl Jockey {
                     gl::Uniform1f(loc, count as _);
                 }
 
-                // Add and bind uniform textures
-                for (k, (name, tex)) in self.pipeline.buffers.iter().enumerate() {
+                // Add and bind uniform texture dependencies
+                for (k, name) in stage.deps.iter().enumerate() {
+                    let tex = self.pipeline.buffers.get(name).unwrap();
                     let name = CString::new(name.as_bytes()).unwrap();
                     let loc = gl::GetUniformLocation(stage.prog_id, name.as_ptr());
 
@@ -344,9 +345,7 @@ impl Jockey {
             let name = format!("slider{}", k);
             let cst = std::ffi::CString::new(name).unwrap();
             let ims = unsafe { imgui::ImStr::from_cstr_unchecked(&cst) };
-            imgui::Slider::new(ims)
-                .range(0.0..=1.0)
-                .build(&ui, slider);
+            imgui::Slider::new(ims).range(0.0..=1.0).build(&ui, slider);
         }
         ui.separator();
 

@@ -35,12 +35,14 @@ pub struct Stage {
     pub target: Option<String>,
     pub kind: StageKind,
     pub sh_ids: Vec<GLuint>,
+    pub deps: Vec<String>,
     pub perf: RunningAverage<f32, 128>,
 }
 
 impl Stage {
     pub fn from_json(object: Value) -> Result<Self, String> {
         let perf = RunningAverage::new();
+        let deps = Vec::new();
 
         // get render target name
         let target = match object.get("target") {
@@ -104,9 +106,10 @@ impl Stage {
                 Ok(Stage {
                     prog_id,
                     target,
-                    sh_ids,
-                    perf,
                     kind,
+                    sh_ids,
+                    deps,
+                    perf,
                 })
             }
 
@@ -154,9 +157,10 @@ impl Stage {
                 Ok(Stage {
                     prog_id,
                     target,
-                    sh_ids,
-                    perf,
                     kind,
+                    sh_ids,
+                    deps,
+                    perf,
                 })
             }
 
@@ -205,9 +209,10 @@ impl Stage {
                 Ok(Stage {
                     prog_id,
                     target,
-                    perf,
-                    sh_ids,
                     kind,
+                    sh_ids,
+                    deps,
+                    perf,
                 })
             }
 

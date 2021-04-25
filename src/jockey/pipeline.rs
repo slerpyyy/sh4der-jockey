@@ -1,6 +1,6 @@
 use crate::jockey::*;
 use serde_json::Value;
-use std::collections::HashMap;
+use std::{collections::HashMap, ffi::CString};
 
 /// The rendering pipeline struct
 ///
@@ -84,6 +84,23 @@ impl Pipeline {
 
             // insert texture into hashmap
             buffers.insert(target.clone(), texture);
+        }
+
+        // compute uniform dependencies
+        for stage in stages.iter_mut() {
+            for tex_name in buffers.keys() {
+                // try to locate the uniform in the program
+                let required = unsafe {
+                    let c_name = CString::new(tex_name.as_str()).unwrap();
+                    let loc = gl::GetUniformLocation(stage.prog_id, c_name.as_ptr());
+                    loc != -1
+                };
+
+                // add uniform to list of dependencies
+                if required {
+                    stage.deps.push(tex_name.clone());
+                }
+            }
         }
 
         Ok(Self { stages, buffers })
