@@ -54,6 +54,7 @@ pub struct Jockey {
     pub pipeline: Pipeline,
     pub sliders: [f32; 8],
     pub start_time: Instant,
+    pub last_build: Instant,
 }
 
 impl std::fmt::Debug for Jockey {
@@ -120,14 +121,12 @@ impl Jockey {
         }
 
         let pipeline = Pipeline::new();
+        let last_build = Instant::now();
         let frame_perf = RunningAverage::new();
 
         #[rustfmt::skip]
         let mut watcher = notify::immediate_watcher(
-            |_| unsafe {
-                println!("\nFile change detected!");
-                FILE_CHANGE.store(true, Ordering::Relaxed)
-            }
+            |_| unsafe { FILE_CHANGE.store(true, Ordering::Relaxed) }
         ).unwrap();
 
         notify::Watcher::watch(&mut watcher, ".", notify::RecursiveMode::Recursive).unwrap();
@@ -151,6 +150,7 @@ impl Jockey {
             ctx,
             done: false,
             frame_perf,
+            last_build,
             last_frame,
             pipeline,
             sliders: [0.0; 8],
@@ -184,7 +184,9 @@ impl Jockey {
     }
 
     pub fn handle_events(&mut self) {
-        let mut do_update_pipeline = unsafe { FILE_CHANGE.swap(false, Ordering::Relaxed) };
+        let mut do_update_pipeline = unsafe {
+            FILE_CHANGE.swap(false, Ordering::Relaxed)
+        } && self.last_build.elapsed().as_millis() > 100;
 
         for event in self.ctx.event_pump.poll_iter() {
             self.ctx
@@ -221,6 +223,7 @@ impl Jockey {
         // live shader reloading hype
         if do_update_pipeline {
             self.update_pipeline();
+            self.last_build = Instant::now();
         }
     }
 
