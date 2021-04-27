@@ -41,8 +41,6 @@ fn main() {
 
         std::fs::write(plf, include_str!("defaults/pipeline.json")).unwrap();
         std::fs::write(shf, include_str!("defaults/scene.frag")).unwrap();
-
-        return;
     }
 
     // create the jockey
