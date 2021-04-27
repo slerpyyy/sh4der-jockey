@@ -137,8 +137,7 @@ impl Jockey {
 
         notify::Watcher::watch(&mut watcher, ".", notify::RecursiveMode::Recursive).unwrap();
 
-        let mut midi = Midi::new();
-        midi.bind([176, 0], 0);
+        let midi = Midi::new();
 
         let ctx = MegaContext {
             event_pump,
@@ -414,20 +413,29 @@ impl Jockey {
         ui.separator();
 
         // sliders
-        for (k, slider) in self.midi.sliders.iter_mut().enumerate() {
+        for k in 0..self.midi.sliders.len() {
+            if ui.small_button(im_str!("bind")) {
+                self.midi.auto_bind(k as u8);
+            }
+            ui.same_line(0.0);
             let name = format!("slider{}", k);
             let cst = std::ffi::CString::new(name).unwrap();
             let ims = unsafe { imgui::ImStr::from_cstr_unchecked(&cst) };
+            let slider = &mut self.midi.sliders[k];
             imgui::Slider::new(ims).range(0.0..=1.0).build(&ui, slider);
         }
 
         // buttons
-        for (k, button) in self.midi.buttons.iter_mut().enumerate() {
+        for k in 0..self.midi.buttons.len() {
+            if ui.small_button(im_str!("bind")) {
+                self.midi.auto_bind(8 + k as u8);
+            }
+            ui.same_line(0.0);
             let name = format!("button{}", k);
             let cst = std::ffi::CString::new(name).unwrap();
             let ims = unsafe { imgui::ImStr::from_cstr_unchecked(&cst) };
             if ui.button(ims, [64.0, 18.0]) {
-                *button = Instant::now();
+                self.midi.buttons[k] = Instant::now();
             }
             if k & 3 != 3 {
                 ui.same_line(0.0)

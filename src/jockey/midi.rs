@@ -8,6 +8,7 @@ use std::{
 pub struct Midi {
     pub conn: Option<MidiInputConnection<()>>,
     pub queue: Option<Receiver<[u8; 3]>>,
+    pub last: [u8; 2],
     pub sliders: [f32; 8],
     pub buttons: [Instant; 8],
     pub bindings: HashMap<[u8; 2], u8>,
@@ -17,6 +18,7 @@ impl Midi {
     pub fn new() -> Self {
         let conn = None;
         let queue = None;
+        let last = [0, 0];
         let sliders = [0.0; 8];
         let buttons = [Instant::now(); 8];
         let bindings = HashMap::new();
@@ -24,6 +26,7 @@ impl Midi {
         let mut this = Self {
             conn,
             queue,
+            last,
             sliders,
             buttons,
             bindings,
@@ -65,8 +68,7 @@ impl Midi {
             .connect(
                 in_port,
                 "sh4der-jockey-read-input",
-                move |stamp, message, _| {
-                    println!("{}: {:?} (len = {})", stamp, message, message.len());
+                move |_, message, _| {
                     let mut out = [0; 3];
                     out.copy_from_slice(message);
                     tx.send(out).unwrap();
@@ -81,11 +83,12 @@ impl Midi {
 
     pub fn handle_input(&mut self) {
         if let Some(queue) = &mut self.queue {
-            for msg in queue.try_iter() {
-                println!(" > {:?} (len = {})", msg, msg.len());
-                match self.bindings.get(&msg[..2]) {
+            for message in queue.try_iter() {
+                let key = &message[..2];
+                self.last.copy_from_slice(key);
+                match self.bindings.get(key) {
                     Some(&id @ 0..=7) => {
-                        self.sliders[id as usize] = (msg[2] as f32) / 127.0;
+                        self.sliders[id as usize] = (message[2] as f32) / 127.0;
                     }
 
                     Some(&id @ 8..=15) => {
@@ -99,6 +102,11 @@ impl Midi {
     }
 
     pub fn bind(&mut self, key: [u8; 2], id: u8) {
+        println!("bind {} to {:?}", id, key);
         self.bindings.insert(key, id);
+    }
+
+    pub fn auto_bind(&mut self, id: u8) {
+        self.bind(self.last, id);
     }
 }
