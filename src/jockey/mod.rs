@@ -55,6 +55,8 @@ pub struct Jockey {
     pub sliders: [f32; 8],
     pub start_time: Instant,
     pub last_build: Instant,
+    pub last_beat: Instant,
+    pub beat_delta: RunningAverage<f32, 8>,
 }
 
 impl std::fmt::Debug for Jockey {
@@ -143,8 +145,12 @@ impl Jockey {
             window,
         };
 
+        let mut beat_delta = RunningAverage::new();
+        beat_delta.buffer.fill(1.0);
+
         let start_time = Instant::now();
         let last_frame = start_time;
+        let last_beat = start_time;
 
         let mut this = Self {
             ctx,
@@ -155,6 +161,8 @@ impl Jockey {
             pipeline,
             sliders: [0.0; 8],
             start_time,
+            last_beat,
+            beat_delta,
         };
 
         this.update_pipeline();
@@ -184,9 +192,8 @@ impl Jockey {
     }
 
     pub fn handle_events(&mut self) {
-        let mut do_update_pipeline = unsafe {
-            FILE_CHANGE.swap(false, Ordering::Relaxed)
-        } && self.last_build.elapsed().as_millis() > 100;
+        let mut do_update_pipeline = unsafe { FILE_CHANGE.swap(false, Ordering::Relaxed) }
+            && self.last_build.elapsed().as_millis() > 100;
 
         for event in self.ctx.event_pump.poll_iter() {
             self.ctx
@@ -236,6 +243,7 @@ impl Jockey {
         lazy_static! {
             static ref R_NAME: CString = CString::new("R").unwrap();
             static ref TIME_NAME: CString = CString::new("time").unwrap();
+            static ref BEAT_NAME: CString = CString::new("beat").unwrap();
             static ref SLIDERS_NAME: CString = CString::new("sliders").unwrap();
             static ref VERTEX_COUNT_NAME: CString = CString::new("vertexCount").unwrap();
             static ref OUT_COLOR_NAME: CString = CString::new("out_color").unwrap();
@@ -245,6 +253,7 @@ impl Jockey {
         // compute uniforms
         let (width, height) = self.ctx.window.size();
         let time = self.start_time.elapsed().as_secs_f32();
+        let beat = self.last_beat.elapsed().as_secs_f32() / self.beat_delta.get();
 
         // render all shader stages
         for stage in self.pipeline.stages.iter_mut() {
@@ -260,13 +269,15 @@ impl Jockey {
                 // Use shader program
                 gl::UseProgram(stage.prog_id);
 
-                // Add time and resolution
+                // Add time, beat and resolution
                 {
                     let r_loc = gl::GetUniformLocation(stage.prog_id, R_NAME.as_ptr());
                     let time_loc = gl::GetUniformLocation(stage.prog_id, TIME_NAME.as_ptr());
+                    let beat_loc = gl::GetUniformLocation(stage.prog_id, BEAT_NAME.as_ptr());
 
                     gl::Uniform3f(r_loc, target_res.0 as _, target_res.1 as _, time);
                     gl::Uniform1f(time_loc, time);
+                    gl::Uniform1f(beat_loc, beat);
                 }
 
                 // Add slider values
@@ -379,7 +390,7 @@ impl Jockey {
         self.frame_perf.push(1000.0 * delta_time);
         let frame_ms = self.frame_perf.get();
 
-        // ui magic
+        // title section
         let ui = self.ctx.imgui.frame();
         ui.text(&*JOCKEY_TITLE);
         ui.separator();
@@ -393,6 +404,20 @@ impl Jockey {
         }
         ui.separator();
 
+        // beat sync
+        if ui.button(im_str!("Tab here"), [128.0, 32.0]) {
+            let delta = self.last_beat.elapsed().as_secs_f32();
+            self.beat_delta.push(delta);
+            self.last_beat = Instant::now();
+        }
+        ui.same_line(0.0);
+        ui.text(format! {
+            "BPM: {}\nCycle: {}", 60.0 / self.beat_delta.get(), self.beat_delta.index
+        });
+        //ui.new_line();
+        ui.separator();
+
+        // perf monitor
         ui.text(format!(
             "FPS: {:.2} ({:.2} ms)",
             1000.0 / frame_ms,
@@ -422,6 +447,7 @@ impl Jockey {
             100.0 * stage_sum_ms / frame_ms
         ));
 
+        // update ui
         self.ctx.imgui_sdl2.prepare_render(&ui, &self.ctx.window);
         self.ctx.renderer.render(ui);
     }
