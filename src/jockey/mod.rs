@@ -254,6 +254,7 @@ impl Jockey {
             static ref TIME_NAME: CString = CString::new("time").unwrap();
             static ref BEAT_NAME: CString = CString::new("beat").unwrap();
             static ref SLIDERS_NAME: CString = CString::new("sliders").unwrap();
+            static ref BUTTONS_NAME: CString = CString::new("buttons").unwrap();
             static ref VERTEX_COUNT_NAME: CString = CString::new("vertexCount").unwrap();
             static ref OUT_COLOR_NAME: CString = CString::new("out_color").unwrap();
             static ref POSITION_NAME: CString = CString::new("position").unwrap();
@@ -289,10 +290,18 @@ impl Jockey {
                     gl::Uniform1f(beat_loc, beat);
                 }
 
-                // Add slider values
+                // Add sliders and buttons
                 {
-                    let loc = gl::GetUniformLocation(stage.prog_id, SLIDERS_NAME.as_ptr());
-                    gl::Uniform1fv(loc, self.midi.sliders.len() as _, &self.midi.sliders as _);
+                    let s_loc = gl::GetUniformLocation(stage.prog_id, SLIDERS_NAME.as_ptr());
+                    let b_loc = gl::GetUniformLocation(stage.prog_id, BUTTONS_NAME.as_ptr());
+
+                    let mut buttons = [0.0; 8];
+                    for k in 0..buttons.len() {
+                        buttons[k] = self.midi.buttons[k].elapsed().as_secs_f32();
+                    }
+
+                    gl::Uniform1fv(s_loc, self.midi.sliders.len() as _, &self.midi.sliders as _);
+                    gl::Uniform1fv(b_loc, buttons.len() as _, &buttons as _);
                 }
 
                 // Add vertex count uniform
@@ -411,6 +420,20 @@ impl Jockey {
             let ims = unsafe { imgui::ImStr::from_cstr_unchecked(&cst) };
             imgui::Slider::new(ims).range(0.0..=1.0).build(&ui, slider);
         }
+
+        // buttons
+        for (k, button) in self.midi.buttons.iter_mut().enumerate() {
+            let name = format!("button{}", k);
+            let cst = std::ffi::CString::new(name).unwrap();
+            let ims = unsafe { imgui::ImStr::from_cstr_unchecked(&cst) };
+            if ui.button(ims, [64.0, 18.0]) {
+                *button = Instant::now();
+            }
+            if k & 3 != 3 {
+                ui.same_line(0.0)
+            }
+        }
+
         ui.separator();
 
         // beat sync
@@ -423,6 +446,7 @@ impl Jockey {
         ui.text(format! {
             "BPM: {}\nCycle: {}", 60.0 / self.beat_delta.get(), self.beat_delta.index
         });
+
         ui.separator();
 
         // perf monitor
