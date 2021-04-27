@@ -2,17 +2,21 @@ use crate::util::*;
 use gl::types::*;
 use imgui::im_str;
 use lazy_static::lazy_static;
-use sdl2::event::{Event, WindowEvent};
-use sdl2::keyboard::{Keycode, Mod};
+use sdl2::{
+    event::{Event, WindowEvent},
+    keyboard::{Keycode, Mod},
+};
 use std::{
     ffi::CString,
     sync::atomic::{AtomicBool, Ordering},
     time::Instant,
 };
 
+mod midi;
 mod pipeline;
 mod stage;
 
+pub use midi::*;
 pub use pipeline::*;
 pub use stage::*;
 
@@ -47,16 +51,16 @@ pub struct MegaContext {
 /// required to keep the window alive. The main point of this struct is to
 /// hide all the nasty details and keep the main function clean.
 pub struct Jockey {
+    pub beat_delta: RunningAverage<f32, 8>,
     pub ctx: MegaContext,
     pub done: bool,
     pub frame_perf: RunningAverage<f32, 128>,
-    pub last_frame: Instant,
-    pub pipeline: Pipeline,
-    pub sliders: [f32; 8],
-    pub start_time: Instant,
-    pub last_build: Instant,
     pub last_beat: Instant,
-    pub beat_delta: RunningAverage<f32, 8>,
+    pub last_build: Instant,
+    pub last_frame: Instant,
+    pub midi: Midi,
+    pub pipeline: Pipeline,
+    pub start_time: Instant,
 }
 
 impl std::fmt::Debug for Jockey {
@@ -133,6 +137,9 @@ impl Jockey {
 
         notify::Watcher::watch(&mut watcher, ".", notify::RecursiveMode::Recursive).unwrap();
 
+        let mut midi = Midi::new();
+        midi.bind([176, 0], 0);
+
         let ctx = MegaContext {
             event_pump,
             gl_context,
@@ -158,8 +165,8 @@ impl Jockey {
             frame_perf,
             last_build,
             last_frame,
+            midi,
             pipeline,
-            sliders: [0.0; 8],
             start_time,
             last_beat,
             beat_delta,
@@ -192,6 +199,8 @@ impl Jockey {
     }
 
     pub fn handle_events(&mut self) {
+        self.midi.handle_input();
+
         let mut do_update_pipeline = unsafe { FILE_CHANGE.swap(false, Ordering::Relaxed) }
             && self.last_build.elapsed().as_millis() > 100;
 
@@ -283,7 +292,7 @@ impl Jockey {
                 // Add slider values
                 {
                     let loc = gl::GetUniformLocation(stage.prog_id, SLIDERS_NAME.as_ptr());
-                    gl::Uniform1fv(loc, self.sliders.len() as _, &self.sliders as _);
+                    gl::Uniform1fv(loc, self.midi.sliders.len() as _, &self.midi.sliders as _);
                 }
 
                 // Add vertex count uniform
@@ -396,7 +405,7 @@ impl Jockey {
         ui.separator();
 
         // sliders
-        for (k, slider) in self.sliders.iter_mut().enumerate() {
+        for (k, slider) in self.midi.sliders.iter_mut().enumerate() {
             let name = format!("slider{}", k);
             let cst = std::ffi::CString::new(name).unwrap();
             let ims = unsafe { imgui::ImStr::from_cstr_unchecked(&cst) };
@@ -414,7 +423,6 @@ impl Jockey {
         ui.text(format! {
             "BPM: {}\nCycle: {}", 60.0 / self.beat_delta.get(), self.beat_delta.index
         });
-        //ui.new_line();
         ui.separator();
 
         // perf monitor
