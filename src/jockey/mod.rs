@@ -336,16 +336,12 @@ impl Jockey {
                             gl::ClearColor(0.0, 0.0, 0.0, 0.0);
                             gl::ClearDepth(1.0);
                             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
-                            //gl::Enable(gl::DEPTH_TEST);
-                            //gl::DepthFunc(gl::LESS);
 
                             gl::Enable(gl::DEPTH_TEST);
                             gl::DepthMask(gl::TRUE);
                             gl::DepthFunc(gl::LEQUAL);
                             gl::DepthRange(0.0, 1.0);
 
-                            //gl::Enable(gl::BLEND);
-                            //gl::DepthFunc(gl::ALWAYS);
                             draw_anything(self.ctx.vao, count, mode)
                         } else {
                             draw_fullscreen_rect(self.ctx.vao);
