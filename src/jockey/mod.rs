@@ -58,7 +58,7 @@ pub struct Jockey {
     pub last_beat: Instant,
     pub last_build: Instant,
     pub last_frame: Instant,
-    pub midi: Midi,
+    pub midi: Midi<8>,
     pub pipeline: Pipeline,
     pub start_time: Instant,
 }
@@ -416,8 +416,7 @@ impl Jockey {
         for k in 0..self.midi.sliders.len() {
             let token = ui.push_id(k as i32);
             if ui.small_button(im_str!("bind")) {
-                println!("aa");
-                self.midi.auto_bind(k as u8);
+                self.midi.auto_bind_slider(k);
             }
             token.pop(&ui);
             ui.same_line(0.0);
@@ -430,10 +429,9 @@ impl Jockey {
 
         // buttons
         for k in 0..self.midi.buttons.len() {
-            let token = ui.push_id(8 + k as i32);
+            let token = ui.push_id(-(k as i32)-1);
             if ui.small_button(im_str!("bind")) {
-                println!("bb");
-                self.midi.auto_bind(8 + k as u8);
+                self.midi.auto_bind_button(k);
             }
             token.pop(&ui);
             ui.same_line(0.0);

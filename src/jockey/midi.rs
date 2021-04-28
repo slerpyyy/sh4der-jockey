@@ -5,22 +5,22 @@ use std::{
     time::Instant,
 };
 
-pub struct Midi {
+pub struct Midi<const N: usize> {
     pub conn: Option<MidiInputConnection<()>>,
     pub queue: Option<Receiver<[u8; 3]>>,
     pub last: [u8; 2],
-    pub sliders: [f32; 8],
-    pub buttons: [Instant; 8],
-    pub bindings: HashMap<[u8; 2], u8>,
+    pub sliders: [f32; N],
+    pub buttons: [Instant; N],
+    pub bindings: HashMap<[u8; 2], usize>,
 }
 
-impl Midi {
+impl<const N: usize> Midi<N> {
     pub fn new() -> Self {
         let conn = None;
         let queue = None;
         let last = [0, 0];
-        let sliders = [0.0; 8];
-        let buttons = [Instant::now(); 8];
+        let sliders = [0.0; N];
+        let buttons = [Instant::now(); N];
         let bindings = HashMap::new();
 
         let mut this = Self {
@@ -87,12 +87,12 @@ impl Midi {
                 let key = &message[..2];
                 self.last.copy_from_slice(key);
                 match self.bindings.get(key) {
-                    Some(&id @ 0..=7) => {
+                    Some(&id) if id < N => {
                         self.sliders[id as usize] = (message[2] as f32) / 127.0;
                     }
 
-                    Some(&id @ 8..=15) => {
-                        self.buttons[(id - 8) as usize] = Instant::now();
+                    Some(&id) if id < 2 * N => {
+                        self.buttons[(id - N) as usize] = Instant::now();
                     }
 
                     _ => (),
@@ -101,12 +101,19 @@ impl Midi {
         }
     }
 
-    pub fn bind(&mut self, key: [u8; 2], id: u8) {
-        println!("bind {} to {:?}", id, key);
+    pub fn bind(&mut self, key: [u8; 2], id: usize) {
         self.bindings.insert(key, id);
     }
 
-    pub fn auto_bind(&mut self, id: u8) {
-        self.bind(self.last, id);
+    pub fn auto_bind_slider(&mut self, id: usize) {
+        if id < N {
+            self.bind(self.last, id);
+        }
+    }
+
+    pub fn auto_bind_button(&mut self, id: usize) {
+        if id < N {
+            self.bind(self.last, id + N);
+        }
     }
 }
