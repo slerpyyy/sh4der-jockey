@@ -159,16 +159,16 @@ impl Jockey {
         let last_beat = start_time;
 
         let mut this = Self {
+            beat_delta,
             ctx,
             done: false,
             frame_perf,
+            last_beat,
             last_build,
             last_frame,
             midi,
             pipeline,
             start_time,
-            last_beat,
-            beat_delta,
         };
 
         this.update_pipeline();
@@ -414,9 +414,12 @@ impl Jockey {
 
         // sliders
         for k in 0..self.midi.sliders.len() {
+            let token = ui.push_id(k as i32);
             if ui.small_button(im_str!("bind")) {
+                println!("aa");
                 self.midi.auto_bind(k as u8);
             }
+            token.pop(&ui);
             ui.same_line(0.0);
             let name = format!("slider{}", k);
             let cst = std::ffi::CString::new(name).unwrap();
@@ -427,9 +430,12 @@ impl Jockey {
 
         // buttons
         for k in 0..self.midi.buttons.len() {
+            let token = ui.push_id(8 + k as i32);
             if ui.small_button(im_str!("bind")) {
+                println!("bb");
                 self.midi.auto_bind(8 + k as u8);
             }
+            token.pop(&ui);
             ui.same_line(0.0);
             let name = format!("button{}", k);
             let cst = std::ffi::CString::new(name).unwrap();
