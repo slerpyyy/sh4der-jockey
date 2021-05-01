@@ -1,4 +1,4 @@
-use midir::{Ignore, MidiInput, MidiInputConnection};
+use midir::{Ignore, MidiInput, MidiInputConnection, MidiInputPort};
 use std::{
     collections::HashMap,
     sync::mpsc::{channel, Receiver},
@@ -6,8 +6,8 @@ use std::{
 };
 
 pub struct Midi<const N: usize> {
-    pub conn: Option<MidiInputConnection<()>>,
-    pub queue: Option<Receiver<[u8; 3]>>,
+    pub conns: Vec<MidiInputConnection<()>>,
+    pub queues: Vec<Receiver<[u8; 3]>>,
     pub last: [u8; 2],
     pub sliders: [f32; N],
     pub buttons: [Instant; N],
@@ -16,16 +16,16 @@ pub struct Midi<const N: usize> {
 
 impl<const N: usize> Midi<N> {
     pub fn new() -> Self {
-        let conn = None;
-        let queue = None;
+        let conns = Vec::new();
+        let queues = Vec::new();
         let last = [0, 0];
         let sliders = [0.0; N];
         let buttons = [Instant::now(); N];
         let bindings = HashMap::new();
 
         let mut this = Self {
-            conn,
-            queue,
+            conns,
+            queues,
             last,
             sliders,
             buttons,
@@ -39,35 +39,39 @@ impl<const N: usize> Midi<N> {
     pub fn connect(&mut self) {
         let mut midi_in = MidiInput::new("Sh4derJockey").unwrap();
         midi_in.ignore(Ignore::None);
-
         // Get an input port (read from console if multiple are available)
         let in_ports = midi_in.ports();
-        let in_port = match in_ports.len() {
-            0 => {
-                println!("Failed to find midi input port.");
-                return;
-            }
-            1 => {
-                println!(
-                    "Choosing the only available input port: {}",
-                    midi_in.port_name(&in_ports[0]).unwrap()
-                );
-                &in_ports[0]
-            }
-            _ => {
-                println!("\nAvailable input ports:");
-                for (i, p) in in_ports.iter().enumerate() {
-                    println!("{}: {}", i, midi_in.port_name(p).unwrap());
-                }
-                todo!()
-            }
-        };
+        if midi_in.port_count() == 0 {
+            println!("Failed to find midi input port.");
+            return;
+        }
+
+        let mut conns = Vec::new();
+        let mut queues = Vec::new();
+        for in_port in in_ports.iter() {
+            let (conn, rx) = self.new_connection(in_port);
+            conns.push(conn);
+            queues.push(rx);
+        }
+
+        self.conns = conns;
+        self.queues = queues;
+    }
+
+    fn new_connection(
+        &mut self,
+        in_port: &MidiInputPort,
+    ) -> (MidiInputConnection<()>, Receiver<[u8; 3]>) {
+        let mut midi_input = MidiInput::new("Sh4derJockey").unwrap();
+        midi_input.ignore(Ignore::None);
+        let port_name = midi_input.port_name(&in_port).unwrap();
+        println!("Connecting to input port: {}", port_name);
 
         let (tx, rx) = channel();
-        let conn = midi_in
+        let conn = midi_input
             .connect(
                 in_port,
-                "sh4der-jockey-read-input",
+                format!("sh4der-jockey-read-input-{}", port_name).as_str(),
                 move |_, message, _| {
                     let mut out = [0; 3];
                     out.copy_from_slice(message);
@@ -75,15 +79,14 @@ impl<const N: usize> Midi<N> {
                 },
                 (),
             )
-            .ok();
-
-        self.conn = conn;
-        self.queue = Some(rx);
+            .expect("Failed to create MIDI connection");
+        (conn, rx)
     }
 
     pub fn handle_input(&mut self) {
-        if let Some(queue) = &mut self.queue {
+        for queue in &self.queues {
             for message in queue.try_iter() {
+                // println!("incoming messge: {:x?}", &message);
                 let key = &message[..2];
                 self.last.copy_from_slice(key);
                 match self.bindings.get(key) {
