@@ -13,9 +13,10 @@ A non-exhaustive list of things we want our tool to be able to do, vaguely order
 - [x] dynamic / configurable render pipeline
 - [ ] shader preprocessor / common file
 - [ ] input system
-    - [ ] MIDI control
-    - [ ] tap-to-sync / BPM calculator
+    - [x] MIDI control
+    - [x] tap-to-sync / BPM calculator
     - [ ] OSC? not really useful for me but maybe someone else
+    - [ ] fix MIDI reconnect stutter
 - [ ] audio reactive / FFT
 - [x] mip maps
 - [ ] code view / screen capture

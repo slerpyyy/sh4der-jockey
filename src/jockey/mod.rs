@@ -12,10 +12,12 @@ use std::{
     time::Instant,
 };
 
+mod audio;
 mod midi;
 mod pipeline;
 mod stage;
 
+pub use audio::*;
 pub use midi::*;
 pub use pipeline::*;
 pub use stage::*;
@@ -59,6 +61,7 @@ pub struct Jockey {
     pub last_build: Instant,
     pub last_frame: Instant,
     pub midi: Midi<8>,
+    pub audio: Audio,
     pub pipeline: Pipeline,
     pub start_time: Instant,
 }
@@ -85,6 +88,12 @@ impl Jockey {
     /// This will spin up a SDL2 window, initialize Imgui,
     /// create a OpenGL context and more!
     pub fn init() -> Self {
+        // We need to init audio before SDL
+        // I have no clue why
+        // https://github.com/RustAudio/cpal/pull/330
+        // this discusses "init A first or B first" so they are related somehow.
+        let audio = Audio::new();
+
         let sdl_context = sdl2::init().unwrap();
         let video = sdl_context.video().unwrap();
 
@@ -167,6 +176,7 @@ impl Jockey {
             last_build,
             last_frame,
             midi,
+            audio,
             pipeline,
             start_time,
         };
@@ -198,6 +208,7 @@ impl Jockey {
     }
 
     pub fn handle_events(&mut self) {
+        self.midi.check_connections();
         self.midi.handle_input();
 
         let mut do_update_pipeline = unsafe { FILE_CHANGE.swap(false, Ordering::Relaxed) }
@@ -250,6 +261,7 @@ impl Jockey {
     pub fn draw(&mut self) -> Option<()> {
         lazy_static! {
             static ref R_NAME: CString = CString::new("R").unwrap();
+            static ref RESOLUTION_NAME: CString = CString::new("resolution").unwrap();
             static ref TIME_NAME: CString = CString::new("time").unwrap();
             static ref BEAT_NAME: CString = CString::new("beat").unwrap();
             static ref SLIDERS_NAME: CString = CString::new("sliders").unwrap();
@@ -281,9 +293,17 @@ impl Jockey {
                 // Add time, beat and resolution
                 {
                     let r_loc = gl::GetUniformLocation(stage.prog_id, R_NAME.as_ptr());
+                    let res_loc = gl::GetUniformLocation(stage.prog_id, RESOLUTION_NAME.as_ptr());
                     let time_loc = gl::GetUniformLocation(stage.prog_id, TIME_NAME.as_ptr());
                     let beat_loc = gl::GetUniformLocation(stage.prog_id, BEAT_NAME.as_ptr());
 
+                    gl::Uniform4f(
+                        res_loc,
+                        target_res.0 as _,
+                        target_res.1 as _,
+                        (target_res.0 as f32 / target_res.1 as f32) as _,
+                        (target_res.0 as f32 / target_res.1 as f32) as _,
+                    );
                     gl::Uniform3f(r_loc, target_res.0 as _, target_res.1 as _, time);
                     gl::Uniform1f(time_loc, time);
                     gl::Uniform1f(beat_loc, beat);
@@ -429,7 +449,7 @@ impl Jockey {
 
         // buttons
         for k in 0..self.midi.buttons.len() {
-            let token = ui.push_id(-(k as i32)-1);
+            let token = ui.push_id(-(k as i32) - 1);
             if ui.small_button(im_str!("bind")) {
                 self.midi.auto_bind_button(k);
             }
