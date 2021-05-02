@@ -468,9 +468,10 @@ impl Jockey {
 
         ui.separator();
 
-        let (left, right) = self.audio.get_samples_build();
-        ui.plot_lines(im_str!("left"), &left).build();
-        ui.plot_lines(im_str!("right"), &right).build();
+        self.audio.update_samples();
+        ui.plot_lines(im_str!("left"), &self.audio.l_signal).build();
+        ui.plot_lines(im_str!("right"), &self.audio.r_signal)
+            .build();
 
         ui.separator();
 
