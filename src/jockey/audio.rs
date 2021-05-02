@@ -4,18 +4,21 @@ use std::sync::{Arc, Mutex};
 
 pub struct Audio {
     samples: Arc<Mutex<Vec<f32>>>,
+    stream: Option<cpal::Stream>,
 }
 
 impl Audio {
     pub fn new() -> Self {
         let samples = Arc::new(Mutex::new(Vec::new()));
-        let mut this = Self { samples };
+        let stream = None;
+        let mut this = Self { samples, stream };
         this.connect();
         this
     }
 
     pub fn connect(&mut self) {
         let host = cpal::default_host();
+        println!("{:?}", cpal::available_hosts());
         let devices = host.input_devices();
 
         let device = if let Ok(devices) = devices {
@@ -44,33 +47,42 @@ impl Audio {
             .next()
             .expect("no supported config?!")
             .with_max_sample_rate();
-        let sample_format = supported_config.sample_format();
 
         println!("Supported Config: {:?}", supported_config);
 
-        let config = supported_config.config();
+        let config = device.default_input_config().unwrap().config();
+        let sample_format = supported_config.sample_format();
+        println!("Creating with config: {:?}", config);
         let samples_p = self.samples.clone();
+
+        let input_callback = move |data: &[f32], _: &cpal::InputCallbackInfo| {
+            // react to stream events and read or write stream data here.
+            println!("getting samples");
+            let mut samples = samples_p.lock().unwrap();
+            samples.resize(data.len(), 0.);
+            samples.clone_from_slice(data);
+        };
 
         let stream = match sample_format {
             cpal::SampleFormat::F32 => device
-                .build_input_stream(
-                    &config,
-                    move |data: &[f32], _: &cpal::InputCallbackInfo| {
-                        // react to stream events and read or write stream data here.
-                        let mut samples = samples_p.lock().unwrap();
-                        samples.copy_from_slice(data);
-                        println!("getting samples");
-                    },
-                    |err| {
-                        // react to errors here.
-                        println!("{:?}", err);
-                    },
-                )
+                .build_input_stream(&config, input_callback, |err| {
+                    // react to errors here.
+                    println!("{:?}", err);
+                })
                 .expect("Failed to initialize audio input stream"),
             _ => todo!(),
         };
         stream.play().expect("Failed to play input stream");
+        self.stream = Some(stream);
     }
 
-    pub fn get_samples() {}
+    // pub fn get_samples() {}
+}
+
+impl Drop for Audio {
+    fn drop(&mut self) {
+        if let Some(stream) = &mut self.stream {
+            drop(stream);
+        }
+    }
 }
