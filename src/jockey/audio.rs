@@ -10,6 +10,8 @@ pub enum Channels {
     Stereo,
 }
 pub struct Audio {
+    pub l_signal: Vec<f32>,
+    pub r_signal: Vec<f32>,
     l_samples: Arc<Mutex<RingBuffer<f32>>>,
     r_samples: Arc<Mutex<RingBuffer<f32>>>,
     stream: Option<cpal::Stream>,
@@ -18,11 +20,18 @@ pub struct Audio {
 
 impl Audio {
     pub fn new() -> Self {
-        let l_samples = Arc::new(Mutex::new(RingBuffer::new(8192)));
-        let r_samples = Arc::new(Mutex::new(RingBuffer::new(8192)));
+        let size = 8192;
+        let l_samples = Arc::new(Mutex::new(RingBuffer::new(size)));
+        let r_samples = Arc::new(Mutex::new(RingBuffer::new(size)));
         let stream = None;
         let channels = Channels::None;
+        let mut l_signal = Vec::with_capacity(size);
+        l_signal.resize(size, 0_f32);
+        let mut r_signal = Vec::with_capacity(size);
+        r_signal.resize(size, 0_f32);
         let mut this = Self {
+            l_signal,
+            r_signal,
             l_samples,
             r_samples,
             stream,
@@ -115,11 +124,19 @@ impl Audio {
         self.stream = Some(stream);
     }
 
-    pub fn get_samples_build(&mut self) -> ([f32; 8192], [f32; 8192]) {
-        let mut left = [0_f32; 8192];
-        let mut right = [0_f32; 8192];
-        self.get_samples(&mut left, &mut right);
-        (left, right)
+    pub fn update_samples(&mut self) {
+        let l_samples_p = self.l_samples.clone();
+        let l_samples = l_samples_p.lock().unwrap();
+        l_samples.get_vec(&mut self.l_signal);
+
+        match self.channels {
+            Channels::Stereo => {
+                let r_samples_p = self.r_samples.clone();
+                let r_samples = r_samples_p.lock().unwrap();
+                r_samples.get_vec(&mut self.r_signal);
+            }
+            _ => {}
+        };
     }
 
     pub fn get_samples(&mut self, left: &mut [f32], right: &mut [f32]) {
