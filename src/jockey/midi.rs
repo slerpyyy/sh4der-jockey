@@ -36,6 +36,16 @@ impl<const N: usize> Midi<N> {
         this
     }
 
+    pub fn check_connections(&mut self) {
+        let midi_in = MidiInput::new("Sh4derJockey").unwrap();
+        if midi_in.port_count() == self.conns.len() {
+            return;
+        }
+        self.conns = Vec::new();
+        self.queues = Vec::new();
+        self.connect();
+    }
+
     pub fn connect(&mut self) {
         let mut midi_in = MidiInput::new("Sh4derJockey").unwrap();
         midi_in.ignore(Ignore::None);
