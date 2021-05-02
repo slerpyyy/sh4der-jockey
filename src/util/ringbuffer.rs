@@ -21,12 +21,9 @@ where
     T: Copy + Default,
 {
     pub fn new(size: usize) -> Self {
-        let mut buffer = Vec::with_capacity(size);
-        buffer.resize(size, T::default());
-        let index = 0;
         Self {
-            buffer,
-            index,
+            buffer: vec![T::default(); size],
+            index: 0,
             size,
         }
     }

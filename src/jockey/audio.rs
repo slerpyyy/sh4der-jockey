@@ -85,12 +85,18 @@ impl Audio {
         let input_callback = move |data: &[f32], _: &cpal::InputCallbackInfo| {
             let sz = data.len() / (channel_count as usize);
 
-            let mut l_samples_lock = l_samples_p.lock().unwrap();
-            l_samples_lock.push_slice(&data[0..sz]);
+            {
+                let mut l_samples_lock = l_samples_p.lock().unwrap();
+                for x in data.iter().step_by(channel_count) {
+                    l_samples_lock.push(x);
+                }
+            }
 
             if channel_count > 1 {
                 let mut r_samples_lock = r_samples_p.lock().unwrap();
-                r_samples_lock.push_slice(&data[sz..2 * sz]);
+                for x in data.iter().skip(1).step_by(channel_count) {
+                    r_samples_lock.push(x);
+                }
             }
         };
 
@@ -103,7 +109,9 @@ impl Audio {
                 .expect("Failed to initialize audio input stream"),
             _ => todo!(),
         };
+
         stream.play().expect("Failed to play input stream");
+
         self.stream = Some(stream);
     }
 
@@ -127,13 +135,5 @@ impl Audio {
             }
             _ => {}
         };
-    }
-}
-
-impl Drop for Audio {
-    fn drop(&mut self) {
-        if let Some(stream) = &mut self.stream {
-            drop(stream);
-        }
     }
 }
