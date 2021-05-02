@@ -468,6 +468,12 @@ impl Jockey {
 
         ui.separator();
 
+        let (left, right) = self.audio.get_samples_build();
+        ui.plot_lines(im_str!("left"), &left).build();
+        ui.plot_lines(im_str!("right"), &right).build();
+
+        ui.separator();
+
         // beat sync
         if ui.button(im_str!("Tab here"), [128.0, 32.0]) {
             let delta = self.last_beat.elapsed().as_secs_f32();

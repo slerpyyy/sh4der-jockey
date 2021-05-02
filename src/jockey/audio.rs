@@ -2,16 +2,32 @@ use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::Device;
 use std::sync::{Arc, Mutex};
 
+use crate::util::RingBuffer;
+
+pub enum Channels {
+    None,
+    Mono,
+    Stereo,
+}
 pub struct Audio {
-    samples: Arc<Mutex<Vec<f32>>>,
+    l_samples: Arc<Mutex<RingBuffer<f32>>>,
+    r_samples: Arc<Mutex<RingBuffer<f32>>>,
     stream: Option<cpal::Stream>,
+    channels: Channels,
 }
 
 impl Audio {
     pub fn new() -> Self {
-        let samples = Arc::new(Mutex::new(Vec::new()));
+        let l_samples = Arc::new(Mutex::new(RingBuffer::new(8192)));
+        let r_samples = Arc::new(Mutex::new(RingBuffer::new(8192)));
         let stream = None;
-        let mut this = Self { samples, stream };
+        let channels = Channels::None;
+        let mut this = Self {
+            l_samples,
+            r_samples,
+            stream,
+            channels,
+        };
         this.connect();
         this
     }
@@ -53,14 +69,29 @@ impl Audio {
         let config = device.default_input_config().unwrap().config();
         let sample_format = supported_config.sample_format();
         println!("Creating with config: {:?}", config);
-        let samples_p = self.samples.clone();
+
+        let channel_count = config.channels as usize;
+        self.channels = match channel_count {
+            1 => Channels::Mono,
+            2 => Channels::Stereo,
+            _ => Channels::None,
+        };
+
+        // TODO: receive config for FFT buffer size
+
+        let l_samples_p = self.l_samples.clone();
+        let r_samples_p = self.r_samples.clone();
 
         let input_callback = move |data: &[f32], _: &cpal::InputCallbackInfo| {
-            // react to stream events and read or write stream data here.
-            println!("getting samples");
-            let mut samples = samples_p.lock().unwrap();
-            samples.resize(data.len(), 0.);
-            samples.clone_from_slice(data);
+            let sz = data.len() / (channel_count as usize);
+
+            let mut l_samples_lock = l_samples_p.lock().unwrap();
+            l_samples_lock.push_slice(&data[0..sz]);
+
+            if channel_count > 1 {
+                let mut r_samples_lock = r_samples_p.lock().unwrap();
+                r_samples_lock.push_slice(&data[sz..2 * sz]);
+            }
         };
 
         let stream = match sample_format {
@@ -76,7 +107,27 @@ impl Audio {
         self.stream = Some(stream);
     }
 
-    // pub fn get_samples() {}
+    pub fn get_samples_build(&mut self) -> ([f32; 8192], [f32; 8192]) {
+        let mut left = [0_f32; 8192];
+        let mut right = [0_f32; 8192];
+        self.get_samples(&mut left, &mut right);
+        (left, right)
+    }
+
+    pub fn get_samples(&mut self, left: &mut [f32], right: &mut [f32]) {
+        let l_samples_p = self.l_samples.clone();
+        let l_samples = l_samples_p.lock().unwrap();
+        l_samples.get_vec(left);
+
+        match self.channels {
+            Channels::Stereo => {
+                let r_samples_p = self.r_samples.clone();
+                let r_samples = r_samples_p.lock().unwrap();
+                r_samples.get_vec(right);
+            }
+            _ => {}
+        };
+    }
 }
 
 impl Drop for Audio {

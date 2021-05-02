@@ -4,9 +4,11 @@ use regex::Regex;
 use std::{collections::HashSet, ffi::CString};
 
 mod average;
+mod ringbuffer;
 mod texture;
 
 pub use average::*;
+pub use ringbuffer::*;
 pub use texture::*;
 
 const FULLSCREEN_RECT: [GLfloat; 12] = [
