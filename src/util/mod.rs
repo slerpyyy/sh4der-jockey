@@ -1,4 +1,5 @@
 use gl::types::*;
+use itertools::*;
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::{collections::HashSet, ffi::CString};
@@ -145,6 +146,40 @@ pub fn preprocess(code: &str) -> Result<String, String> {
     }
 
     recurse(code, HashSet::new())
+}
+
+pub fn interlace<T: Clone>(first: &[T], second: &[T]) -> Vec<T> {
+    first.iter().interleave(second).cloned().collect()
+}
+
+pub fn deinterlace<T: Clone>(slice: &[T]) -> (Vec<T>, Vec<T>) {
+    (
+        slice.iter().step_by(2).cloned().collect(),
+        slice.iter().skip(1).step_by(2).cloned().collect(),
+    )
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn interlace_simple() {
+        let arr = [1, 2, 3, 4, 5, 6, 7, 8];
+        let vec = interlace(&arr[..4], &arr[4..]);
+
+        assert_eq!(vec, vec![1, 5, 2, 6, 3, 7, 4, 8]);
+    }
+
+    #[test]
+    fn interlace_cycle() {
+        let original = vec![1, 2, 3, 4, 5, 6, 7, 8];
+        let inter = interlace(&original[..4], &original[4..]);
+        let (mut a, mut b) = deinterlace(&inter);
+        a.append(&mut b);
+
+        assert_eq!(a, original);
+    }
 }
 
 #[allow(dead_code)]

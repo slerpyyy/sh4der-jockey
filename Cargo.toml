@@ -18,6 +18,7 @@ notify = "5.0.0-pre.7"
 serde_json = "1.0.64"
 midir = "0.7.0"
 cpal = "0.13.3"
+itertools = "0.10.0"
 
 [build-dependencies]
 anyhow = "1.0.40"
