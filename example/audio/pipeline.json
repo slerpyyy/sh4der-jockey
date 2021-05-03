@@ -1,0 +1,7 @@
+{
+    "stages": [
+        {
+            "fs": "./scene.glsl"
+        }
+    ]
+}

@@ -1,5 +1,5 @@
 use crate::util::*;
-use gl::types::*;
+use gl::{types::*, ActiveTexture};
 use imgui::im_str;
 use lazy_static::lazy_static;
 use sdl2::{
@@ -211,6 +211,8 @@ impl Jockey {
         self.midi.check_connections();
         self.midi.handle_input();
 
+        self.audio.update_samples();
+
         let mut do_update_pipeline = unsafe { FILE_CHANGE.swap(false, Ordering::Relaxed) }
             && self.last_build.elapsed().as_millis() > 100;
 
@@ -266,6 +268,7 @@ impl Jockey {
             static ref BEAT_NAME: CString = CString::new("beat").unwrap();
             static ref SLIDERS_NAME: CString = CString::new("sliders").unwrap();
             static ref BUTTONS_NAME: CString = CString::new("buttons").unwrap();
+            static ref SAMPLES_NAME: CString = CString::new("samples").unwrap();
             static ref VERTEX_COUNT_NAME: CString = CString::new("vertexCount").unwrap();
             static ref OUT_COLOR_NAME: CString = CString::new("out_color").unwrap();
             static ref POSITION_NAME: CString = CString::new("position").unwrap();
@@ -275,6 +278,9 @@ impl Jockey {
         let (width, height) = self.ctx.window.size();
         let time = self.start_time.elapsed().as_secs_f32();
         let beat = self.last_beat.elapsed().as_secs_f32() / self.beat_delta.get();
+        let mut samples_tex =
+            Texture::with_params(&[8192], gl::LINEAR, gl::NEAREST, gl::CLAMP_TO_EDGE);
+        samples_tex.write(&self.audio.l_signal);
 
         // render all shader stages
         for stage in self.pipeline.stages.iter_mut() {
@@ -339,6 +345,11 @@ impl Jockey {
                     gl::BindImageTexture(0, tex.id, 0, gl::FALSE, 0, gl::WRITE_ONLY, gl::RGBA32F);
                     gl::Uniform1i(loc, k as _);
                 }
+
+                let samples_loc = gl::GetUniformLocation(stage.prog_id, SAMPLES_NAME.as_ptr());
+                gl::ActiveTexture(gl::TEXTURE0 + stage.deps.len() as GLenum);
+                gl::BindTexture(gl::TEXTURE_1D, samples_tex.id);
+                gl::Uniform1i(samples_loc, stage.deps.len() as _);
             }
 
             match &stage.kind {
@@ -468,7 +479,6 @@ impl Jockey {
 
         ui.separator();
 
-        self.audio.update_samples();
         ui.plot_lines(im_str!("left"), &self.audio.l_signal).build();
         ui.plot_lines(im_str!("right"), &self.audio.r_signal)
             .build();

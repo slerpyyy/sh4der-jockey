@@ -1,3 +1,6 @@
+use core::panic;
+use std::usize;
+
 use gl::types::*;
 
 #[derive(Debug)]
@@ -172,6 +175,35 @@ impl Texture {
         }
 
         out
+    }
+
+    pub fn write(&mut self, data: &[f32]) {
+        unsafe {
+            let tex_id = self.id;
+            match self.kind {
+                TextureKind::Image1D { res, .. } => {
+                    if data.len() != res[0] as usize {
+                        panic!(
+                            "Unmatched data size and texture resolution: {:?} , {:?}",
+                            data.len(),
+                            res[0]
+                        );
+                    }
+                    gl::BindTexture(gl::TEXTURE_1D, tex_id);
+                    gl::TexImage1D(
+                        gl::TEXTURE_1D,
+                        0,
+                        gl::R32F as _,
+                        res[0] as _,
+                        0,
+                        gl::RED,
+                        gl::FLOAT,
+                        data.as_ptr() as _,
+                    );
+                }
+                _ => todo!(),
+            }
+        }
     }
 }
 
