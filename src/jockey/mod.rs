@@ -405,13 +405,7 @@ impl Jockey {
                         // Draw stuff
                         if let StageKind::Vert { count, mode, .. } = stage.kind {
                             gl::ClearColor(0.0, 0.0, 0.0, 0.0);
-                            gl::ClearDepth(1.0);
-                            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
-
-                            gl::Enable(gl::DEPTH_TEST);
-                            gl::DepthMask(gl::TRUE);
-                            gl::DepthFunc(gl::LEQUAL);
-                            gl::DepthRange(0.0, 1.0);
+                            gl::Clear(gl::COLOR_BUFFER_BIT);
 
                             draw_anything(self.ctx.vao, count, mode)
                         } else {
