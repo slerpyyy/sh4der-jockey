@@ -1,6 +1,6 @@
 use crate::util::*;
 use gl::types::*;
-use serde_json::Value;
+use serde_yaml::Value;
 use std::ffi::CString;
 
 const PASS_VERT: &str = include_str!("shaders/pass.vert");
@@ -41,7 +41,7 @@ pub struct Stage {
 }
 
 impl Stage {
-    pub fn from_json(object: Value) -> Result<Self, String> {
+    pub fn from_yaml(object: Value) -> Result<Self, String> {
         let perf = RunningAverage::new();
         let deps = Vec::new();
 
@@ -58,7 +58,7 @@ impl Stage {
         };
 
         let res = match object.get("res").or_else(|| object.get("resolution")) {
-            Some(Value::Array(arr)) if arr.len() == 2 => {
+            Some(Value::Sequence(arr)) if arr.len() == 2 => {
                 let err_msg = "Resolution not a positive integer";
                 Some((
                     arr[0].as_u64().expect(err_msg) as _,
@@ -177,7 +177,7 @@ impl Stage {
                 };
 
                 let tex_dim = match object.get("cs_size") {
-                    Some(Value::Array(ar)) if ar.len() <= 3 => {
+                    Some(Value::Sequence(ar)) if ar.len() <= 3 => {
                         let mut tex_dim: [u32; 3] = [0; 3];
                         for (i, sz) in ar.iter().enumerate() {
                             let val = sz.as_u64();

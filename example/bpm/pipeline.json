@@ -1,9 +1,0 @@
-{
-    "stages": [
-        {
-            "vs": "./scene.vert",
-            "mode": "TRIANGLES",
-            "count": 3600
-        }
-    ]
-}

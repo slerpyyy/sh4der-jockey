@@ -1,0 +1,4 @@
+stages:
+  - vs: "./shader.vert"
+    mode: "LINES"
+    count: 500

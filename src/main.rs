@@ -27,20 +27,20 @@ fn main() {
     }
 
     if matches.opt_present("i") {
-        let plf = std::path::Path::new("./pipeline.json");
+        let plf = std::path::Path::new("./pipeline.yaml");
         let shf = std::path::Path::new("./scene.frag");
 
         if plf.exists() || shf.exists() {
-            eprintln!("Error: File with same name already exists.\n");
             eprintln!(
-                "Please make sure there is no file named \"pipeline.json\" or \"scene.json\""
+                "Error: File with same name already exists.\n\n\
+                Please make sure there are no files named \"pipeline.yaml\" or \"scene.frag\"\n\
+                in your current working directory already. Try renaming or deleting these\n\
+                files and running the command again.\n"
             );
-            eprintln!("in your current working directory already. Try renaming or deleting these");
-            eprintln!("files and running the command again.\n");
             return;
         }
 
-        std::fs::write(plf, include_str!("defaults/pipeline.json")).unwrap();
+        std::fs::write(plf, include_str!("defaults/pipeline.yaml")).unwrap();
         std::fs::write(shf, include_str!("defaults/scene.frag")).unwrap();
     }
 

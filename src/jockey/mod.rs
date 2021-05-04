@@ -189,7 +189,7 @@ impl Jockey {
 
     /// Reload the render pipeline and replace the old one.
     ///
-    /// This will load the `pipeline.json` from the specified file and
+    /// This will load the `pipeline.yaml` from the specified file and
     /// attempt to read and compile all necessary shaders. If everything loaded
     /// successfully, the new Pipeline struct will stomp the old one.
     pub fn update_pipeline(&mut self) {

@@ -1,5 +1,5 @@
 use crate::jockey::*;
-use serde_json::Value;
+use serde_yaml::Value;
 use std::{collections::HashMap, ffi::CString};
 
 /// The rendering pipeline struct
@@ -22,24 +22,24 @@ impl Pipeline {
     }
 
     pub fn load(window: &sdl2::video::Window) -> Result<Self, String> {
-        let reader = match std::fs::File::open("pipeline.json") {
+        let reader = match std::fs::File::open("pipeline.yaml") {
             Ok(s) => s,
             Err(e) => return Err(e.to_string()),
         };
 
-        let object = match serde_json::from_reader(reader) {
+        let object = match serde_yaml::from_reader(reader) {
             Ok(s) => s,
             Err(e) => return Err(e.to_string()),
         };
 
         let screen_size = window.size();
 
-        Pipeline::from_json(object, screen_size)
+        Pipeline::from_yaml(object, screen_size)
     }
 
-    pub fn from_json(object: Value, screen_size: (u32, u32)) -> Result<Self, String> {
+    pub fn from_yaml(object: Value, screen_size: (u32, u32)) -> Result<Self, String> {
         let passes = match object.get("stages") {
-            Some(Value::Array(s)) => s.clone(),
+            Some(Value::Sequence(s)) => s.clone(),
             None => return Err("Required field \"stages\" not found".to_string()),
             s => return Err(format!("Expected \"stages\" to be an array, got {:?}", s)),
         };
@@ -62,7 +62,7 @@ impl Pipeline {
         // parse stages
         let mut stages = Vec::with_capacity(passes.len());
         for pass in passes {
-            let stage = Stage::from_json(pass)?;
+            let stage = Stage::from_yaml(pass)?;
             stages.push(stage);
         }
 
