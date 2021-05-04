@@ -1,9 +1,6 @@
+use crate::*;
 use core::panic;
-use std::usize;
-
 use gl::types::*;
-
-use super::gl_check;
 
 #[derive(Debug)]
 pub enum TextureKind {
@@ -49,25 +46,26 @@ impl Texture {
 
     pub fn with_framebuffer(width: u32, height: u32) -> Self {
         unsafe {
-            gl_check();
             let mut id = 0;
             let mut fb = 0;
 
             gl::GenTextures(1, &mut id);
             gl::GenFramebuffers(1, &mut fb);
+            gl_debug_check!();
 
             gl::ActiveTexture(gl::TEXTURE0);
             gl::BindTexture(gl::TEXTURE_2D, id);
             gl::BindFramebuffer(gl::FRAMEBUFFER, fb);
-            gl_check();
+            gl_debug_check!();
+
             #[rustfmt::skip]
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR_MIPMAP_LINEAR as _);
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as _);
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as _);
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as _);
-            gl_check();
+            gl_debug_check!();
+
             // gl::TexStorage2D(gl::TEXTURE_2D, 4, gl::RGBA32F, width as _, height as _);
-            // gl_check();
             // gl::TexSubImage2D(
             //     gl::TEXTURE_2D,
             //     0,
@@ -79,6 +77,7 @@ impl Texture {
             //     gl::FLOAT,
             //     std::ptr::null(),
             // );
+
             gl::TexImage2D(
                 gl::TEXTURE_2D,
                 0,
@@ -90,9 +89,9 @@ impl Texture {
                 gl::FLOAT,
                 std::ptr::null(),
             );
-            gl_check();
+            gl_debug_check!();
+
             gl::GenerateMipmap(gl::TEXTURE_2D);
-            gl_check();
             gl::FramebufferTexture2D(
                 gl::FRAMEBUFFER,
                 gl::COLOR_ATTACHMENT0,
@@ -100,14 +99,14 @@ impl Texture {
                 id,
                 0,
             );
-            gl_check();
-            assert_eq!(
+
+            gl_debug_check!();
+            debug_assert_eq!(
                 gl::CheckFramebufferStatus(gl::FRAMEBUFFER),
                 gl::FRAMEBUFFER_COMPLETE
             );
 
             let format = TextureFormat::RGBA32F;
-            gl_check();
             Self {
                 id,
                 kind: TextureKind::FrameBuffer {
@@ -126,6 +125,7 @@ impl Texture {
             TextureFormat::RGB8I | TextureFormat::RGB32F => gl::RGB,
             TextureFormat::RGBA32F | TextureFormat::RGBA8I => gl::RGBA,
         };
+
         let type_ = match format {
             TextureFormat::R8I
             | TextureFormat::RG8I
@@ -152,6 +152,7 @@ impl Texture {
 
             gl::GenTextures(1, &mut tex_id);
             gl::ActiveTexture(gl::TEXTURE0);
+            gl_debug_check!();
 
             let (internal_format, color_format, type_) = Self::get_formats(format);
 
@@ -224,8 +225,8 @@ impl Texture {
             };
 
             gl::BindImageTexture(0, tex_id, 0, gl::FALSE, 0, gl::READ_WRITE, gl::RGBA32F);
+            gl_debug_check!();
 
-            gl_check();
             Self {
                 id: tex_id,
                 kind,
@@ -245,6 +246,7 @@ impl Texture {
         unsafe {
             gl::GenTextures(1, &mut tex_id);
             gl::ActiveTexture(gl::TEXTURE0);
+            gl_debug_check!();
 
             let (internal_format, color_format, type_) = Self::get_formats(format);
 
@@ -319,7 +321,7 @@ impl Texture {
                 s => panic!("Invalid texture resolution: {:?}", s),
             };
 
-            gl_check();
+            gl_debug_check!();
             Self {
                 id: tex_id,
                 kind,
@@ -349,7 +351,6 @@ impl Texture {
 
     pub fn activate(&self) {
         unsafe {
-            gl_check();
             match self.kind {
                 TextureKind::FrameBuffer { .. }
                 | TextureKind::Image2D { .. }
@@ -363,7 +364,8 @@ impl Texture {
                     gl::BindTexture(gl::TEXTURE_3D, self.id);
                 }
             };
-            gl_check();
+            gl_debug_check!();
+
             match self.kind {
                 TextureKind::Image1D { .. }
                 | TextureKind::Image2D { .. }
@@ -380,7 +382,8 @@ impl Texture {
                 }
                 _ => (),
             };
-            gl_check();
+
+            gl_debug_check!();
         }
     }
 
@@ -404,7 +407,7 @@ impl Texture {
                 }
                 _ => todo!(),
             }
-            gl_check();
+            gl_debug_check!();
         }
     }
 }

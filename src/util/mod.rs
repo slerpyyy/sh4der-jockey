@@ -1,5 +1,4 @@
 use gl::types::*;
-use itertools::*;
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::{collections::HashSet, ffi::CString};
@@ -109,24 +108,35 @@ pub fn link_program(sh: &[GLuint]) -> Result<GLuint, String> {
     }
 }
 
-pub fn gl_check() {
-    unsafe {
-        match gl::GetError() {
-            gl::NO_ERROR => return,
-            gl::INVALID_ENUM => panic!("OpenGL error INVALID_ENUM {}", gl::INVALID_ENUM),
-            gl::INVALID_VALUE => panic!("OpenGL error INVALID_VALUE {}", gl::INVALID_VALUE),
-            gl::INVALID_OPERATION => {
-                panic!("OpenGL error INVALID_OPERATION {}", gl::INVALID_OPERATION)
-            }
-            gl::INVALID_FRAMEBUFFER_OPERATION => panic!(
-                "OpenGL error INVALID_FRAMEBUFFER_OPERATION {}",
-                gl::INVALID_FRAMEBUFFER_OPERATION
-            ),
-            gl::OUT_OF_MEMORY => panic!("OpenGL error OUT_OF_MEMORY {}", gl::OUT_OF_MEMORY),
+#[macro_export]
+macro_rules! gl_check {
+    () => {
+        // this unsafe in unnecessary if the macro is used in an unsafe block
+        #[allow(unused_unsafe)]
+        let err = unsafe { gl::GetError() };
 
-            err => panic!("OpenGL error: {}", err),
+        if err != gl::NO_ERROR {
+            let name = match err {
+                gl::INVALID_ENUM => "INVALID_ENUM",
+                gl::INVALID_VALUE => "INVALID_VALUE",
+                gl::INVALID_OPERATION => "INVALID_OPERATION",
+                gl::INVALID_FRAMEBUFFER_OPERATION => "INVALID_ENUM",
+                gl::OUT_OF_MEMORY => "OUT_OF_MEMORY",
+                _ => "unknown",
+            };
+
+            panic!("OpenGL error: {} ({})", name, err);
         }
-    }
+    };
+}
+
+#[macro_export]
+macro_rules! gl_debug_check {
+    () => {
+        if cfg!(debug_assertions) {
+            gl_check!();
+        }
+    };
 }
 
 pub fn preprocess(code: &str) -> Result<String, String> {
@@ -168,8 +178,18 @@ pub fn preprocess(code: &str) -> Result<String, String> {
     recurse(code, HashSet::new())
 }
 
-pub fn interlace<T: Clone>(first: &[T], second: &[T]) -> Vec<T> {
-    first.iter().interleave(second).cloned().collect()
+pub fn interlace<T: Clone>(mut first: &[T], mut second: &[T]) -> Vec<T> {
+    let mut out = Vec::with_capacity(first.len() + second.len());
+    while let (Some((fh, ft)), Some((sh, st))) = (first.split_first(), second.split_first()) {
+        out.push(fh.clone());
+        out.push(sh.clone());
+        first = ft;
+        second = st;
+    }
+
+    out.extend_from_slice(first);
+    out.extend_from_slice(second);
+    out
 }
 
 pub fn deinterlace<T: Clone>(slice: &[T]) -> (Vec<T>, Vec<T>) {
@@ -185,20 +205,38 @@ mod test {
 
     #[test]
     fn interlace_simple() {
-        let arr = [1, 2, 3, 4, 5, 6, 7, 8];
-        let vec = interlace(&arr[..4], &arr[4..]);
+        let first = &[1, 2, 3, 4];
+        let second = &[5, 6, 7, 8];
+        let vec = interlace(first, second);
 
-        assert_eq!(vec, vec![1, 5, 2, 6, 3, 7, 4, 8]);
+        assert_eq!(vec, &[1, 5, 2, 6, 3, 7, 4, 8]);
     }
 
     #[test]
-    fn interlace_cycle() {
-        let original = vec![1, 2, 3, 4, 5, 6, 7, 8];
-        let inter = interlace(&original[..4], &original[4..]);
-        let (mut a, mut b) = deinterlace(&inter);
-        a.append(&mut b);
+    fn deinterlace_simple() {
+        let slice = &[1, 5, 2, 6, 3, 7, 4, 8];
+        let (first, second) = deinterlace(slice);
 
-        assert_eq!(a, original);
+        assert_eq!(first, &[1, 2, 3, 4]);
+        assert_eq!(second, &[5, 6, 7, 8]);
+    }
+
+    #[test]
+    fn interlace_unbalanced() {
+        let first = &[1, 2, 3];
+        let second = &[4, 5, 6, 7, 8];
+        let vec = interlace(first, second);
+
+        assert_eq!(vec, &[1, 4, 2, 5, 3, 6, 7, 8]);
+    }
+
+    #[test]
+    fn deinterlace_unbalanced() {
+        let slice = &[1, 2, 3, 4, 5];
+        let (first, second) = deinterlace(slice);
+
+        assert_eq!(first, &[1, 3, 5]);
+        assert_eq!(second, &[2, 4]);
     }
 }
 

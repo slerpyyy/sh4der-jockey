@@ -1,8 +1,9 @@
 //#![feature(external_doc)]
 //#![doc(include = "../README.md")]
 
-mod jockey;
+#[macro_use]
 mod util;
+mod jockey;
 
 use getopts::Options;
 use jockey::Jockey;
