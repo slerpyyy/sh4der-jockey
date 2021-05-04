@@ -181,6 +181,8 @@ impl Jockey {
             start_time,
         };
 
+        gl_check();
+
         this.update_pipeline();
         this
     }
@@ -279,10 +281,12 @@ impl Jockey {
         let time = self.start_time.elapsed().as_secs_f32();
         let beat = self.last_beat.elapsed().as_secs_f32() / self.beat_delta.get();
 
+        gl_check();
         let sample_name: &CString = &SAMPLES_NAME;
         let samples_tex = self.pipeline.buffers.get_mut(sample_name).unwrap();
         let interlaced_samples = interlace(&mut self.audio.l_signal, &mut self.audio.r_signal);
         samples_tex.write(interlaced_samples.as_slice());
+        gl_check();
 
         // render all shader stages
         for stage in self.pipeline.stages.iter_mut() {
@@ -297,6 +301,7 @@ impl Jockey {
             unsafe {
                 // Use shader program
                 gl::UseProgram(stage.prog_id);
+                gl_check();
 
                 // Add time, beat and resolution
                 {
@@ -316,6 +321,7 @@ impl Jockey {
                     gl::Uniform1f(time_loc, time);
                     gl::Uniform1f(beat_loc, beat);
                 }
+                gl_check();
 
                 // Add sliders and buttons
                 {
@@ -330,12 +336,14 @@ impl Jockey {
                     gl::Uniform1fv(s_loc, self.midi.sliders.len() as _, &self.midi.sliders as _);
                     gl::Uniform1fv(b_loc, buttons.len() as _, &buttons as _);
                 }
+                gl_check();
 
                 // Add vertex count uniform
                 if let StageKind::Vert { count, .. } = stage.kind {
                     let loc = gl::GetUniformLocation(stage.prog_id, VERTEX_COUNT_NAME.as_ptr());
                     gl::Uniform1f(loc, count as _);
                 }
+                gl_check();
 
                 // Add and bind uniform texture dependencies
                 for (k, name) in stage.deps.iter().enumerate() {
@@ -347,12 +355,14 @@ impl Jockey {
 
                     gl::Uniform1i(loc, k as _);
                 }
+                gl_check();
             }
 
             match &stage.kind {
                 StageKind::Comp { tex_dim, .. } => unsafe {
                     gl::DispatchCompute(tex_dim[0], tex_dim[1].max(1), tex_dim[2].max(1));
                     gl::MemoryBarrier(gl::SHADER_IMAGE_ACCESS_BARRIER_BIT);
+                    gl_check();
                 },
                 _ => {
                     // get render target id
@@ -368,6 +378,7 @@ impl Jockey {
                     };
 
                     unsafe {
+                        gl_check();
                         // Specify render target
                         gl::BindFramebuffer(gl::FRAMEBUFFER, target_fb);
                         gl::Viewport(0, 0, target_res.0 as _, target_res.1 as _);
@@ -375,17 +386,23 @@ impl Jockey {
                         // Specify fragment shader color output
                         gl::BindFragDataLocation(stage.prog_id, 0, OUT_COLOR_NAME.as_ptr());
 
+                        gl_check();
                         // Specify the layout of the vertex data
                         let pos_attr = gl::GetAttribLocation(stage.prog_id, POSITION_NAME.as_ptr());
-                        gl::EnableVertexAttribArray(pos_attr as GLuint);
-                        gl::VertexAttribPointer(
-                            pos_attr as GLuint,
-                            2,
-                            gl::FLOAT,
-                            gl::FALSE as GLboolean,
-                            0,
-                            std::ptr::null(),
-                        );
+                        gl_check();
+                        if pos_attr != -1 {
+                            gl::EnableVertexAttribArray(pos_attr as GLuint);
+                            gl_check();
+                            gl::VertexAttribPointer(
+                                pos_attr as GLuint,
+                                2,
+                                gl::FLOAT,
+                                gl::FALSE as GLboolean,
+                                0,
+                                std::ptr::null(),
+                            );
+                        }
+                        gl_check();
 
                         // Draw stuff
                         if let StageKind::Vert { count, mode, .. } = stage.kind {
@@ -403,9 +420,13 @@ impl Jockey {
                             draw_fullscreen_rect(self.ctx.vao);
                         }
 
+                        gl_check();
                         // Generate mip maps
-                        gl::BindTexture(gl::TEXTURE_2D, target_tex);
-                        gl::GenerateMipmap(gl::TEXTURE_2D);
+                        // don't do it for the screen buffer
+                        if target_tex != 0 {
+                            gl::BindTexture(gl::TEXTURE_2D, target_tex);
+                            gl::GenerateMipmap(gl::TEXTURE_2D);
+                        }
                     }
                 }
             }

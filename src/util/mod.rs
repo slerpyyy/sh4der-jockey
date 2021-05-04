@@ -109,6 +109,26 @@ pub fn link_program(sh: &[GLuint]) -> Result<GLuint, String> {
     }
 }
 
+pub fn gl_check() {
+    unsafe {
+        match gl::GetError() {
+            gl::NO_ERROR => return,
+            gl::INVALID_ENUM => panic!("OpenGL error INVALID_ENUM {}", gl::INVALID_ENUM),
+            gl::INVALID_VALUE => panic!("OpenGL error INVALID_VALUE {}", gl::INVALID_VALUE),
+            gl::INVALID_OPERATION => {
+                panic!("OpenGL error INVALID_OPERATION {}", gl::INVALID_OPERATION)
+            }
+            gl::INVALID_FRAMEBUFFER_OPERATION => panic!(
+                "OpenGL error INVALID_FRAMEBUFFER_OPERATION {}",
+                gl::INVALID_FRAMEBUFFER_OPERATION
+            ),
+            gl::OUT_OF_MEMORY => panic!("OpenGL error OUT_OF_MEMORY {}", gl::OUT_OF_MEMORY),
+
+            err => panic!("OpenGL error: {}", err),
+        }
+    }
+}
+
 pub fn preprocess(code: &str) -> Result<String, String> {
     lazy_static! {
         // based on the "glsl-include" crate, which almost does what we want
