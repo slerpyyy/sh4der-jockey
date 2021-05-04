@@ -92,8 +92,6 @@ impl Audio {
         let r_samples_p = self.r_samples.clone();
 
         let input_callback = move |data: &[f32], _: &cpal::InputCallbackInfo| {
-            let sz = data.len() / (channel_count as usize);
-
             {
                 let mut l_samples_lock = l_samples_p.lock().unwrap();
                 for x in data.iter().step_by(channel_count) {

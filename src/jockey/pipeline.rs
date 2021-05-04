@@ -44,6 +44,21 @@ impl Pipeline {
             s => return Err(format!("Expected \"stages\" to be an array, got {:?}", s)),
         };
 
+        let fft_window = match object.get("fftWindowSize") {
+            Some(Value::Number(n)) => {
+                let n = n.as_u64().unwrap();
+                if n.count_ones() != 1 {
+                    return Err(format!(
+                        "Expected fftWindow to be a power of 2, got: {:?}",
+                        n
+                    ));
+                }
+                n
+            }
+            None => 8192_u64,
+            s => return Err(format!("Expected fftWindow to be number, got: {:?}", s)),
+        };
+
         // parse stages
         let mut stages = Vec::with_capacity(passes.len());
         for pass in passes {
@@ -53,6 +68,16 @@ impl Pipeline {
 
         // put buffers into hashmap
         let mut buffers = HashMap::<CString, Texture>::new();
+
+        let audio_samples_texture = Texture::texture_from_params(
+            &[fft_window as _],
+            gl::NEAREST,
+            gl::NEAREST,
+            gl::CLAMP_TO_EDGE,
+            TextureFormat::RG32F,
+        );
+        buffers.insert(CString::new("samples").unwrap(), audio_samples_texture);
+
         for stage in stages.iter() {
             let target = match &stage.target {
                 Some(s) => s,

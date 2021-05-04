@@ -1,5 +1,5 @@
 use crate::util::*;
-use gl::{types::*, ActiveTexture};
+use gl::types::*;
 use imgui::im_str;
 use lazy_static::lazy_static;
 use sdl2::{
@@ -268,19 +268,21 @@ impl Jockey {
             static ref BEAT_NAME: CString = CString::new("beat").unwrap();
             static ref SLIDERS_NAME: CString = CString::new("sliders").unwrap();
             static ref BUTTONS_NAME: CString = CString::new("buttons").unwrap();
-            static ref SAMPLES_NAME: CString = CString::new("samples").unwrap();
             static ref VERTEX_COUNT_NAME: CString = CString::new("vertexCount").unwrap();
             static ref OUT_COLOR_NAME: CString = CString::new("out_color").unwrap();
             static ref POSITION_NAME: CString = CString::new("position").unwrap();
+            static ref SAMPLES_NAME: CString = CString::new("samples").unwrap();
         }
 
         // compute uniforms
         let (width, height) = self.ctx.window.size();
         let time = self.start_time.elapsed().as_secs_f32();
         let beat = self.last_beat.elapsed().as_secs_f32() / self.beat_delta.get();
-        let mut samples_tex =
-            Texture::with_params(&[8192], gl::LINEAR, gl::NEAREST, gl::CLAMP_TO_EDGE);
-        samples_tex.write(&self.audio.l_signal);
+
+        let sample_name: &CString = &SAMPLES_NAME;
+        let samples_tex = self.pipeline.buffers.get_mut(sample_name).unwrap();
+        let interlaced_samples = interlace(&mut self.audio.l_signal, &mut self.audio.r_signal);
+        samples_tex.write(interlaced_samples.as_slice());
 
         // render all shader stages
         for stage in self.pipeline.stages.iter_mut() {
@@ -341,15 +343,10 @@ impl Jockey {
                     let loc = gl::GetUniformLocation(stage.prog_id, name.as_ptr());
 
                     gl::ActiveTexture(gl::TEXTURE0 + k as GLenum);
-                    gl::BindTexture(gl::TEXTURE_2D, tex.id);
-                    gl::BindImageTexture(0, tex.id, 0, gl::FALSE, 0, gl::WRITE_ONLY, gl::RGBA32F);
+                    tex.activate();
+
                     gl::Uniform1i(loc, k as _);
                 }
-
-                let samples_loc = gl::GetUniformLocation(stage.prog_id, SAMPLES_NAME.as_ptr());
-                gl::ActiveTexture(gl::TEXTURE0 + stage.deps.len() as GLenum);
-                gl::BindTexture(gl::TEXTURE_1D, samples_tex.id);
-                gl::Uniform1i(samples_loc, stage.deps.len() as _);
             }
 
             match &stage.kind {

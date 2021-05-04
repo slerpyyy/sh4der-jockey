@@ -12,9 +12,12 @@ float graph(float y, float f, float t) {
 
 void main() {
     vec2 uv = gl_FragCoord.xy / resolution.xy;
-    float samp = texture(samples, uv.x).r + .5;
+    vec3 samp = texture(samples, uv.x).rgb + .5;
 
     vec3 c = vec3(1.);
-    c *= graph(uv.y, samp, 0.05);
+    c.g = 0.;
+    c.r *= graph(uv.y, samp.r, 0.05);
+    c.b *= graph(uv.y, samp.g, 0.05);
+
     out_color = vec4(c, 1.);
 }
