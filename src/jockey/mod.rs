@@ -117,14 +117,14 @@ impl Jockey {
             .gl_create_context()
             .expect("Couldn't create GL context");
 
-        gl::load_with(|s| video.gl_get_proc_address(s) as _);
+        let prog_addr = |s| video.gl_get_proc_address(s) as _;
+        gl::load_with(prog_addr);
 
         let mut imgui = imgui::Context::create();
         imgui.set_ini_filename(None);
 
         let imgui_sdl2 = imgui_sdl2::ImguiSdl2::new(&mut imgui, &window);
-        let renderer =
-            imgui_opengl_renderer::Renderer::new(&mut imgui, |s| video.gl_get_proc_address(s) as _);
+        let renderer = imgui_opengl_renderer::Renderer::new(&mut imgui, prog_addr);
         let event_pump = sdl_context.event_pump().unwrap();
 
         let mut vao = 0;
@@ -134,6 +134,8 @@ impl Jockey {
             gl::GenVertexArrays(1, &mut vao);
             gl::GenBuffers(1, &mut vbo);
         }
+
+        Self::init_imgui_style(imgui.style_mut());
 
         let pipeline = Pipeline::new();
         let last_build = Instant::now();
@@ -185,6 +187,63 @@ impl Jockey {
 
         this.update_pipeline();
         this
+    }
+
+    // ported from https://www.gitmemory.com/issue/ocornut/imgui/707/512669512
+    #[rustfmt::skip]
+    fn init_imgui_style(style: &mut imgui::Style) {
+        style.frame_rounding = 4.0;
+        style.grab_rounding = 4.0;
+
+        use imgui::StyleColor::*;
+        style.colors[Text                   as usize] = [0.95, 0.96, 0.98, 1.00];
+        style.colors[TextDisabled           as usize] = [0.36, 0.42, 0.47, 1.00];
+        style.colors[WindowBg               as usize] = [0.11, 0.15, 0.17, 1.00];
+        style.colors[ChildBg                as usize] = [0.15, 0.18, 0.22, 1.00];
+        style.colors[PopupBg                as usize] = [0.08, 0.08, 0.08, 0.94];
+        style.colors[Border                 as usize] = [0.08, 0.10, 0.12, 1.00];
+        style.colors[BorderShadow           as usize] = [0.00, 0.00, 0.00, 0.00];
+        style.colors[FrameBg                as usize] = [0.20, 0.25, 0.29, 1.00];
+        style.colors[FrameBgHovered         as usize] = [0.12, 0.20, 0.28, 1.00];
+        style.colors[FrameBgActive          as usize] = [0.09, 0.12, 0.14, 1.00];
+        style.colors[TitleBg                as usize] = [0.09, 0.12, 0.14, 0.65];
+        style.colors[TitleBgActive          as usize] = [0.08, 0.10, 0.12, 1.00];
+        style.colors[TitleBgCollapsed       as usize] = [0.00, 0.00, 0.00, 0.51];
+        style.colors[MenuBarBg              as usize] = [0.15, 0.18, 0.22, 1.00];
+        style.colors[ScrollbarBg            as usize] = [0.02, 0.02, 0.02, 0.39];
+        style.colors[ScrollbarGrab          as usize] = [0.20, 0.25, 0.29, 1.00];
+        style.colors[ScrollbarGrabHovered   as usize] = [0.18, 0.22, 0.25, 1.00];
+        style.colors[ScrollbarGrabActive    as usize] = [0.09, 0.21, 0.31, 1.00];
+        style.colors[CheckMark              as usize] = [0.28, 0.56, 1.00, 1.00];
+        style.colors[SliderGrab             as usize] = [0.28, 0.46, 0.50, 1.00];
+        style.colors[SliderGrabActive       as usize] = [0.37, 0.60, 0.66, 1.00];
+        style.colors[Button                 as usize] = [0.20, 0.25, 0.29, 1.00];
+        style.colors[ButtonHovered          as usize] = [0.28, 0.56, 1.00, 1.00];
+        style.colors[ButtonActive           as usize] = [0.06, 0.53, 0.98, 1.00];
+        style.colors[Header                 as usize] = [0.20, 0.25, 0.29, 0.55];
+        style.colors[HeaderHovered          as usize] = [0.26, 0.59, 0.98, 0.80];
+        style.colors[HeaderActive           as usize] = [0.26, 0.59, 0.98, 1.00];
+        style.colors[Separator              as usize] = [0.20, 0.25, 0.29, 1.00];
+        style.colors[SeparatorHovered       as usize] = [0.10, 0.40, 0.75, 0.78];
+        style.colors[SeparatorActive        as usize] = [0.10, 0.40, 0.75, 1.00];
+        style.colors[ResizeGrip             as usize] = [0.26, 0.59, 0.98, 0.25];
+        style.colors[ResizeGripHovered      as usize] = [0.26, 0.59, 0.98, 0.67];
+        style.colors[ResizeGripActive       as usize] = [0.26, 0.59, 0.98, 0.95];
+        style.colors[Tab                    as usize] = [0.11, 0.15, 0.17, 1.00];
+        style.colors[TabHovered             as usize] = [0.26, 0.59, 0.98, 0.80];
+        style.colors[TabActive              as usize] = [0.20, 0.25, 0.29, 1.00];
+        style.colors[TabUnfocused           as usize] = [0.11, 0.15, 0.17, 1.00];
+        style.colors[TabUnfocusedActive     as usize] = [0.11, 0.15, 0.17, 1.00];
+        style.colors[PlotLines              as usize] = [0.61, 0.61, 0.61, 1.00];
+        style.colors[PlotLinesHovered       as usize] = [1.00, 0.43, 0.35, 1.00];
+        style.colors[PlotHistogram          as usize] = [0.90, 0.70, 0.00, 1.00];
+        style.colors[PlotHistogramHovered   as usize] = [1.00, 0.60, 0.00, 1.00];
+        style.colors[TextSelectedBg         as usize] = [0.26, 0.59, 0.98, 0.35];
+        style.colors[DragDropTarget         as usize] = [1.00, 1.00, 0.00, 0.90];
+        style.colors[NavHighlight           as usize] = [0.26, 0.59, 0.98, 1.00];
+        style.colors[NavWindowingHighlight  as usize] = [1.00, 1.00, 1.00, 0.70];
+        style.colors[NavWindowingDimBg      as usize] = [0.80, 0.80, 0.80, 0.20];
+        style.colors[ModalWindowDimBg       as usize] = [0.80, 0.80, 0.80, 0.35];
     }
 
     /// Reload the render pipeline and replace the old one.
@@ -267,7 +326,7 @@ impl Jockey {
             static ref R_NAME: CString = CString::new("R").unwrap();
             static ref K_NAME: CString = CString::new("K").unwrap();
             static ref RESOLUTION_NAME: CString = CString::new("resolution").unwrap();
-            static ref PASS_ID_NAME: CString = CString::new("pass_id").unwrap();
+            static ref PASS_INDEX_NAME: CString = CString::new("passIndex").unwrap();
             static ref TIME_NAME: CString = CString::new("time").unwrap();
             static ref BEAT_NAME: CString = CString::new("beat").unwrap();
             static ref SLIDERS_NAME: CString = CString::new("sliders").unwrap();
@@ -313,7 +372,7 @@ impl Jockey {
                     let r_loc = gl::GetUniformLocation(stage.prog_id, R_NAME.as_ptr());
                     let k_loc = gl::GetUniformLocation(stage.prog_id, K_NAME.as_ptr());
                     let res_loc = gl::GetUniformLocation(stage.prog_id, RESOLUTION_NAME.as_ptr());
-                    let pass_loc = gl::GetUniformLocation(stage.prog_id, PASS_ID_NAME.as_ptr());
+                    let pass_loc = gl::GetUniformLocation(stage.prog_id, PASS_INDEX_NAME.as_ptr());
                     let time_loc = gl::GetUniformLocation(stage.prog_id, TIME_NAME.as_ptr());
                     let beat_loc = gl::GetUniformLocation(stage.prog_id, BEAT_NAME.as_ptr());
 
