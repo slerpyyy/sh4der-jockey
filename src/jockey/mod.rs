@@ -189,61 +189,65 @@ impl Jockey {
         this
     }
 
-    // ported from https://www.gitmemory.com/issue/ocornut/imgui/707/512669512
+    // adapted from https://www.gitmemory.com/issue/ocornut/imgui/707/512669512
     #[rustfmt::skip]
     fn init_imgui_style(style: &mut imgui::Style) {
+        fn gray(value: f32, alpha: f32) -> [f32; 4] {
+            [value, value, value, alpha]
+        }
+
         style.frame_rounding = 4.0;
         style.grab_rounding = 4.0;
 
         use imgui::StyleColor::*;
-        style.colors[Text                   as usize] = [0.95, 0.96, 0.98, 1.00];
-        style.colors[TextDisabled           as usize] = [0.36, 0.42, 0.47, 1.00];
-        style.colors[WindowBg               as usize] = [0.11, 0.15, 0.17, 1.00];
-        style.colors[ChildBg                as usize] = [0.15, 0.18, 0.22, 1.00];
-        style.colors[PopupBg                as usize] = [0.08, 0.08, 0.08, 0.94];
-        style.colors[Border                 as usize] = [0.08, 0.10, 0.12, 1.00];
-        style.colors[BorderShadow           as usize] = [0.00, 0.00, 0.00, 0.00];
-        style.colors[FrameBg                as usize] = [0.20, 0.25, 0.29, 1.00];
-        style.colors[FrameBgHovered         as usize] = [0.12, 0.20, 0.28, 1.00];
-        style.colors[FrameBgActive          as usize] = [0.09, 0.12, 0.14, 1.00];
-        style.colors[TitleBg                as usize] = [0.09, 0.12, 0.14, 0.65];
-        style.colors[TitleBgActive          as usize] = [0.08, 0.10, 0.12, 1.00];
-        style.colors[TitleBgCollapsed       as usize] = [0.00, 0.00, 0.00, 0.51];
-        style.colors[MenuBarBg              as usize] = [0.15, 0.18, 0.22, 1.00];
-        style.colors[ScrollbarBg            as usize] = [0.02, 0.02, 0.02, 0.39];
-        style.colors[ScrollbarGrab          as usize] = [0.20, 0.25, 0.29, 1.00];
-        style.colors[ScrollbarGrabHovered   as usize] = [0.18, 0.22, 0.25, 1.00];
-        style.colors[ScrollbarGrabActive    as usize] = [0.09, 0.21, 0.31, 1.00];
-        style.colors[CheckMark              as usize] = [0.28, 0.56, 1.00, 1.00];
-        style.colors[SliderGrab             as usize] = [0.28, 0.46, 0.50, 1.00];
-        style.colors[SliderGrabActive       as usize] = [0.37, 0.60, 0.66, 1.00];
-        style.colors[Button                 as usize] = [0.20, 0.25, 0.29, 1.00];
-        style.colors[ButtonHovered          as usize] = [0.28, 0.56, 1.00, 1.00];
-        style.colors[ButtonActive           as usize] = [0.06, 0.53, 0.98, 1.00];
-        style.colors[Header                 as usize] = [0.20, 0.25, 0.29, 0.55];
-        style.colors[HeaderHovered          as usize] = [0.26, 0.59, 0.98, 0.80];
-        style.colors[HeaderActive           as usize] = [0.26, 0.59, 0.98, 1.00];
-        style.colors[Separator              as usize] = [0.20, 0.25, 0.29, 1.00];
-        style.colors[SeparatorHovered       as usize] = [0.10, 0.40, 0.75, 0.78];
-        style.colors[SeparatorActive        as usize] = [0.10, 0.40, 0.75, 1.00];
-        style.colors[ResizeGrip             as usize] = [0.26, 0.59, 0.98, 0.25];
-        style.colors[ResizeGripHovered      as usize] = [0.26, 0.59, 0.98, 0.67];
-        style.colors[ResizeGripActive       as usize] = [0.26, 0.59, 0.98, 0.95];
-        style.colors[Tab                    as usize] = [0.11, 0.15, 0.17, 1.00];
-        style.colors[TabHovered             as usize] = [0.26, 0.59, 0.98, 0.80];
-        style.colors[TabActive              as usize] = [0.20, 0.25, 0.29, 1.00];
-        style.colors[TabUnfocused           as usize] = [0.11, 0.15, 0.17, 1.00];
-        style.colors[TabUnfocusedActive     as usize] = [0.11, 0.15, 0.17, 1.00];
-        style.colors[PlotLines              as usize] = [0.61, 0.61, 0.61, 1.00];
-        style.colors[PlotLinesHovered       as usize] = [1.00, 0.43, 0.35, 1.00];
-        style.colors[PlotHistogram          as usize] = [0.90, 0.70, 0.00, 1.00];
-        style.colors[PlotHistogramHovered   as usize] = [1.00, 0.60, 0.00, 1.00];
-        style.colors[TextSelectedBg         as usize] = [0.26, 0.59, 0.98, 0.35];
-        style.colors[DragDropTarget         as usize] = [1.00, 1.00, 0.00, 0.90];
-        style.colors[NavHighlight           as usize] = [0.26, 0.59, 0.98, 1.00];
-        style.colors[NavWindowingHighlight  as usize] = [1.00, 1.00, 1.00, 0.70];
-        style.colors[NavWindowingDimBg      as usize] = [0.80, 0.80, 0.80, 0.20];
-        style.colors[ModalWindowDimBg       as usize] = [0.80, 0.80, 0.80, 0.35];
+        style.colors[Text                   as usize] = gray(1.00, 1.00);
+        style.colors[TextDisabled           as usize] = gray(0.40, 1.00);
+        style.colors[WindowBg               as usize] = gray(0.16, 1.00);
+        style.colors[ChildBg                as usize] = gray(0.16, 1.00);
+        style.colors[PopupBg                as usize] = gray(0.08, 1.00);
+        style.colors[Border                 as usize] = gray(0.08, 1.00);
+        style.colors[BorderShadow           as usize] = gray(0.00, 1.00);
+        style.colors[FrameBg                as usize] = gray(0.25, 1.00);
+        style.colors[FrameBgHovered         as usize] = gray(0.20, 1.00);
+        style.colors[FrameBgActive          as usize] = gray(0.12, 1.00);
+        style.colors[TitleBg                as usize] = gray(0.12, 1.00);
+        style.colors[TitleBgActive          as usize] = gray(0.08, 1.00);
+        style.colors[TitleBgCollapsed       as usize] = gray(0.00, 0.50);
+        style.colors[MenuBarBg              as usize] = gray(0.16, 1.00);
+        style.colors[ScrollbarBg            as usize] = gray(0.16, 1.00);
+        style.colors[ScrollbarGrab          as usize] = gray(0.25, 1.00);
+        style.colors[ScrollbarGrabHovered   as usize] = gray(0.22, 1.00);
+        style.colors[ScrollbarGrabActive    as usize] = gray(0.21, 1.00);
+        style.colors[CheckMark              as usize] = gray(0.56, 1.00);
+        style.colors[SliderGrab             as usize] = gray(0.46, 1.00);
+        style.colors[SliderGrabActive       as usize] = gray(0.60, 1.00);
+        style.colors[Button                 as usize] = gray(0.25, 1.00);
+        style.colors[ButtonHovered          as usize] = gray(0.56, 1.00);
+        style.colors[ButtonActive           as usize] = gray(0.53, 1.00);
+        style.colors[Header                 as usize] = gray(0.25, 0.55);
+        style.colors[HeaderHovered          as usize] = gray(0.60, 0.80);
+        style.colors[HeaderActive           as usize] = gray(0.60, 1.00);
+        style.colors[Separator              as usize] = gray(0.25, 1.00);
+        style.colors[SeparatorHovered       as usize] = gray(0.40, 0.78);
+        style.colors[SeparatorActive        as usize] = gray(0.40, 1.00);
+        style.colors[ResizeGrip             as usize] = gray(0.60, 0.25);
+        style.colors[ResizeGripHovered      as usize] = gray(0.60, 0.67);
+        style.colors[ResizeGripActive       as usize] = gray(0.60, 0.95);
+        style.colors[Tab                    as usize] = gray(0.16, 1.00);
+        style.colors[TabHovered             as usize] = gray(0.60, 0.80);
+        style.colors[TabActive              as usize] = gray(0.25, 1.00);
+        style.colors[TabUnfocused           as usize] = gray(0.16, 1.00);
+        style.colors[TabUnfocusedActive     as usize] = gray(0.16, 1.00);
+        style.colors[PlotLines              as usize] = gray(1.00, 1.00);
+        style.colors[PlotLinesHovered       as usize] = gray(1.00, 1.00);
+        style.colors[PlotHistogram          as usize] = gray(1.00, 1.00);
+        style.colors[PlotHistogramHovered   as usize] = gray(1.00, 1.00);
+        style.colors[TextSelectedBg         as usize] = gray(0.60, 0.35);
+        style.colors[DragDropTarget         as usize] = gray(1.00, 0.90);
+        style.colors[NavHighlight           as usize] = gray(0.60, 1.00);
+        style.colors[NavWindowingHighlight  as usize] = gray(1.00, 0.70);
+        style.colors[NavWindowingDimBg      as usize] = gray(0.80, 0.20);
+        style.colors[ModalWindowDimBg       as usize] = gray(0.80, 0.35);
     }
 
     /// Reload the render pipeline and replace the old one.
