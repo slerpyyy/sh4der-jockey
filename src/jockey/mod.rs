@@ -262,10 +262,12 @@ impl Jockey {
     /// This function iterates over all stages in the pipeline and renders
     /// them front to back. The only reason this function takes an `&mut self`
     /// is to record performance statistics.
-    pub fn draw(&mut self) -> Option<()> {
+    pub fn draw(&mut self) {
         lazy_static! {
             static ref R_NAME: CString = CString::new("R").unwrap();
+            static ref K_NAME: CString = CString::new("K").unwrap();
             static ref RESOLUTION_NAME: CString = CString::new("resolution").unwrap();
+            static ref PASS_ID_NAME: CString = CString::new("pass_id").unwrap();
             static ref TIME_NAME: CString = CString::new("time").unwrap();
             static ref BEAT_NAME: CString = CString::new("beat").unwrap();
             static ref SLIDERS_NAME: CString = CString::new("sliders").unwrap();
@@ -280,16 +282,19 @@ impl Jockey {
         let (width, height) = self.ctx.window.size();
         let time = self.start_time.elapsed().as_secs_f32();
         let beat = self.last_beat.elapsed().as_secs_f32() / self.beat_delta.get();
+        gl_debug_check!();
 
-        gl_debug_check!();
-        let sample_name: &CString = &SAMPLES_NAME;
-        let samples_tex = self.pipeline.buffers.get_mut(sample_name).unwrap();
-        let interlaced_samples = interlace(&mut self.audio.l_signal, &mut self.audio.r_signal);
-        samples_tex.write(interlaced_samples.as_slice());
-        gl_debug_check!();
+        {
+            // update audio samples texture
+            let sample_name: &CString = &SAMPLES_NAME;
+            let samples_tex = self.pipeline.buffers.get_mut(sample_name).unwrap();
+            let interlaced_samples = interlace(&mut self.audio.l_signal, &mut self.audio.r_signal);
+            samples_tex.write(&interlaced_samples);
+            gl_debug_check!();
+        }
 
         // render all shader stages
-        for stage in self.pipeline.stages.iter_mut() {
+        for (pass_num, stage) in self.pipeline.stages.iter_mut().enumerate() {
             let stage_start = Instant::now();
 
             // get size of the render target
@@ -303,28 +308,32 @@ impl Jockey {
                 gl::UseProgram(stage.prog_id);
                 gl_debug_check!();
 
-                // Add time, beat and resolution
                 {
+                    // Add time, beat and resolution
                     let r_loc = gl::GetUniformLocation(stage.prog_id, R_NAME.as_ptr());
+                    let k_loc = gl::GetUniformLocation(stage.prog_id, K_NAME.as_ptr());
                     let res_loc = gl::GetUniformLocation(stage.prog_id, RESOLUTION_NAME.as_ptr());
+                    let pass_loc = gl::GetUniformLocation(stage.prog_id, PASS_ID_NAME.as_ptr());
                     let time_loc = gl::GetUniformLocation(stage.prog_id, TIME_NAME.as_ptr());
                     let beat_loc = gl::GetUniformLocation(stage.prog_id, BEAT_NAME.as_ptr());
 
                     gl::Uniform4f(
                         res_loc,
-                        target_res.0 as _,
-                        target_res.1 as _,
-                        (target_res.0 as f32 / target_res.1 as f32) as _,
-                        (target_res.0 as f32 / target_res.1 as f32) as _,
+                        target_res.0 as f32,
+                        target_res.1 as f32,
+                        target_res.0 as f32 / target_res.1 as f32,
+                        target_res.1 as f32 / target_res.0 as f32,
                     );
                     gl::Uniform3f(r_loc, target_res.0 as _, target_res.1 as _, time);
+                    gl::Uniform1i(k_loc, pass_num as _);
+                    gl::Uniform1i(pass_loc, pass_num as _);
                     gl::Uniform1f(time_loc, time);
                     gl::Uniform1f(beat_loc, beat);
+                    gl_debug_check!();
                 }
-                gl_debug_check!();
 
-                // Add sliders and buttons
                 {
+                    // Add sliders and buttons
                     let s_loc = gl::GetUniformLocation(stage.prog_id, SLIDERS_NAME.as_ptr());
                     let b_loc = gl::GetUniformLocation(stage.prog_id, BUTTONS_NAME.as_ptr());
 
@@ -335,15 +344,15 @@ impl Jockey {
 
                     gl::Uniform1fv(s_loc, self.midi.sliders.len() as _, &self.midi.sliders as _);
                     gl::Uniform1fv(b_loc, buttons.len() as _, &buttons as _);
+                    gl_debug_check!();
                 }
-                gl_debug_check!();
 
                 // Add vertex count uniform
                 if let StageKind::Vert { count, .. } = stage.kind {
                     let loc = gl::GetUniformLocation(stage.prog_id, VERTEX_COUNT_NAME.as_ptr());
                     gl::Uniform1f(loc, count as _);
+                    gl_debug_check!();
                 }
-                gl_debug_check!();
 
                 // Add and bind uniform texture dependencies
                 for (k, name) in stage.deps.iter().enumerate() {
@@ -354,8 +363,8 @@ impl Jockey {
                     tex.activate();
 
                     gl::Uniform1i(loc, k as _);
+                    gl_debug_check!();
                 }
-                gl_debug_check!();
             }
 
             match &stage.kind {
@@ -428,8 +437,6 @@ impl Jockey {
             let stage_time = stage_start.elapsed().as_secs_f32();
             stage.perf.push(1000.0 * stage_time);
         }
-
-        Some(())
     }
 
     /// Wrapper function for all the imgui stuff.

@@ -96,7 +96,6 @@ impl<const N: usize> Midi<N> {
     pub fn handle_input(&mut self) {
         for queue in &self.queues {
             for message in queue.try_iter() {
-                // println!("incoming messge: {:x?}", &message);
                 let key = &message[..2];
                 self.last.copy_from_slice(key);
                 match self.bindings.get(key) {
