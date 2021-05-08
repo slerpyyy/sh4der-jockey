@@ -351,7 +351,7 @@ impl Jockey {
             // update audio samples texture
             let sample_name: &CString = &SAMPLES_NAME;
             let samples_tex = self.pipeline.buffers.get_mut(sample_name).unwrap();
-            let interlaced_samples = interlace(&mut self.audio.l_signal, &mut self.audio.r_signal);
+            let interlaced_samples = interlace(&self.audio.l_signal, &self.audio.r_signal);
             samples_tex.write(&interlaced_samples);
             gl_debug_check!();
         }
@@ -401,8 +401,8 @@ impl Jockey {
                     let b_loc = gl::GetUniformLocation(stage.prog_id, BUTTONS_NAME.as_ptr());
 
                     let mut buttons = [0.0; 8];
-                    for k in 0..buttons.len() {
-                        buttons[k] = self.midi.buttons[k].elapsed().as_secs_f32();
+                    for (k, last_press) in self.midi.buttons.iter().enumerate() {
+                        buttons[k] = last_press.elapsed().as_secs_f32();
                     }
 
                     gl::Uniform1fv(s_loc, self.midi.sliders.len() as _, &self.midi.sliders as _);

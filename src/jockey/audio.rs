@@ -125,30 +125,23 @@ impl Audio {
     pub fn update_samples(&mut self) {
         let l_samples_p = self.l_samples.clone();
         let l_samples = l_samples_p.lock().unwrap();
-        l_samples.get_vec(&mut self.l_signal);
+        l_samples.copy_to_slice(&mut self.l_signal);
 
         match self.channels {
+            Channels::Mono => todo!(),
             Channels::Stereo => {
                 let r_samples_p = self.r_samples.clone();
                 let r_samples = r_samples_p.lock().unwrap();
-                r_samples.get_vec(&mut self.r_signal);
+                r_samples.copy_to_slice(&mut self.r_signal);
             }
             _ => {}
         };
     }
 
+    #[allow(dead_code)]
     pub fn get_samples(&mut self, left: &mut [f32], right: &mut [f32]) {
-        let l_samples_p = self.l_samples.clone();
-        let l_samples = l_samples_p.lock().unwrap();
-        l_samples.get_vec(left);
-
-        match self.channels {
-            Channels::Stereo => {
-                let r_samples_p = self.r_samples.clone();
-                let r_samples = r_samples_p.lock().unwrap();
-                r_samples.get_vec(right);
-            }
-            _ => {}
-        };
+        self.update_samples();
+        left.copy_from_slice(&self.l_signal);
+        right.copy_from_slice(&self.r_signal);
     }
 }

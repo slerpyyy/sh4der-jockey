@@ -47,7 +47,7 @@ where
         where
             T: Add<Output = T> + Div<Output = T> + From<u8> + Copy,
         {
-            if let &[x] = slice {
+            if let [x] = *slice {
                 return x;
             }
 

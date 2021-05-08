@@ -29,10 +29,11 @@ where
     }
 
     pub fn push(&mut self, val: &T) {
-        self.buffer[self.index] = val.clone();
+        self.buffer[self.index] = *val;
         self.index = (self.index + 1) % self.size;
     }
 
+    #[allow(dead_code)]
     pub fn push_slice(&mut self, val: &[T]) {
         for x in val.iter() {
             self.push(x);
@@ -46,9 +47,9 @@ where
         self.buffer[idx]
     }
 
-    pub fn get_vec(&self, vec: &mut [T]) {
-        for i in 0..vec.len() {
-            vec[i] = self.get(i);
+    pub fn copy_to_slice(&self, vec: &mut [T]) {
+        for (k, slot) in vec.iter_mut().enumerate() {
+            *slot = self.get(k);
         }
     }
 }
@@ -79,13 +80,13 @@ mod test {
         }
     }
     #[test]
-    fn get_vec() {
+    fn copy_to_slice() {
         let mut rb = RingBuffer::<f32>::new(8192);
         let pre_slice = [13_f32; 8192];
         rb.push_slice(&pre_slice);
 
         let mut ret_slice = [0_f32; 8192];
-        rb.get_vec(&mut ret_slice);
+        rb.copy_to_slice(&mut ret_slice);
 
         for i in 0..8192 {
             assert_eq!(pre_slice[i], ret_slice[i]);

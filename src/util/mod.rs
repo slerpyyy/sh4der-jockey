@@ -192,6 +192,7 @@ pub fn interlace<T: Clone>(mut first: &[T], mut second: &[T]) -> Vec<T> {
     out
 }
 
+#[allow(dead_code)]
 pub fn deinterlace<T: Clone>(slice: &[T]) -> (Vec<T>, Vec<T>) {
     (
         slice.iter().step_by(2).cloned().collect(),
