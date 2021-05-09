@@ -1,6 +1,14 @@
 use crate::*;
+use as_any::AsAny;
 use core::panic;
 use gl::types::*;
+
+fn _assert_is_object_safe(_: &dyn Texture) {}
+
+pub trait Texture: std::fmt::Debug + AsAny {
+    fn activate(&self);
+    fn resolution(&self) -> [u32; 3];
+}
 
 #[derive(Debug)]
 pub enum TextureKind {
@@ -27,13 +35,72 @@ pub enum TextureFormat {
 }
 
 #[derive(Debug)]
-pub struct Texture {
+pub struct TextureStruct {
     pub id: GLuint,
     pub kind: TextureKind,
     pub format: TextureFormat,
 }
 
-impl Texture {
+impl Texture for TextureStruct {
+    fn resolution(&self) -> [u32; 3] {
+        let mut out = [0; 3];
+
+        match self.kind {
+            TextureKind::FrameBuffer { res, .. } => out.copy_from_slice(&res),
+            TextureKind::Image1D { res, .. } | TextureKind::Texture1D { res, .. } => {
+                out.copy_from_slice(&res)
+            }
+            TextureKind::Image2D { res, .. } | TextureKind::Texture2D { res, .. } => {
+                out.copy_from_slice(&res)
+            }
+            TextureKind::Image3D { res, .. } | TextureKind::Texture3D { res, .. } => {
+                out.copy_from_slice(&res)
+            }
+        }
+
+        out
+    }
+
+    fn activate(&self) {
+        unsafe {
+            match self.kind {
+                TextureKind::FrameBuffer { .. }
+                | TextureKind::Image2D { .. }
+                | TextureKind::Texture2D { .. } => {
+                    gl::BindTexture(gl::TEXTURE_2D, self.id);
+                }
+                TextureKind::Image1D { .. } | TextureKind::Texture1D { .. } => {
+                    gl::BindTexture(gl::TEXTURE_1D, self.id);
+                }
+                TextureKind::Image3D { .. } | TextureKind::Texture3D { .. } => {
+                    gl::BindTexture(gl::TEXTURE_3D, self.id);
+                }
+            };
+            gl_debug_check!();
+
+            match self.kind {
+                TextureKind::Image1D { .. }
+                | TextureKind::Image2D { .. }
+                | TextureKind::Image3D { .. } => {
+                    gl::BindImageTexture(
+                        0,
+                        self.id,
+                        0,
+                        gl::FALSE,
+                        0,
+                        gl::WRITE_ONLY,
+                        self.format as _,
+                    );
+                }
+                _ => (),
+            };
+
+            gl_debug_check!();
+        }
+    }
+}
+
+impl TextureStruct {
     pub fn new(resolution: &[u32]) -> Self {
         Self::with_params(
             resolution,
@@ -330,63 +397,6 @@ impl Texture {
         }
     }
 
-    pub fn resolution(&self) -> [u32; 3] {
-        let mut out = [0; 3];
-
-        match self.kind {
-            TextureKind::FrameBuffer { res, .. } => out.copy_from_slice(&res),
-            TextureKind::Image1D { res, .. } | TextureKind::Texture1D { res, .. } => {
-                out.copy_from_slice(&res)
-            }
-            TextureKind::Image2D { res, .. } | TextureKind::Texture2D { res, .. } => {
-                out.copy_from_slice(&res)
-            }
-            TextureKind::Image3D { res, .. } | TextureKind::Texture3D { res, .. } => {
-                out.copy_from_slice(&res)
-            }
-        }
-
-        out
-    }
-
-    pub fn activate(&self) {
-        unsafe {
-            match self.kind {
-                TextureKind::FrameBuffer { .. }
-                | TextureKind::Image2D { .. }
-                | TextureKind::Texture2D { .. } => {
-                    gl::BindTexture(gl::TEXTURE_2D, self.id);
-                }
-                TextureKind::Image1D { .. } | TextureKind::Texture1D { .. } => {
-                    gl::BindTexture(gl::TEXTURE_1D, self.id);
-                }
-                TextureKind::Image3D { .. } | TextureKind::Texture3D { .. } => {
-                    gl::BindTexture(gl::TEXTURE_3D, self.id);
-                }
-            };
-            gl_debug_check!();
-
-            match self.kind {
-                TextureKind::Image1D { .. }
-                | TextureKind::Image2D { .. }
-                | TextureKind::Image3D { .. } => {
-                    gl::BindImageTexture(
-                        0,
-                        self.id,
-                        0,
-                        gl::FALSE,
-                        0,
-                        gl::WRITE_ONLY,
-                        self.format as _,
-                    );
-                }
-                _ => (),
-            };
-
-            gl_debug_check!();
-        }
-    }
-
     pub fn write(&mut self, data: &[f32]) {
         unsafe {
             let tex_id = self.id;
@@ -412,7 +422,7 @@ impl Texture {
     }
 }
 
-impl Drop for Texture {
+impl Drop for TextureStruct {
     fn drop(&mut self) {
         unsafe {
             gl::DeleteTextures(1, &self.id);

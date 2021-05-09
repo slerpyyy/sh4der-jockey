@@ -10,7 +10,7 @@ use std::{collections::HashMap, ffi::CString};
 #[derive(Debug)]
 pub struct Pipeline {
     pub stages: Vec<Stage>,
-    pub buffers: HashMap<CString, Texture>,
+    pub buffers: HashMap<CString, Box<dyn Texture>>,
 }
 
 impl Pipeline {
@@ -67,16 +67,19 @@ impl Pipeline {
         }
 
         // put buffers into hashmap
-        let mut buffers = HashMap::<CString, Texture>::new();
+        let mut buffers = HashMap::<CString, Box<dyn Texture>>::new();
 
-        let audio_samples_texture = Texture::texture_from_params(
+        let audio_samples_texture = TextureStruct::texture_from_params(
             &[fft_window as _],
             gl::NEAREST,
             gl::NEAREST,
             gl::CLAMP_TO_EDGE,
             TextureFormat::RG32F,
         );
-        buffers.insert(CString::new("samples").unwrap(), audio_samples_texture);
+        buffers.insert(
+            CString::new("samples").unwrap(),
+            Box::new(audio_samples_texture),
+        );
 
         for stage in stages.iter() {
             let target = match &stage.target {
@@ -100,15 +103,15 @@ impl Pipeline {
             let texture = match stage.kind {
                 StageKind::Frag { res } | StageKind::Vert { res, .. } => {
                     let (width, height) = res.unwrap_or(screen_size);
-                    Texture::with_framebuffer(width as _, height as _)
+                    TextureStruct::with_framebuffer(width as _, height as _)
                 }
                 StageKind::Comp {
                     tex_type, tex_dim, ..
-                } => Texture::new(&tex_dim[..(tex_type as _)]),
+                } => TextureStruct::new(&tex_dim[..(tex_type as _)]),
             };
 
             // insert texture into hashmap
-            buffers.insert(target.clone(), texture);
+            buffers.insert(target.clone(), Box::new(texture));
         }
 
         // compute uniform dependencies
@@ -133,11 +136,11 @@ impl Pipeline {
                 Some(s) => {
                     let tex = match stage.kind {
                         StageKind::Frag { res: None, .. } | StageKind::Vert { res: None, .. } => {
-                            Texture::with_framebuffer(width, height)
+                            TextureStruct::with_framebuffer(width, height)
                         }
                         _ => continue,
                     };
-                    self.buffers.insert(s.clone(), tex);
+                    self.buffers.insert(s.clone(), Box::new(tex));
                 }
                 None => continue,
             }

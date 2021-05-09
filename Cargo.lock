@@ -56,6 +56,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "33954243bd79057c2de7338850b85983a44588021f8a5fee574a8888c6de4344"
 
 [[package]]
+name = "as-any"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0b564204d863976c470dbd0e41d1fcc351a8cd1b58222aaaae466f82c493fae4"
+
+[[package]]
 name = "autocfg"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1261,6 +1267,7 @@ name = "sh4der-jockey"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "as-any",
  "cpal",
  "getopts",
  "gl",

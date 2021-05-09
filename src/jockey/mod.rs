@@ -352,7 +352,11 @@ impl Jockey {
             let sample_name: &CString = &SAMPLES_NAME;
             let samples_tex = self.pipeline.buffers.get_mut(sample_name).unwrap();
             let interlaced_samples = interlace(&self.audio.l_signal, &self.audio.r_signal);
-            samples_tex.write(&interlaced_samples);
+
+            if let Some(tex) = samples_tex.as_any_mut().downcast_mut::<TextureStruct>() {
+                tex.write(&interlaced_samples);
+            }
+
             gl_debug_check!();
         }
 
@@ -440,6 +444,8 @@ impl Jockey {
                     // get render target id
                     let (target_tex, target_fb) = if let Some(name) = &stage.target {
                         let tex = &self.pipeline.buffers[name];
+                        let tex = tex.as_any().downcast_ref::<TextureStruct>().unwrap();
+
                         if let TextureKind::FrameBuffer { fb, .. } = tex.kind {
                             (tex.id, fb)
                         } else {
