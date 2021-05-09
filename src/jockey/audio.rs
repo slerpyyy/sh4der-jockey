@@ -127,14 +127,10 @@ impl Audio {
         let l_samples = l_samples_p.lock().unwrap();
         l_samples.copy_to_slice(&mut self.l_signal);
 
-        match self.channels {
-            Channels::Mono => todo!(),
-            Channels::Stereo => {
-                let r_samples_p = self.r_samples.clone();
-                let r_samples = r_samples_p.lock().unwrap();
-                r_samples.copy_to_slice(&mut self.r_signal);
-            }
-            _ => {}
+        if let Channels::Stereo = self.channels {
+            let r_samples_p = self.r_samples.clone();
+            let r_samples = r_samples_p.lock().unwrap();
+            r_samples.copy_to_slice(&mut self.r_signal);
         };
     }
 

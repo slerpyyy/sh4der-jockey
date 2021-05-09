@@ -57,6 +57,7 @@ where
 #[cfg(test)]
 mod test {
     use super::RingBuffer;
+
     #[test]
     fn create() {
         let rb = RingBuffer::<f32>::new(8192);
@@ -79,6 +80,7 @@ mod test {
             assert_eq!(rb.get(i), 13_f32);
         }
     }
+
     #[test]
     fn copy_to_slice() {
         let mut rb = RingBuffer::<f32>::new(8192);
