@@ -1,18 +1,106 @@
 use crate::*;
 use as_any::AsAny;
 use core::panic;
+use std::fmt::Debug;
 use gl::types::*;
 
 fn _assert_is_object_safe(_: &dyn Texture) {}
 
-pub trait Texture: std::fmt::Debug + AsAny {
+pub trait Texture: Debug + AsAny {
     fn activate(&self);
     fn resolution(&self) -> [u32; 3];
 }
 
 #[derive(Debug)]
+pub struct FrameBuffer {
+    pub tex_id: GLuint,
+    pub fb_id: GLuint,
+    res: [u32; 2],
+}
+
+impl Texture for FrameBuffer {
+    fn resolution(&self) -> [u32; 3] {
+        [self.res[0], self.res[1], 0]
+    }
+
+    fn activate(&self) {
+        unsafe {
+            gl::BindTexture(gl::TEXTURE_2D, self.tex_id);
+            gl_debug_check!();
+        }
+    }
+}
+
+impl FrameBuffer {
+    pub fn new(width: u32, height: u32) -> Self {
+        unsafe {
+            let mut tex_id = 0;
+            let mut fb_id = 0;
+
+            gl::GenTextures(1, &mut tex_id);
+            gl::GenFramebuffers(1, &mut fb_id);
+            gl_debug_check!();
+
+            gl::ActiveTexture(gl::TEXTURE0);
+            gl::BindTexture(gl::TEXTURE_2D, tex_id);
+            gl::BindFramebuffer(gl::FRAMEBUFFER, fb_id);
+            gl_debug_check!();
+
+            #[rustfmt::skip]
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR_MIPMAP_LINEAR as _);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as _);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as _);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as _);
+            gl_debug_check!();
+
+            gl::TexImage2D(
+                gl::TEXTURE_2D,
+                0,
+                gl::RGBA32F as _,
+                width as _,
+                height as _,
+                0,
+                gl::RGBA,
+                gl::FLOAT,
+                std::ptr::null(),
+            );
+            gl_debug_check!();
+
+            gl::GenerateMipmap(gl::TEXTURE_2D);
+            gl::FramebufferTexture2D(
+                gl::FRAMEBUFFER,
+                gl::COLOR_ATTACHMENT0,
+                gl::TEXTURE_2D,
+                tex_id,
+                0,
+            );
+
+            gl_debug_check!();
+            debug_assert_eq!(
+                gl::CheckFramebufferStatus(gl::FRAMEBUFFER),
+                gl::FRAMEBUFFER_COMPLETE
+            );
+
+            Self {
+                tex_id,
+                fb_id,
+                res: [width, height],
+            }
+        }
+    }
+}
+
+impl Drop for FrameBuffer {
+    fn drop(&mut self) {
+        unsafe {
+            gl::DeleteTextures(1, &self.tex_id);
+            gl::DeleteFramebuffers(1, &self.fb_id);
+        }
+    }
+}
+
+#[derive(Debug)]
 pub enum TextureKind {
-    FrameBuffer { fb: GLuint, res: [u32; 2] },
     Image1D { res: [u32; 1] },
     Image2D { res: [u32; 2] },
     Image3D { res: [u32; 3] },
@@ -46,7 +134,6 @@ impl Texture for TextureStruct {
         let mut out = [0; 3];
 
         match self.kind {
-            TextureKind::FrameBuffer { res, .. } => out.copy_from_slice(&res),
             TextureKind::Image1D { res, .. } | TextureKind::Texture1D { res, .. } => {
                 out.copy_from_slice(&res)
             }
@@ -64,8 +151,7 @@ impl Texture for TextureStruct {
     fn activate(&self) {
         unsafe {
             match self.kind {
-                TextureKind::FrameBuffer { .. }
-                | TextureKind::Image2D { .. }
+                TextureKind::Image2D { .. }
                 | TextureKind::Texture2D { .. } => {
                     gl::BindTexture(gl::TEXTURE_2D, self.id);
                 }
@@ -109,80 +195,6 @@ impl TextureStruct {
             gl::REPEAT,
             TextureFormat::RGBA32F,
         )
-    }
-
-    pub fn with_framebuffer(width: u32, height: u32) -> Self {
-        unsafe {
-            let mut id = 0;
-            let mut fb = 0;
-
-            gl::GenTextures(1, &mut id);
-            gl::GenFramebuffers(1, &mut fb);
-            gl_debug_check!();
-
-            gl::ActiveTexture(gl::TEXTURE0);
-            gl::BindTexture(gl::TEXTURE_2D, id);
-            gl::BindFramebuffer(gl::FRAMEBUFFER, fb);
-            gl_debug_check!();
-
-            #[rustfmt::skip]
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR_MIPMAP_LINEAR as _);
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as _);
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as _);
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as _);
-            gl_debug_check!();
-
-            // gl::TexStorage2D(gl::TEXTURE_2D, 4, gl::RGBA32F, width as _, height as _);
-            // gl::TexSubImage2D(
-            //     gl::TEXTURE_2D,
-            //     0,
-            //     0,
-            //     0,
-            //     width as _,
-            //     height as _,
-            //     gl::RGBA,
-            //     gl::FLOAT,
-            //     std::ptr::null(),
-            // );
-
-            gl::TexImage2D(
-                gl::TEXTURE_2D,
-                0,
-                gl::RGBA32F as _,
-                width as _,
-                height as _,
-                0,
-                gl::RGBA,
-                gl::FLOAT,
-                std::ptr::null(),
-            );
-            gl_debug_check!();
-
-            gl::GenerateMipmap(gl::TEXTURE_2D);
-            gl::FramebufferTexture2D(
-                gl::FRAMEBUFFER,
-                gl::COLOR_ATTACHMENT0,
-                gl::TEXTURE_2D,
-                id,
-                0,
-            );
-
-            gl_debug_check!();
-            debug_assert_eq!(
-                gl::CheckFramebufferStatus(gl::FRAMEBUFFER),
-                gl::FRAMEBUFFER_COMPLETE
-            );
-
-            let format = TextureFormat::RGBA32F;
-            Self {
-                id,
-                kind: TextureKind::FrameBuffer {
-                    fb,
-                    res: [width, height],
-                },
-                format,
-            }
-        }
     }
 
     pub fn get_formats(format: TextureFormat) -> (i32, u32, u32) {
@@ -426,10 +438,6 @@ impl Drop for TextureStruct {
     fn drop(&mut self) {
         unsafe {
             gl::DeleteTextures(1, &self.id);
-
-            if let TextureKind::FrameBuffer { fb, .. } = self.kind {
-                gl::DeleteFramebuffers(1, &fb)
-            }
         }
     }
 }

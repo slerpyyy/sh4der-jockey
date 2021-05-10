@@ -100,18 +100,18 @@ impl Pipeline {
             }
 
             // create textures
-            let texture = match stage.kind {
+            let texture: Box<dyn Texture> = match stage.kind {
                 StageKind::Frag { res } | StageKind::Vert { res, .. } => {
                     let (width, height) = res.unwrap_or(screen_size);
-                    TextureStruct::with_framebuffer(width as _, height as _)
+                    Box::new(FrameBuffer::new(width as _, height as _))
                 }
                 StageKind::Comp {
                     tex_type, tex_dim, ..
-                } => TextureStruct::new(&tex_dim[..(tex_type as _)]),
+                } => Box::new(TextureStruct::new(&tex_dim[..(tex_type as _)])),
             };
 
             // insert texture into hashmap
-            buffers.insert(target.clone(), Box::new(texture));
+            buffers.insert(target.clone(), texture);
         }
 
         // compute uniform dependencies
@@ -136,7 +136,7 @@ impl Pipeline {
                 Some(s) => {
                     let tex = match stage.kind {
                         StageKind::Frag { res: None, .. } | StageKind::Vert { res: None, .. } => {
-                            TextureStruct::with_framebuffer(width, height)
+                            FrameBuffer::new(width, height)
                         }
                         _ => continue,
                     };
