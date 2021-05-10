@@ -352,7 +352,11 @@ impl Jockey {
             let sample_name: &CString = &SAMPLES_NAME;
             let samples_tex = self.pipeline.buffers.get_mut(sample_name).unwrap();
             let interlaced_samples = interlace(&self.audio.l_signal, &self.audio.r_signal);
-            samples_tex.as_any_mut().downcast_mut::<TextureStruct>().unwrap().write(&interlaced_samples);
+            samples_tex
+                .as_any_mut()
+                .downcast_mut::<ImageTexture>()
+                .unwrap()
+                .write(&interlaced_samples);
             gl_debug_check!();
         }
 

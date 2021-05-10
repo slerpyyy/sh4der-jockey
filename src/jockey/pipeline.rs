@@ -69,7 +69,7 @@ impl Pipeline {
         // put buffers into hashmap
         let mut buffers = HashMap::<CString, Box<dyn Texture>>::new();
 
-        let audio_samples_texture = TextureStruct::texture_from_params(
+        let audio_samples_texture = ImageTexture::texture_from_params(
             &[fft_window as _],
             gl::NEAREST,
             gl::NEAREST,
@@ -107,7 +107,7 @@ impl Pipeline {
                 }
                 StageKind::Comp {
                     tex_type, tex_dim, ..
-                } => Box::new(TextureStruct::new(&tex_dim[..(tex_type as _)])),
+                } => Box::new(ImageTexture::new(&tex_dim[..(tex_type as _)])),
             };
 
             // insert texture into hashmap

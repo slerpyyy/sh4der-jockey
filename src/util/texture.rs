@@ -123,13 +123,13 @@ pub enum TextureFormat {
 }
 
 #[derive(Debug)]
-pub struct TextureStruct {
+pub struct ImageTexture {
     pub id: GLuint,
     pub kind: TextureKind,
     pub format: TextureFormat,
 }
 
-impl Texture for TextureStruct {
+impl Texture for ImageTexture {
     fn resolution(&self) -> [u32; 3] {
         let mut out = [0; 3];
 
@@ -186,7 +186,7 @@ impl Texture for TextureStruct {
     }
 }
 
-impl TextureStruct {
+impl ImageTexture {
     pub fn new(resolution: &[u32]) -> Self {
         Self::with_params(
             resolution,
@@ -434,7 +434,7 @@ impl TextureStruct {
     }
 }
 
-impl Drop for TextureStruct {
+impl Drop for ImageTexture {
     fn drop(&mut self) {
         unsafe {
             gl::DeleteTextures(1, &self.id);
