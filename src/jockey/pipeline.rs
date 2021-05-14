@@ -44,19 +44,20 @@ impl Pipeline {
             s => return Err(format!("Expected \"stages\" to be an array, got {:?}", s)),
         };
 
-        let fft_window = match object.get("fftWindowSize") {
+        // get fft texture size
+        let fft_size = match object.get("fft_size") {
+            None => 8192,
             Some(Value::Number(n)) => {
                 let n = n.as_u64().unwrap();
-                if n.count_ones() != 1 {
+                if n.is_power_of_two() {
                     return Err(format!(
-                        "Expected fftWindow to be a power of 2, got: {:?}",
+                        "Expected \"fft_size\" to be a power of 2, got: {:?}",
                         n
                     ));
                 }
                 n
             }
-            None => 8192_u64,
-            s => return Err(format!("Expected fftWindow to be number, got: {:?}", s)),
+            s => return Err(format!("Expected \"fft_size\" to be number, got: {:?}", s)),
         };
 
         // parse stages
@@ -68,19 +69,6 @@ impl Pipeline {
 
         // put buffers into hashmap
         let mut buffers = HashMap::<CString, Box<dyn Texture>>::new();
-
-        let audio_samples_texture = ImageTexture::texture_from_params(
-            &[fft_window as _],
-            gl::NEAREST,
-            gl::NEAREST,
-            gl::CLAMP_TO_EDGE,
-            TextureFormat::RG32F,
-        );
-        buffers.insert(
-            CString::new("samples").unwrap(),
-            Box::new(audio_samples_texture),
-        );
-
         for stage in stages.iter() {
             let target = match &stage.target {
                 Some(s) => s,
@@ -103,7 +91,14 @@ impl Pipeline {
             let texture: Box<dyn Texture> = match stage.kind {
                 StageKind::Frag { res } | StageKind::Vert { res, .. } => {
                     let (width, height) = res.unwrap_or(screen_size);
-                    Box::new(FrameBuffer::new(width as _, height as _))
+                    Box::new(FrameBuffer::with_params(
+                        width as _,
+                        height as _,
+                        stage.repeat,
+                        stage.linear,
+                        stage.mipmap,
+                        stage.float,
+                    ))
                 }
                 StageKind::Comp {
                     tex_type, tex_dim, ..
@@ -113,6 +108,20 @@ impl Pipeline {
             // insert texture into hashmap
             buffers.insert(target.clone(), texture);
         }
+
+        // add audio samples to buffers
+        let audio_samples_texture = ImageTexture::texture_from_params(
+            &[fft_size as _],
+            gl::NEAREST,
+            gl::NEAREST,
+            gl::CLAMP_TO_EDGE,
+            TextureFormat::RG32F,
+        );
+
+        buffers.insert(
+            CString::new("samples").unwrap(),
+            Box::new(audio_samples_texture),
+        );
 
         // compute uniform dependencies
         for stage in stages.iter_mut() {

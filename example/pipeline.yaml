@@ -1,5 +1,6 @@
 stages:
   - fs: "./scene.glsl"
+    mipmap: true
     target: "tex"
 
   - fs: "./distort.glsl"

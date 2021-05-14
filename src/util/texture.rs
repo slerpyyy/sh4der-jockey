@@ -1,8 +1,8 @@
 use crate::*;
 use as_any::AsAny;
 use core::panic;
-use std::fmt::Debug;
 use gl::types::*;
+use std::fmt::Debug;
 
 fn _assert_is_object_safe(_: &dyn Texture) {}
 
@@ -33,6 +33,17 @@ impl Texture for FrameBuffer {
 
 impl FrameBuffer {
     pub fn new(width: u32, height: u32) -> Self {
+        Self::with_params(width, height, false, true, true, true)
+    }
+
+    pub fn with_params(
+        width: u32,
+        height: u32,
+        repeat: bool,
+        linear: bool,
+        mipmap: bool,
+        float: bool,
+    ) -> Self {
         unsafe {
             let mut tex_id = 0;
             let mut fb_id = 0;
@@ -46,22 +57,40 @@ impl FrameBuffer {
             gl::BindFramebuffer(gl::FRAMEBUFFER, fb_id);
             gl_debug_check!();
 
-            #[rustfmt::skip]
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR_MIPMAP_LINEAR as _);
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as _);
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as _);
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as _);
+            let (min, mag) = match (linear, mipmap) {
+                (false, false) => (gl::NEAREST, gl::NEAREST),
+                (false, true) => (gl::NEAREST_MIPMAP_NEAREST, gl::NEAREST),
+                (true, false) => (gl::LINEAR, gl::LINEAR),
+                (true, true) => (gl::LINEAR_MIPMAP_LINEAR, gl::LINEAR),
+            };
+
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, min as _);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, mag as _);
             gl_debug_check!();
+
+            let wrap = match repeat {
+                true => gl::REPEAT,
+                false => gl::CLAMP_TO_EDGE,
+            };
+
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, wrap as _);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, wrap as _);
+            gl_debug_check!();
+
+            let r#type = match float {
+                true => gl::FLOAT,
+                false => gl::UNSIGNED_BYTE,
+            };
 
             gl::TexImage2D(
                 gl::TEXTURE_2D,
                 0,
-                gl::RGBA32F as _,
+                gl::RGBA as _,
                 width as _,
                 height as _,
                 0,
                 gl::RGBA,
-                gl::FLOAT,
+                r#type,
                 std::ptr::null(),
             );
             gl_debug_check!();
@@ -151,8 +180,7 @@ impl Texture for ImageTexture {
     fn activate(&self) {
         unsafe {
             match self.kind {
-                TextureKind::Image2D { .. }
-                | TextureKind::Texture2D { .. } => {
+                TextureKind::Image2D { .. } | TextureKind::Texture2D { .. } => {
                     gl::BindTexture(gl::TEXTURE_2D, self.id);
                 }
                 TextureKind::Image1D { .. } | TextureKind::Texture1D { .. } => {

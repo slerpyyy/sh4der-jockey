@@ -440,7 +440,7 @@ impl Jockey {
                     gl::MemoryBarrier(gl::SHADER_IMAGE_ACCESS_BARRIER_BIT);
                     gl_debug_check!();
                 },
-                _ => {
+                _ => unsafe {
                     // get render target id
                     let (target_tex, target_fb) = if let Some(name) = &stage.target {
                         let tex = &self.pipeline.buffers[name];
@@ -454,51 +454,49 @@ impl Jockey {
                         (0, 0) // The screen is always id=0
                     };
 
-                    unsafe {
-                        // Specify render target
-                        gl::BindFramebuffer(gl::FRAMEBUFFER, target_fb);
-                        gl::Viewport(0, 0, target_res.0 as _, target_res.1 as _);
-                        gl_debug_check!();
+                    // Specify render target
+                    gl::BindFramebuffer(gl::FRAMEBUFFER, target_fb);
+                    gl::Viewport(0, 0, target_res.0 as _, target_res.1 as _);
+                    gl_debug_check!();
 
-                        // Specify fragment shader color output
-                        gl::BindFragDataLocation(stage.prog_id, 0, OUT_COLOR_NAME.as_ptr());
-                        gl_debug_check!();
+                    // Specify fragment shader color output
+                    gl::BindFragDataLocation(stage.prog_id, 0, OUT_COLOR_NAME.as_ptr());
+                    gl_debug_check!();
 
-                        // Specify the layout of the vertex data
-                        let pos_attr = gl::GetAttribLocation(stage.prog_id, POSITION_NAME.as_ptr());
-                        if pos_attr != -1 {
-                            gl::EnableVertexAttribArray(pos_attr as GLuint);
-                            gl::VertexAttribPointer(
-                                pos_attr as GLuint,
-                                2,
-                                gl::FLOAT,
-                                gl::FALSE as GLboolean,
-                                0,
-                                std::ptr::null(),
-                            );
-                        }
-                        gl_debug_check!();
-
-                        // Draw stuff
-                        if let StageKind::Vert { count, mode, .. } = stage.kind {
-                            gl::ClearColor(0.0, 0.0, 0.0, 0.0);
-                            gl::Clear(gl::COLOR_BUFFER_BIT);
-
-                            draw_anything(self.ctx.vao, count, mode)
-                        } else {
-                            draw_fullscreen_rect(self.ctx.vao);
-                        }
-                        gl_debug_check!();
-
-                        // Generate mip maps
-                        // don't do it for the screen buffer
-                        if target_tex != 0 {
-                            gl::BindTexture(gl::TEXTURE_2D, target_tex);
-                            gl::GenerateMipmap(gl::TEXTURE_2D);
-                        }
-                        gl_debug_check!();
+                    // Specify the layout of the vertex data
+                    let pos_attr = gl::GetAttribLocation(stage.prog_id, POSITION_NAME.as_ptr());
+                    if pos_attr != -1 {
+                        gl::EnableVertexAttribArray(pos_attr as GLuint);
+                        gl::VertexAttribPointer(
+                            pos_attr as GLuint,
+                            2,
+                            gl::FLOAT,
+                            gl::FALSE as GLboolean,
+                            0,
+                            std::ptr::null(),
+                        );
                     }
-                }
+                    gl_debug_check!();
+
+                    // Draw stuff
+                    if let StageKind::Vert { count, mode, .. } = stage.kind {
+                        gl::ClearColor(0.0, 0.0, 0.0, 0.0);
+                        gl::Clear(gl::COLOR_BUFFER_BIT);
+
+                        draw_anything(self.ctx.vao, count, mode)
+                    } else {
+                        draw_fullscreen_rect(self.ctx.vao);
+                    }
+                    gl_debug_check!();
+
+                    // Generate mip maps
+                    // don't do it for the screen buffer
+                    if target_tex != 0 {
+                        gl::BindTexture(gl::TEXTURE_2D, target_tex);
+                        gl::GenerateMipmap(gl::TEXTURE_2D);
+                    }
+                    gl_debug_check!();
+                },
             }
 
             // log render time

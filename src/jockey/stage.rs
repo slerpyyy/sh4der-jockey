@@ -38,6 +38,10 @@ pub struct Stage {
     pub sh_ids: Vec<GLuint>,
     pub deps: Vec<CString>,
     pub perf: RunningAverage<f32, 128>,
+    pub repeat: bool,
+    pub linear: bool,
+    pub mipmap: bool,
+    pub float: bool,
 }
 
 impl Stage {
@@ -57,6 +61,7 @@ impl Stage {
             None => None,
         };
 
+        // get target resolution
         let res = match object.get("res").or_else(|| object.get("resolution")) {
             Some(Value::Sequence(arr)) if arr.len() == 2 => {
                 let err_msg = "Resolution not a positive integer";
@@ -66,6 +71,44 @@ impl Stage {
                 ))
             }
             _ => None,
+        };
+
+        // get texture filtering mode
+        let repeat = match object.get("wrap").map(Value::as_str) {
+            Some(Some("clamp")) | None => false,
+            Some(Some("repeat")) => true,
+            Some(s) => {
+                return Err(format!(
+                    "Expected \"wrap\" to be either \"repeat\" or \"clamp\", got {:?}",
+                    s
+                ))
+            }
+        };
+
+        // get texture filtering mode
+        let linear = match object.get("filter").map(Value::as_str) {
+            Some(Some("linear")) | None => true,
+            Some(Some("nearest")) => false,
+            Some(s) => {
+                return Err(format!(
+                    "Expected \"filter\" to be either \"linear\" or \"nearest\", got {:?}",
+                    s
+                ))
+            }
+        };
+
+        // get mipmap flag
+        let mipmap = match object.get("mipmap").map(Value::as_bool) {
+            Some(Some(flag)) => flag,
+            None => false,
+            Some(s) => return Err(format!("Expected \"mipmap\" to be a bool, got {:?}", s)),
+        };
+
+        // get float format flag
+        let float = match object.get("float").map(Value::as_bool) {
+            Some(Some(flag)) => flag,
+            None => false,
+            Some(s) => return Err(format!("Expected \"float\" to be a bool, got {:?}", s)),
         };
 
         // read all shaders to strings
@@ -111,6 +154,10 @@ impl Stage {
                     sh_ids,
                     deps,
                     perf,
+                    repeat,
+                    linear,
+                    mipmap,
+                    float,
                 })
             }
 
@@ -162,6 +209,10 @@ impl Stage {
                     sh_ids,
                     deps,
                     perf,
+                    repeat,
+                    linear,
+                    mipmap,
+                    float,
                 })
             }
 
@@ -214,6 +265,10 @@ impl Stage {
                     sh_ids,
                     deps,
                     perf,
+                    repeat,
+                    linear,
+                    mipmap,
+                    float,
                 })
             }
 
