@@ -145,7 +145,14 @@ impl Pipeline {
                 Some(s) => {
                     let tex = match stage.kind {
                         StageKind::Frag { res: None, .. } | StageKind::Vert { res: None, .. } => {
-                            FrameBuffer::new(width, height)
+                            FrameBuffer::with_params(
+                                width,
+                                height,
+                                stage.repeat,
+                                stage.linear,
+                                stage.mipmap,
+                                stage.float,
+                            )
                         }
                         _ => continue,
                     };

@@ -32,6 +32,7 @@ impl Texture for FrameBuffer {
 }
 
 impl FrameBuffer {
+    #[allow(dead_code)]
     pub fn new(width: u32, height: u32) -> Self {
         Self::with_params(width, height, false, true, true, true)
     }
