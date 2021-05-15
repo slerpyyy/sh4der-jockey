@@ -525,93 +525,97 @@ impl Jockey {
 
         // title section
         let ui = self.ctx.imgui.frame();
-        ui.text(&*JOCKEY_TITLE);
-        ui.separator();
+        if let Some(window) = imgui::Window::new(im_str!("Not debug")).begin(&ui) {
+            ui.text(&*JOCKEY_TITLE);
+            ui.separator();
 
-        // sliders
-        for k in 0..self.midi.sliders.len() {
-            let token = ui.push_id(k as i32);
-            if ui.small_button(im_str!("bind")) {
-                self.midi.auto_bind_slider(k);
+            // sliders
+            for k in 0..self.midi.sliders.len() {
+                let token = ui.push_id(k as i32);
+                if ui.small_button(im_str!("bind")) {
+                    self.midi.auto_bind_slider(k);
+                }
+                token.pop(&ui);
+                ui.same_line(0.0);
+                let name = format!("slider{}", k);
+                let cst = std::ffi::CString::new(name).unwrap();
+                let ims = unsafe { imgui::ImStr::from_cstr_unchecked(&cst) };
+                let slider = &mut self.midi.sliders[k];
+                imgui::Slider::new(ims).range(0.0..=1.0).build(&ui, slider);
             }
-            token.pop(&ui);
+
+            // buttons
+            for k in 0..self.midi.buttons.len() {
+                let token = ui.push_id(-(k as i32) - 1);
+                if ui.small_button(im_str!("bind")) {
+                    self.midi.auto_bind_button(k);
+                }
+                token.pop(&ui);
+                ui.same_line(0.0);
+                let name = format!("button{}", k);
+                let cst = std::ffi::CString::new(name).unwrap();
+                let ims = unsafe { imgui::ImStr::from_cstr_unchecked(&cst) };
+                if ui.button(ims, [64.0, 18.0]) {
+                    self.midi.buttons[k] = Instant::now();
+                }
+                if k & 3 != 3 {
+                    ui.same_line(0.0)
+                }
+            }
+
+            ui.separator();
+
+            ui.plot_lines(im_str!("left"), &self.audio.l_signal).build();
+            ui.plot_lines(im_str!("right"), &self.audio.r_signal)
+                .build();
+
+            ui.separator();
+
+            // beat sync
+            if ui.button(im_str!("Tab here"), [128.0, 32.0]) {
+                let delta = self.last_beat.elapsed().as_secs_f32();
+                self.beat_delta.push(delta);
+                self.last_beat = Instant::now();
+            }
             ui.same_line(0.0);
-            let name = format!("slider{}", k);
-            let cst = std::ffi::CString::new(name).unwrap();
-            let ims = unsafe { imgui::ImStr::from_cstr_unchecked(&cst) };
-            let slider = &mut self.midi.sliders[k];
-            imgui::Slider::new(ims).range(0.0..=1.0).build(&ui, slider);
-        }
+            ui.text(format! {
+                "BPM: {}\nCycle: {}", 60.0 / self.beat_delta.get(), self.beat_delta.index
+            });
 
-        // buttons
-        for k in 0..self.midi.buttons.len() {
-            let token = ui.push_id(-(k as i32) - 1);
-            if ui.small_button(im_str!("bind")) {
-                self.midi.auto_bind_button(k);
+            ui.separator();
+
+            // perf monitor
+            ui.text(format!(
+                "FPS: {:.2} ({:.2} ms)",
+                1000.0 / frame_ms,
+                frame_ms
+            ));
+
+            ui.plot_lines(im_str!("dt [ms]"), &self.frame_perf.buffer)
+                .build();
+
+            let mut stage_sum_ms = 0.0;
+            for (k, stage) in self.pipeline.stages.iter().enumerate() {
+                let stage_ms = stage.perf.get();
+                stage_sum_ms += stage_ms;
+                if let Some(tex_name) = stage.target.as_ref() {
+                    ui.text(format!(
+                        "Stage {}: {:.4} ms (-> {:?})",
+                        k, stage_ms, tex_name
+                    ));
+                } else {
+                    ui.text(format!("Stage {}: {:.4} ms", k, stage_ms));
+                }
             }
-            token.pop(&ui);
-            ui.same_line(0.0);
-            let name = format!("button{}", k);
-            let cst = std::ffi::CString::new(name).unwrap();
-            let ims = unsafe { imgui::ImStr::from_cstr_unchecked(&cst) };
-            if ui.button(ims, [64.0, 18.0]) {
-                self.midi.buttons[k] = Instant::now();
-            }
-            if k & 3 != 3 {
-                ui.same_line(0.0)
-            }
+
+            ui.text(format!(
+                "Total: {:.4} ms ({:.2}% stress)",
+                stage_sum_ms,
+                100.0 * stage_sum_ms / frame_ms
+            ));
+
+            window.end(&ui);
         }
-
-        ui.separator();
-
-        ui.plot_lines(im_str!("left"), &self.audio.l_signal).build();
-        ui.plot_lines(im_str!("right"), &self.audio.r_signal)
-            .build();
-
-        ui.separator();
-
-        // beat sync
-        if ui.button(im_str!("Tab here"), [128.0, 32.0]) {
-            let delta = self.last_beat.elapsed().as_secs_f32();
-            self.beat_delta.push(delta);
-            self.last_beat = Instant::now();
-        }
-        ui.same_line(0.0);
-        ui.text(format! {
-            "BPM: {}\nCycle: {}", 60.0 / self.beat_delta.get(), self.beat_delta.index
-        });
-
-        ui.separator();
-
-        // perf monitor
-        ui.text(format!(
-            "FPS: {:.2} ({:.2} ms)",
-            1000.0 / frame_ms,
-            frame_ms
-        ));
-
-        ui.plot_lines(im_str!("dt [ms]"), &self.frame_perf.buffer)
-            .build();
-
-        let mut stage_sum_ms = 0.0;
-        for (k, stage) in self.pipeline.stages.iter().enumerate() {
-            let stage_ms = stage.perf.get();
-            stage_sum_ms += stage_ms;
-            if let Some(tex_name) = stage.target.as_ref() {
-                ui.text(format!(
-                    "Stage {}: {:.4} ms (-> {:?})",
-                    k, stage_ms, tex_name
-                ));
-            } else {
-                ui.text(format!("Stage {}: {:.4} ms", k, stage_ms));
-            }
-        }
-
-        ui.text(format!(
-            "Total: {:.4} ms ({:.2}% stress)",
-            stage_sum_ms,
-            100.0 * stage_sum_ms / frame_ms
-        ));
 
         // update ui
         self.ctx.imgui_sdl2.prepare_render(&ui, &self.ctx.window);
