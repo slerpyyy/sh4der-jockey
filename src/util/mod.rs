@@ -108,6 +108,7 @@ pub fn link_program(sh: &[GLuint]) -> Result<GLuint, String> {
     }
 }
 
+#[allow(non_snake_case)]
 pub unsafe fn gl_TexImageND(
     target: GLenum, level: GLint, internalformat: GLint,
     resolution: &[u32],

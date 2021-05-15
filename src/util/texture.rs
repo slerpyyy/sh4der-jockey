@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::*;
 use crate::util::gl_TexImageND;
 use as_any::AsAny;
@@ -33,7 +34,6 @@ impl Texture for FrameBuffer {
 }
 
 impl FrameBuffer {
-    #[allow(dead_code)]
     pub fn new(width: u32, height: u32) -> Self {
         Self::with_params(width, height, false, true, true, true)
     }
@@ -141,7 +141,6 @@ pub enum TextureKind {
 }
 
 #[derive(Debug, Clone, Copy)]
-#[allow(dead_code)]
 pub enum TextureFormat {
     R8I = gl::R8I as _,
     R32F = gl::R32F as _,
@@ -191,7 +190,6 @@ macro_rules! impl_image {
         }
 
         impl $name {
-            #[allow(dead_code)]
             pub fn new(resolution: [u32; $dim]) -> Self {
                 Self::with_params(
                     resolution,
@@ -202,7 +200,6 @@ macro_rules! impl_image {
                 )
             }
 
-            #[allow(dead_code)]
             pub fn get_formats(format: TextureFormat) -> (i32, u32, u32) {
                 let color_format = match format {
                     TextureFormat::R8I | TextureFormat::R32F => gl::RED,
@@ -225,7 +222,6 @@ macro_rules! impl_image {
                 (format as i32, color_format as u32, type_ as u32)
             }
 
-            #[allow(dead_code)]
             pub fn with_params(
                 resolution: [u32; $dim],
                 min_filter: GLenum,
@@ -278,7 +274,6 @@ macro_rules! impl_image {
                 }
             }
 
-            #[allow(dead_code)]
             pub fn write(&mut self, data: &[f32]) {
                 unsafe {
                     let tex_id = self.id;
@@ -318,6 +313,26 @@ impl_image!(Texture1D, gl::TEXTURE_1D, 1, false);
 impl_image!(Texture2D, gl::TEXTURE_2D, 2, false);
 impl_image!(Texture3D, gl::TEXTURE_3D, 3, false);
 
+pub fn make_image(resolution: &[u32]) -> Box<dyn Texture> {
+    match resolution {
+        &[w] => Box::new(Image1D::new([w])),
+        &[w, h] => Box::new(Image2D::new([w, h])),
+        &[w, h, d] => Box::new(Image3D::new([w, h, d])),
+        _ => unreachable!(),
+    }
+}
+
+pub fn make_texture(resolution: &[u32]) -> Box<dyn Texture> {
+    match resolution {
+        &[w] => Box::new(Texture1D::new([w])),
+        &[w, h] => Box::new(Texture2D::new([w, h])),
+        &[w, h, d] => Box::new(Texture3D::new([w, h, d])),
+        _ => unreachable!(),
+    }
+}
+
+
+/*
 #[derive(Debug)]
 pub struct ImageTexture {
     pub id: GLuint,
@@ -636,3 +651,4 @@ impl Drop for ImageTexture {
         }
     }
 }
+*/

@@ -102,7 +102,7 @@ impl Pipeline {
                 }
                 StageKind::Comp {
                     tex_type, tex_dim, ..
-                } => Box::new(ImageTexture::new(&tex_dim[..(tex_type as _)])),
+                } => make_image(&tex_dim[..(tex_type as _)]),
             };
 
             // insert texture into hashmap
@@ -110,8 +110,8 @@ impl Pipeline {
         }
 
         // add audio samples to buffers
-        let audio_samples_texture = ImageTexture::texture_from_params(
-            &[fft_size as _],
+        let audio_samples_texture = Texture1D::with_params(
+            [fft_size as _],
             gl::NEAREST,
             gl::NEAREST,
             gl::CLAMP_TO_EDGE,

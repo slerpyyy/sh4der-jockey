@@ -354,7 +354,7 @@ impl Jockey {
             let interlaced_samples = interlace(&self.audio.l_signal, &self.audio.r_signal);
             samples_tex
                 .as_any_mut()
-                .downcast_mut::<ImageTexture>()
+                .downcast_mut::<Texture1D>()
                 .unwrap()
                 .write(&interlaced_samples);
             gl_debug_check!();
