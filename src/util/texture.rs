@@ -1,4 +1,5 @@
 use crate::*;
+use crate::util::gl_TexImageND;
 use as_any::AsAny;
 use core::panic;
 use gl::types::*;
@@ -151,6 +152,171 @@ pub enum TextureFormat {
     RGBA8I = gl::RGBA8I as _,
     RGBA32F = gl::RGBA32F as _,
 }
+
+macro_rules! impl_image {
+    ($name:ident, $enum_type:expr, $dim:expr, $is_image:expr) => {
+        #[derive(Debug)]
+        pub struct $name {
+            pub id: GLuint,
+            pub format: TextureFormat,
+            pub res: [u32; $dim],
+        }
+
+        impl Texture for $name {
+            fn resolution(&self) -> [u32; 3] {
+                let mut out = [0; 3];
+                out.copy_from_slice(&self.res);
+                out
+            }
+
+            fn activate(&self) {
+                unsafe {
+                    gl::BindTexture($enum_type, self.id);
+                    gl_debug_check!();
+
+                    if $is_image {
+                        gl::BindImageTexture(
+                            0,
+                            self.id,
+                            0,
+                            gl::FALSE,
+                            0,
+                            gl::WRITE_ONLY,
+                            self.format as _,
+                        );
+                        gl_debug_check!();
+                    }
+                }
+            }
+        }
+
+        impl $name {
+            #[allow(dead_code)]
+            pub fn new(resolution: [u32; $dim]) -> Self {
+                Self::with_params(
+                    resolution,
+                    gl::LINEAR,
+                    gl::LINEAR,
+                    gl::REPEAT,
+                    TextureFormat::RGBA32F,
+                )
+            }
+
+            #[allow(dead_code)]
+            pub fn get_formats(format: TextureFormat) -> (i32, u32, u32) {
+                let color_format = match format {
+                    TextureFormat::R8I | TextureFormat::R32F => gl::RED,
+                    TextureFormat::RG8I | TextureFormat::RG32F => gl::RG,
+                    TextureFormat::RGB8I | TextureFormat::RGB32F => gl::RGB,
+                    TextureFormat::RGBA32F | TextureFormat::RGBA8I => gl::RGBA,
+                };
+
+                let type_ = match format {
+                    TextureFormat::R8I
+                    | TextureFormat::RG8I
+                    | TextureFormat::RGB8I
+                    | TextureFormat::RGBA8I => gl::INT,
+                    TextureFormat::R32F
+                    | TextureFormat::RG32F
+                    | TextureFormat::RGB32F
+                    | TextureFormat::RGBA32F => gl::FLOAT,
+                };
+
+                (format as i32, color_format as u32, type_ as u32)
+            }
+
+            #[allow(dead_code)]
+            pub fn with_params(
+                resolution: [u32; $dim],
+                min_filter: GLenum,
+                mag_filter: GLenum,
+                wrap_mode: GLenum,
+                format: TextureFormat,
+            ) -> Self {
+                unsafe {
+                    let mut tex_id = 0;
+
+                    gl::GenTextures(1, &mut tex_id);
+                    gl::ActiveTexture(gl::TEXTURE0);
+                    gl_debug_check!();
+
+                    let (internal_format, color_format, type_) = Self::get_formats(format);
+
+                    gl::BindTexture($enum_type, tex_id);
+                    gl::TexParameteri($enum_type, gl::TEXTURE_MIN_FILTER, min_filter as _);
+                    gl::TexParameteri($enum_type, gl::TEXTURE_MAG_FILTER, mag_filter as _);
+
+                    gl::TexParameteri($enum_type, gl::TEXTURE_WRAP_S, wrap_mode as _);
+                    if $dim > 1 {
+                        gl::TexParameteri($enum_type, gl::TEXTURE_WRAP_T, wrap_mode as _);
+                    }
+                    if $dim > 2 {
+                        gl::TexParameteri($enum_type, gl::TEXTURE_WRAP_R, wrap_mode as _);
+                    }
+
+                    gl_TexImageND(
+                        $enum_type,
+                        0,
+                        internal_format,
+                        &resolution,
+                        0,
+                        color_format,
+                        type_,
+                        std::ptr::null(),
+                    );
+
+                    if $is_image {
+                        gl::BindImageTexture(0, tex_id, 0, gl::FALSE, 0, gl::READ_WRITE, gl::RGBA32F);
+                        gl_debug_check!();
+                    }
+
+                    Self {
+                        id: tex_id,
+                        format,
+                        res: resolution,
+                    }
+                }
+            }
+
+            #[allow(dead_code)]
+            pub fn write(&mut self, data: &[f32]) {
+                unsafe {
+                    let tex_id = self.id;
+                    let (internal_format, color_format, type_) = Self::get_formats(self.format);
+
+                    gl::BindTexture($enum_type, tex_id);
+                    gl_TexImageND(
+                        $enum_type,
+                        0,
+                        internal_format,
+                        &self.res,
+                        0,
+                        color_format,
+                        type_,
+                        data.as_ptr() as _,
+                    );
+
+                    gl_debug_check!();
+                }
+            }
+        }
+
+        impl Drop for $name {
+            fn drop(&mut self) {
+                unsafe {
+                    gl::DeleteTextures(1, &self.id);
+                }
+            }
+        }
+    };
+}
+
+impl_image!(Image1D, gl::TEXTURE_1D, 1, true);
+impl_image!(Image2D, gl::TEXTURE_2D, 2, true);
+impl_image!(Image3D, gl::TEXTURE_3D, 3, true);
+impl_image!(Texture1D, gl::TEXTURE_1D, 1, false);
+impl_image!(Texture2D, gl::TEXTURE_2D, 2, false);
+impl_image!(Texture3D, gl::TEXTURE_3D, 3, false);
 
 #[derive(Debug)]
 pub struct ImageTexture {

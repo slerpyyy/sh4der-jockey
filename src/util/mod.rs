@@ -1,7 +1,7 @@
 use gl::types::*;
 use lazy_static::lazy_static;
 use regex::Regex;
-use std::{collections::HashSet, ffi::CString};
+use std::{collections::HashSet, ffi::{CString, c_void}};
 
 mod average;
 mod ringbuffer;
@@ -105,6 +105,50 @@ pub fn link_program(sh: &[GLuint]) -> Result<GLuint, String> {
         }
 
         Ok(program)
+    }
+}
+
+pub unsafe fn gl_TexImageND(
+    target: GLenum, level: GLint, internalformat: GLint,
+    resolution: &[u32],
+    border: GLint, format: GLenum, type_: GLenum,
+    pixels: *const c_void
+) {
+    match target {
+        gl::TEXTURE_1D => gl::TexImage1D(
+            target,
+            level,
+            internalformat,
+            resolution[0] as _,
+            border,
+            format,
+            type_,
+            pixels,
+        ),
+        gl::TEXTURE_2D => gl::TexImage2D(
+            target,
+            level,
+            internalformat,
+            resolution[0] as _,
+            resolution[1] as _,
+            border,
+            format,
+            type_,
+            pixels,
+        ),
+        gl::TEXTURE_3D => gl::TexImage3D(
+            target,
+            level,
+            internalformat,
+            resolution[0] as _,
+            resolution[1] as _,
+            resolution[2] as _,
+            border,
+            format,
+            type_,
+            pixels,
+        ),
+        _ => unreachable!(),
     }
 }
 
