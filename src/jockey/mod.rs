@@ -32,7 +32,7 @@ lazy_static! {
     };
 }
 
-static mut FILE_CHANGE: AtomicBool = AtomicBool::new(false);
+static mut PIPELINE_STALE: AtomicBool = AtomicBool::new(false);
 
 /// A struct for all the ugly internals.
 pub struct MegaContext {
@@ -145,7 +145,7 @@ impl Jockey {
 
         #[rustfmt::skip]
         let mut watcher = notify::immediate_watcher(
-            |_| unsafe { FILE_CHANGE.store(true, Ordering::Relaxed) }
+            |_| unsafe { PIPELINE_STALE.store(true, Ordering::Relaxed) }
         ).unwrap();
 
         notify::Watcher::watch(&mut watcher, ".", notify::RecursiveMode::Recursive).unwrap();
@@ -309,7 +309,7 @@ impl Jockey {
 
         self.audio.update_samples();
 
-        let mut do_update_pipeline = unsafe { FILE_CHANGE.swap(false, Ordering::Relaxed) }
+        let mut do_update_pipeline = unsafe { PIPELINE_STALE.swap(false, Ordering::Relaxed) }
             && self.last_build.elapsed().as_millis() > 100;
 
         for event in self.ctx.event_pump.poll_iter() {
@@ -560,15 +560,17 @@ impl Jockey {
             ui.separator();
 
             // pipelines
-            for (k, file) in self.pipeline_files.iter().enumerate() {
-                let name = format!("> {}", file);
-                let cst = std::ffi::CString::new(name).unwrap();
-                let ims = unsafe { imgui::ImStr::from_cstr_unchecked(&cst) };
-                if ui.button(ims, [256.0, 18.0]) {
-                    self.pipeline_index = k;
+            if self.pipeline_files.len() > 1 {
+                for (k, file) in self.pipeline_files.iter().enumerate() {
+                    let cst = std::ffi::CString::new(file.as_bytes()).unwrap();
+                    let ims = unsafe { imgui::ImStr::from_cstr_unchecked(&cst) };
+                    if ui.button(ims, [256.0, 18.0]) {
+                        self.pipeline_index = k;
+                        unsafe { PIPELINE_STALE.store(true, Ordering::Relaxed) }
+                    }
                 }
+                ui.separator();
             }
-            ui.separator();
 
             // sliders
             for k in 0..self.midi.sliders.len() {
@@ -603,13 +605,12 @@ impl Jockey {
                     ui.same_line(0.0)
                 }
             }
-
             ui.separator();
 
+            // signals
             ui.plot_lines(im_str!("left"), &self.audio.l_signal).build();
             ui.plot_lines(im_str!("right"), &self.audio.r_signal)
                 .build();
-
             ui.separator();
 
             // beat sync
