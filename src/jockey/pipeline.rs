@@ -1,6 +1,6 @@
 use crate::jockey::*;
 use serde_yaml::Value;
-use std::{collections::HashMap, ffi::CString};
+use std::{collections::HashMap, ffi::CString, path::Path};
 
 /// The rendering pipeline struct
 ///
@@ -21,8 +21,8 @@ impl Pipeline {
         }
     }
 
-    pub fn load(window: &sdl2::video::Window) -> Result<Self, String> {
-        let reader = match std::fs::File::open("pipeline.yaml") {
+    pub fn load(path: impl AsRef<Path>, screen_size: (u32, u32)) -> Result<Self, String> {
+        let reader = match std::fs::File::open(path) {
             Ok(s) => s,
             Err(e) => return Err(e.to_string()),
         };
@@ -31,8 +31,6 @@ impl Pipeline {
             Ok(s) => s,
             Err(e) => return Err(e.to_string()),
         };
-
-        let screen_size = window.size();
 
         Pipeline::from_yaml(object, screen_size)
     }

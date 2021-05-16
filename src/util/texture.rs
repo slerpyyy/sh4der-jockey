@@ -78,15 +78,15 @@ impl FrameBuffer {
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, wrap as _);
             gl_debug_check!();
 
-            let (format, type_) = match float {
+            let (internal_format, type_) = match float {
                 true => (gl::RGBA32F, gl::FLOAT),
-                false => (gl::RGBA8UI, gl::UNSIGNED_BYTE),
+                false => (gl::RGBA8, gl::UNSIGNED_BYTE),
             };
 
             gl::TexImage2D(
                 gl::TEXTURE_2D,
                 0,
-                format as _,
+                internal_format as _,
                 width as _,
                 height as _,
                 0,

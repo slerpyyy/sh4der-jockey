@@ -63,6 +63,8 @@ pub struct Jockey {
     pub midi: Midi<8>,
     pub audio: Audio,
     pub pipeline: Pipeline,
+    pub pipeline_files: Vec<String>,
+    pipeline_index: usize,
     pub start_time: Instant,
 }
 
@@ -180,6 +182,8 @@ impl Jockey {
             midi,
             audio,
             pipeline,
+            pipeline_files: vec![],
+            pipeline_index: 0,
             start_time,
         };
 
@@ -257,7 +261,33 @@ impl Jockey {
     /// successfully, the new Pipeline struct will stomp the old one.
     pub fn update_pipeline(&mut self) {
         let start_time = Instant::now();
-        let update = match Pipeline::load(&self.ctx.window) {
+
+        // find pipeline files in working directory
+        self.pipeline_files = std::fs::read_dir(".")
+            .unwrap()
+            .map(|s| s.unwrap().file_name().into_string().unwrap())
+            .filter(|s| s.ends_with(".yaml"))
+            .collect();
+
+        println!("Found pipeline files: {:?}", &self.pipeline_files);
+
+        // override pipeline index, if the user has no choice
+        if self.pipeline_files.len() < 2 {
+            self.pipeline_index = 0;
+        }
+
+        // get path of selected pipeline file
+        let path = match self.pipeline_files.get(self.pipeline_index) {
+            Some(s) => s,
+            None => {
+                eprintln!("Failed to find pipeline file");
+                return;
+            },
+        };
+
+        // build pipeline
+        let screen_size = self.ctx.window.size();
+        let update = match Pipeline::load(path, screen_size) {
             Ok(pl) => pl,
             Err(err) => {
                 eprintln!("Failed to load pipeline:\n{}", err);
@@ -265,6 +295,7 @@ impl Jockey {
             }
         };
 
+        // stomp old pipeline
         self.pipeline = update;
         println!("\n{:?}\n", self.pipeline);
 
@@ -526,6 +557,17 @@ impl Jockey {
         let ui = self.ctx.imgui.frame();
         if let Some(window) = imgui::Window::new(im_str!("Not debug")).begin(&ui) {
             ui.text(&*JOCKEY_TITLE);
+            ui.separator();
+
+            // pipelines
+            for (k, file) in self.pipeline_files.iter().enumerate() {
+                let name = format!("> {}", file);
+                let cst = std::ffi::CString::new(name).unwrap();
+                let ims = unsafe { imgui::ImStr::from_cstr_unchecked(&cst) };
+                if ui.button(ims, [256.0, 18.0]) {
+                    self.pipeline_index = k;
+                }
+            }
             ui.separator();
 
             // sliders
