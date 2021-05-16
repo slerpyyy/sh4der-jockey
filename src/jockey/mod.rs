@@ -347,18 +347,17 @@ impl Jockey {
         let beat = self.last_beat.elapsed().as_secs_f32() / self.beat_delta.get();
         gl_debug_check!();
 
-        {
-            // update audio samples texture
-            let sample_name: &CString = &SAMPLES_NAME;
-            let samples_tex = self.pipeline.buffers.get_mut(sample_name).unwrap();
+        // update audio samples texture
+        let sample_name: &CString = &SAMPLES_NAME;
+        if let Some(samples_tex) = self.pipeline.buffers.get_mut(sample_name) {
             let interlaced_samples = interlace(&self.audio.l_signal, &self.audio.r_signal);
             samples_tex
                 .as_any_mut()
                 .downcast_mut::<Texture1D>()
                 .unwrap()
                 .write(&interlaced_samples);
-            gl_debug_check!();
         }
+        gl_debug_check!();
 
         // render all shader stages
         for (pass_num, stage) in self.pipeline.stages.iter_mut().enumerate() {
