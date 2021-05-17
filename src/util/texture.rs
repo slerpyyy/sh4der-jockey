@@ -58,11 +58,11 @@ impl FrameBuffer {
             gl::BindFramebuffer(gl::FRAMEBUFFER, fb_id);
             gl_debug_check!();
 
-            let (min, mag) = match (linear, mipmap) {
+            let (mag, min) = match (linear, mipmap) {
                 (false, false) => (gl::NEAREST, gl::NEAREST),
-                (false, true) => (gl::NEAREST_MIPMAP_NEAREST, gl::NEAREST),
+                (false, true) => (gl::NEAREST, gl::NEAREST_MIPMAP_NEAREST),
                 (true, false) => (gl::LINEAR, gl::LINEAR),
-                (true, true) => (gl::LINEAR_MIPMAP_LINEAR, gl::LINEAR),
+                (true, true) => (gl::LINEAR, gl::LINEAR_MIPMAP_LINEAR),
             };
 
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, min as _);
@@ -151,7 +151,7 @@ pub enum TextureFormat {
     RGBA32F = gl::RGBA32F as _,
 }
 
-macro_rules! impl_image {
+macro_rules! impl_texture {
     ($name:ident, $enum_type:expr, $dim:expr, $is_image:expr) => {
         #[derive(Debug)]
         pub struct $name {
@@ -313,12 +313,12 @@ macro_rules! impl_image {
     };
 }
 
-impl_image!(Image1D, gl::TEXTURE_1D, 1, true);
-impl_image!(Image2D, gl::TEXTURE_2D, 2, true);
-impl_image!(Image3D, gl::TEXTURE_3D, 3, true);
-impl_image!(Texture1D, gl::TEXTURE_1D, 1, false);
-impl_image!(Texture2D, gl::TEXTURE_2D, 2, false);
-impl_image!(Texture3D, gl::TEXTURE_3D, 3, false);
+impl_texture!(Image1D, gl::TEXTURE_1D, 1, true);
+impl_texture!(Image2D, gl::TEXTURE_2D, 2, true);
+impl_texture!(Image3D, gl::TEXTURE_3D, 3, true);
+impl_texture!(Texture1D, gl::TEXTURE_1D, 1, false);
+impl_texture!(Texture2D, gl::TEXTURE_2D, 2, false);
+impl_texture!(Texture3D, gl::TEXTURE_3D, 3, false);
 
 pub fn make_image(resolution: &[u32]) -> Box<dyn Texture> {
     match resolution {
@@ -336,4 +336,19 @@ pub fn make_texture(resolution: &[u32]) -> Box<dyn Texture> {
         &[w, h, d] => Box::new(Texture3D::new([w, h, d])),
         _ => unreachable!(),
     }
+}
+
+pub fn make_noise() -> Texture3D {
+    const WIDTH: usize = 32;
+    const SIZE: usize = 4 * WIDTH * WIDTH * WIDTH;
+    let mut tex = Texture3D::with_params(
+        [WIDTH as _; 3],
+        gl::LINEAR,
+        gl::LINEAR,
+        gl::REPEAT,
+        TextureFormat::RGBA32F,
+    );
+    let data: Vec<_> = (0..SIZE).map(|_| rand::random()).collect();
+    tex.write(&data);
+    tex
 }

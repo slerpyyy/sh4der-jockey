@@ -121,6 +121,10 @@ impl Pipeline {
             Box::new(audio_samples_texture),
         );
 
+        // add noise texture
+        let noise = Box::new(make_noise());
+        buffers.insert(CString::new("noise").unwrap(), noise);
+
         // compute uniform dependencies
         for stage in stages.iter_mut() {
             for tex_name in buffers.keys() {

@@ -9,12 +9,13 @@ pub enum Channels {
     Mono,
     Stereo,
 }
+
 pub struct Audio {
     pub l_signal: Vec<f32>,
     pub r_signal: Vec<f32>,
     l_samples: Arc<Mutex<RingBuffer<f32>>>,
     r_samples: Arc<Mutex<RingBuffer<f32>>>,
-    stream: Option<cpal::Stream>,
+    _stream: Option<cpal::Stream>,
     channels: Channels,
 }
 
@@ -23,7 +24,7 @@ impl Audio {
         let size = 8192;
         let l_samples = Arc::new(Mutex::new(RingBuffer::new(size)));
         let r_samples = Arc::new(Mutex::new(RingBuffer::new(size)));
-        let stream = None;
+        let _stream = None;
         let channels = Channels::None;
         let mut l_signal = Vec::with_capacity(size);
         l_signal.resize(size, 0_f32);
@@ -34,7 +35,7 @@ impl Audio {
             r_signal,
             l_samples,
             r_samples,
-            stream,
+            _stream,
             channels,
         };
         this.connect();
@@ -119,7 +120,7 @@ impl Audio {
 
         stream.play().expect("Failed to play input stream");
 
-        self.stream = Some(stream);
+        self._stream = Some(stream);
     }
 
     pub fn update_samples(&mut self) {

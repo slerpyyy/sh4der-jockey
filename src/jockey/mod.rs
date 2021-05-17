@@ -282,7 +282,7 @@ impl Jockey {
             None => {
                 eprintln!("Failed to find pipeline file");
                 return;
-            },
+            }
         };
 
         // build pipeline
@@ -370,6 +370,7 @@ impl Jockey {
             static ref OUT_COLOR_NAME: CString = CString::new("out_color").unwrap();
             static ref POSITION_NAME: CString = CString::new("position").unwrap();
             static ref SAMPLES_NAME: CString = CString::new("samples").unwrap();
+            static ref NOISE_NAME: CString = CString::new("noise").unwrap();
         }
 
         // compute uniforms
@@ -562,7 +563,7 @@ impl Jockey {
             // pipelines
             if self.pipeline_files.len() > 1 {
                 for (k, file) in self.pipeline_files.iter().enumerate() {
-                    let cst = std::ffi::CString::new(file.as_bytes()).unwrap();
+                    let cst = CString::new(file.as_bytes()).unwrap();
                     let ims = unsafe { imgui::ImStr::from_cstr_unchecked(&cst) };
                     if ui.button(ims, [256.0, 18.0]) {
                         self.pipeline_index = k;
@@ -581,7 +582,7 @@ impl Jockey {
                 token.pop(&ui);
                 ui.same_line(0.0);
                 let name = format!("slider{}", k);
-                let cst = std::ffi::CString::new(name).unwrap();
+                let cst = CString::new(name).unwrap();
                 let ims = unsafe { imgui::ImStr::from_cstr_unchecked(&cst) };
                 let slider = &mut self.midi.sliders[k];
                 imgui::Slider::new(ims).range(0.0..=1.0).build(&ui, slider);
@@ -589,14 +590,14 @@ impl Jockey {
 
             // buttons
             for k in 0..self.midi.buttons.len() {
-                let token = ui.push_id(-(k as i32) - 1);
+                let token = ui.push_id(i32::MAX - k as i32);
                 if ui.small_button(im_str!("bind")) {
                     self.midi.auto_bind_button(k);
                 }
                 token.pop(&ui);
                 ui.same_line(0.0);
                 let name = format!("button{}", k);
-                let cst = std::ffi::CString::new(name).unwrap();
+                let cst = CString::new(name).unwrap();
                 let ims = unsafe { imgui::ImStr::from_cstr_unchecked(&cst) };
                 if ui.button(ims, [64.0, 18.0]) {
                     self.midi.buttons[k] = Instant::now();
