@@ -1,5 +1,7 @@
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::Device;
+use num_complex::Complex;
+use rustfft::{Fft, FftPlanner};
 use std::sync::{Arc, Mutex};
 
 use crate::util::RingBuffer;
@@ -13,10 +15,15 @@ pub enum Channels {
 pub struct Audio {
     pub l_signal: Vec<f32>,
     pub r_signal: Vec<f32>,
+    pub l_spectrum: Vec<f32>,
+    pub r_spectrum: Vec<f32>,
+    l_fft: Vec<Complex<f32>>,
+    r_fft: Vec<Complex<f32>>,
     l_samples: Arc<Mutex<RingBuffer<f32>>>,
     r_samples: Arc<Mutex<RingBuffer<f32>>>,
     _stream: Option<cpal::Stream>,
     channels: Channels,
+    fft: Arc<dyn Fft<f32>>,
 }
 
 impl Audio {
@@ -30,13 +37,32 @@ impl Audio {
         l_signal.resize(size, 0_f32);
         let mut r_signal = Vec::with_capacity(size);
         r_signal.resize(size, 0_f32);
+
+        let mut l_fft = Vec::with_capacity(size);
+        l_fft.resize(size, Complex::new(0f32, 0f32));
+        let mut r_fft = Vec::with_capacity(size);
+        r_fft.resize(size, Complex::new(0f32, 0f32));
+
+        let mut l_spectrum = Vec::with_capacity(size);
+        l_spectrum.resize(size, 0f32);
+        let mut r_spectrum = Vec::with_capacity(size);
+        r_spectrum.resize(size, 0f32);
+
+        let mut planner = FftPlanner::<f32>::new();
+        let fft = planner.plan_fft_forward(size);
+
         let mut this = Self {
             l_signal,
             r_signal,
+            l_fft,
+            r_fft,
+            l_spectrum,
+            r_spectrum,
             l_samples,
             r_samples,
             _stream,
             channels,
+            fft,
         };
         this.connect();
         this
@@ -133,6 +159,30 @@ impl Audio {
             let r_samples = r_samples_p.lock().unwrap();
             r_samples.copy_to_slice(&mut self.r_signal);
         };
+    }
+
+    pub fn update_fft(&mut self) {
+        let left: Vec<_> = self
+            .l_signal
+            .iter()
+            .map(|x| Complex::new(x.clone(), 0f32))
+            .collect();
+
+        let right: Vec<_> = self
+            .r_signal
+            .iter()
+            .map(|x| Complex::new(x.clone(), 0f32))
+            .collect();
+        self.l_fft.copy_from_slice(left.as_slice());
+        self.r_fft.copy_from_slice(right.as_slice());
+
+        self.fft.process(&mut self.l_fft);
+        self.fft.process(&mut self.r_fft);
+
+        let left_spectrum: Vec<_> = self.l_fft.iter().map(|z| z.norm()).collect();
+        let right_spectrum: Vec<_> = self.r_fft.iter().map(|z| z.norm()).collect();
+        self.l_spectrum.copy_from_slice(left_spectrum.as_slice());
+        self.r_spectrum.copy_from_slice(right_spectrum.as_slice());
     }
 
     #[allow(dead_code)]

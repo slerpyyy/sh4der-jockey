@@ -612,6 +612,14 @@ impl Jockey {
             ui.plot_lines(im_str!("left"), &self.audio.l_signal).build();
             ui.plot_lines(im_str!("right"), &self.audio.r_signal)
                 .build();
+
+            self.audio.update_fft();
+            ui.plot_lines(im_str!("left FFT"), self.audio.l_spectrum.as_slice())
+                .build();
+
+            ui.plot_lines(im_str!("right FFT"), self.audio.r_spectrum.as_slice())
+                .build();
+
             ui.separator();
 
             // beat sync
