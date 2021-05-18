@@ -524,16 +524,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b919933a397b79c37e33b77bb2aa3dc8eb6e165ad809e58ff75bc7db2e34574"
 
 [[package]]
-name = "glsl-include"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "daa2afb1631e7ab4543e0dde0e3fc68bb49c58fee89c07f30a26553b1f684ab6"
-dependencies = [
- "lazy_static",
- "regex",
-]
-
-[[package]]
 name = "hermit-abi"
 version = "0.1.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1328,7 +1318,6 @@ dependencies = [
  "cpal",
  "getopts",
  "gl",
- "glsl-include",
  "imgui",
  "imgui-opengl-renderer",
  "imgui-sdl2",

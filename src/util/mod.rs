@@ -191,7 +191,7 @@ macro_rules! gl_debug_check {
     };
 }
 
-pub fn preprocess(code: &str) -> Result<String, String> {
+pub fn preprocess(code: &str, file_name: &str) -> Result<String, String> {
     lazy_static! {
         // based on the "glsl-include" crate, which almost does what we want
         static ref INCLUDE_RE: Regex = Regex::new(
@@ -199,10 +199,15 @@ pub fn preprocess(code: &str) -> Result<String, String> {
         ).expect("failed to compile regex");
     }
 
-    fn recurse(code: &str, mut seen: HashSet<String>) -> Result<String, String> {
-        if let Some(include) = INCLUDE_RE.find(code) {
-            let caps = INCLUDE_RE.captures(include.as_str()).unwrap();
+    fn recurse(code: &str, src_name: &str, mut seen: HashSet<String>) -> Result<String, String> {
+        let include_re: &Regex = &INCLUDE_RE;
+        if let Some(include) = include_re.find(code) {
+            let caps = include_re.captures(include.as_str()).unwrap();
             let file_name = caps.name("file").unwrap().as_str();
+            let leading_lines = code[0..include.start()]
+                .bytes()
+                .filter(|&byte| byte == b'\n')
+                .count();
 
             // detect include cycles
             if !seen.insert(file_name.to_owned()) {
@@ -218,16 +223,25 @@ pub fn preprocess(code: &str) -> Result<String, String> {
             };
 
             let prefix = &code[..include.start()];
-            let file = recurse(&file, seen.clone())?;
-            let postfix = recurse(&code[include.end()..], seen)?;
+            let file = recurse(&file, &file_name, seen.clone())?;
+            let postfix = recurse(&code[include.end()..], src_name, seen)?;
 
-            Ok(format!("{}{}{}", prefix, file, postfix))
+            Ok(format!(
+                "{}\n#line 0 \"{}\"\n{}\n#line {} \"{}\"\n{}",
+                prefix, file_name, file, leading_lines, src_name, postfix
+            ))
         } else {
             Ok(code.to_owned())
         }
     }
 
-    recurse(code, HashSet::new())
+    // insert #line directive after version
+    let first_nl = code.find('\n').unwrap_or(0);
+    let (prefix, postfix) = code.split_at(first_nl + 1);
+    let code = format!("{}#line 1 \"{}\"\n{}", prefix, file_name, postfix);
+
+    // handle includes recursively
+    recurse(&code, file_name, HashSet::new())
 }
 
 pub fn interlace<T: Clone>(mut first: &[T], mut second: &[T]) -> Vec<T> {
