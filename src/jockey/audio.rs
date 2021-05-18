@@ -30,7 +30,7 @@ pub struct Audio {
 
 impl Audio {
     pub fn new() -> Self {
-        let size = 8192;
+        let size = 8192 * 2;
         let l_samples = Arc::new(Mutex::new(RingBuffer::new(size)));
         let r_samples = Arc::new(Mutex::new(RingBuffer::new(size)));
         let _stream = None;
@@ -51,10 +51,11 @@ impl Audio {
         let mut r_spectrum = Vec::with_capacity(spec_size);
         r_spectrum.resize(spec_size, 0f32);
 
-        let mut l_nice_spectrum = Vec::with_capacity(spec_size);
-        l_nice_spectrum.resize(spec_size, 0f32);
-        let mut r_nice_spectrum = Vec::with_capacity(spec_size);
-        r_nice_spectrum.resize(spec_size, 0f32);
+        let bands = 80usize;
+        let mut l_nice_spectrum = Vec::with_capacity(bands);
+        l_nice_spectrum.resize(bands, 0f32);
+        let mut r_nice_spectrum = Vec::with_capacity(bands);
+        r_nice_spectrum.resize(bands, 0f32);
 
         let mut planner = FftPlanner::<f32>::new();
         let fft = planner.plan_fft_forward(size);
@@ -203,6 +204,8 @@ impl Audio {
     fn update_nice_fft(&mut self) {
         let inv_gamma = 0.5f32;
         let f_max = self.l_spectrum.len();
+        self.l_nice_spectrum.fill(0f32);
+        self.r_nice_spectrum.fill(0f32);
         for (i, (l, r)) in self
             .l_spectrum
             .iter()
@@ -211,8 +214,8 @@ impl Audio {
         {
             let bi = ((i as f32 / f_max as f32).powf(inv_gamma) * self.l_nice_spectrum.len() as f32)
                 as usize;
-            self.l_nice_spectrum[bi] = l.clone();
-            self.r_nice_spectrum[bi] = r.clone();
+            self.l_nice_spectrum[bi] = self.l_nice_spectrum[bi].max(l.clone());
+            self.r_nice_spectrum[bi] = self.r_nice_spectrum[bi].max(r.clone());
         }
     }
 
