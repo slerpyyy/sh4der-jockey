@@ -207,7 +207,8 @@ pub fn preprocess(code: &str, file_name: &str) -> Result<String, String> {
             let leading_lines = code[0..include.start()]
                 .bytes()
                 .filter(|&byte| byte == b'\n')
-                .count();
+                .count()
+                .saturating_sub(1);
 
             // detect include cycles
             if !seen.insert(file_name.to_owned()) {
@@ -237,8 +238,8 @@ pub fn preprocess(code: &str, file_name: &str) -> Result<String, String> {
 
     // insert #line directive after version
     let first_nl = code.find('\n').unwrap_or(0);
-    let (prefix, postfix) = code.split_at(first_nl + 1);
-    let code = format!("{}#line 1 \"{}\"\n{}", prefix, file_name, postfix);
+    let (prefix, postfix) = code.split_at(first_nl);
+    let code = format!("{}\n#line 1 \"{}\"{}", prefix, file_name, postfix);
 
     // handle includes recursively
     recurse(&code, file_name, HashSet::new())
