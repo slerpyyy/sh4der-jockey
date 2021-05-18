@@ -616,8 +616,11 @@ impl Jockey {
             self.audio.update_fft();
             ui.plot_lines(im_str!("left FFT"), self.audio.l_spectrum.as_slice())
                 .build();
-
             ui.plot_lines(im_str!("right FFT"), self.audio.r_spectrum.as_slice())
+                .build();
+            ui.plot_lines(im_str!("nice L FFT"), self.audio.l_nice_spectrum.as_slice())
+                .build();
+            ui.plot_lines(im_str!("nice R FFT"), self.audio.r_nice_spectrum.as_slice())
                 .build();
 
             ui.separator();

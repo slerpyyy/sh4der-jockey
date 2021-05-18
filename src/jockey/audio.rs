@@ -17,6 +17,8 @@ pub struct Audio {
     pub r_signal: Vec<f32>,
     pub l_spectrum: Vec<f32>,
     pub r_spectrum: Vec<f32>,
+    pub l_nice_spectrum: Vec<f32>,
+    pub r_nice_spectrum: Vec<f32>,
     l_fft: Vec<Complex<f32>>,
     r_fft: Vec<Complex<f32>>,
     l_samples: Arc<Mutex<RingBuffer<f32>>>,
@@ -43,10 +45,16 @@ impl Audio {
         let mut r_fft = Vec::with_capacity(size);
         r_fft.resize(size, Complex::new(0f32, 0f32));
 
-        let mut l_spectrum = Vec::with_capacity(size);
-        l_spectrum.resize(size, 0f32);
-        let mut r_spectrum = Vec::with_capacity(size);
-        r_spectrum.resize(size, 0f32);
+        let spec_size = size / 2;
+        let mut l_spectrum = Vec::with_capacity(spec_size);
+        l_spectrum.resize(spec_size, 0f32);
+        let mut r_spectrum = Vec::with_capacity(spec_size);
+        r_spectrum.resize(spec_size, 0f32);
+
+        let mut l_nice_spectrum = Vec::with_capacity(spec_size);
+        l_nice_spectrum.resize(spec_size, 0f32);
+        let mut r_nice_spectrum = Vec::with_capacity(spec_size);
+        r_nice_spectrum.resize(spec_size, 0f32);
 
         let mut planner = FftPlanner::<f32>::new();
         let fft = planner.plan_fft_forward(size);
@@ -58,6 +66,8 @@ impl Audio {
             r_fft,
             l_spectrum,
             r_spectrum,
+            l_nice_spectrum,
+            r_nice_spectrum,
             l_samples,
             r_samples,
             _stream,
@@ -181,8 +191,29 @@ impl Audio {
 
         let left_spectrum: Vec<_> = self.l_fft.iter().map(|z| z.norm()).collect();
         let right_spectrum: Vec<_> = self.r_fft.iter().map(|z| z.norm()).collect();
-        self.l_spectrum.copy_from_slice(left_spectrum.as_slice());
-        self.r_spectrum.copy_from_slice(right_spectrum.as_slice());
+        let len = left_spectrum.len() / 2;
+        self.l_spectrum
+            .copy_from_slice(&left_spectrum.as_slice()[..len]);
+        self.r_spectrum
+            .copy_from_slice(&right_spectrum.as_slice()[..len]);
+
+        self.update_nice_fft();
+    }
+
+    fn update_nice_fft(&mut self) {
+        let inv_gamma = 0.5f32;
+        let f_max = self.l_spectrum.len();
+        for (i, (l, r)) in self
+            .l_spectrum
+            .iter()
+            .zip(self.r_spectrum.iter())
+            .enumerate()
+        {
+            let bi = ((i as f32 / f_max as f32).powf(inv_gamma) * self.l_nice_spectrum.len() as f32)
+                as usize;
+            self.l_nice_spectrum[bi] = l.clone();
+            self.r_nice_spectrum[bi] = r.clone();
+        }
     }
 
     #[allow(dead_code)]
