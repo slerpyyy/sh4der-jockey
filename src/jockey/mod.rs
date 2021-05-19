@@ -308,6 +308,7 @@ impl Jockey {
         self.midi.handle_input();
 
         self.audio.update_samples();
+        self.audio.update_fft();
 
         let mut do_update_pipeline = unsafe { PIPELINE_STALE.swap(false, Ordering::Relaxed) }
             && self.last_build.elapsed().as_millis() > 100;
@@ -370,6 +371,8 @@ impl Jockey {
             static ref OUT_COLOR_NAME: CString = CString::new("out_color").unwrap();
             static ref POSITION_NAME: CString = CString::new("position").unwrap();
             static ref SAMPLES_NAME: CString = CString::new("samples").unwrap();
+            static ref RAW_SPECTRUM_NAME: CString = CString::new("raw_spectrum").unwrap();
+            static ref SPECTRUM_NAME: CString = CString::new("spectrum").unwrap();
             static ref NOISE_NAME: CString = CString::new("noise").unwrap();
         }
 
@@ -388,6 +391,28 @@ impl Jockey {
                 .downcast_mut::<Texture1D>()
                 .unwrap()
                 .write(&interlaced_samples);
+        }
+        gl_debug_check!();
+
+        let raw_spectrum_name: &CString = &RAW_SPECTRUM_NAME;
+        if let Some(raw_spectrum_tex) = self.pipeline.buffers.get_mut(raw_spectrum_name) {
+            let raw_spectrum = interlace(&self.audio.l_raw_spectrum, &self.audio.r_raw_spectrum);
+            raw_spectrum_tex
+                .as_any_mut()
+                .downcast_mut::<Texture1D>()
+                .unwrap()
+                .write(&raw_spectrum);
+        }
+        gl_debug_check!();
+
+        let spectrum_name: &CString = &SPECTRUM_NAME;
+        if let Some(spectrum_tex) = self.pipeline.buffers.get_mut(spectrum_name) {
+            let spectrum = interlace(&self.audio.l_spectrum, &self.audio.r_spectrum);
+            spectrum_tex
+                .as_any_mut()
+                .downcast_mut::<Texture1D>()
+                .unwrap()
+                .write(&spectrum);
         }
         gl_debug_check!();
 
@@ -513,7 +538,7 @@ impl Jockey {
                     if let StageKind::Vert { count, mode, .. } = stage.kind {
                         gl::ClearColor(0.0, 0.0, 0.0, 0.0);
                         gl::Clear(gl::COLOR_BUFFER_BIT);
-
+                        gl::LineWidth(10.);
                         draw_anything(self.ctx.vao, count, mode)
                     } else {
                         draw_fullscreen_rect(self.ctx.vao);
@@ -613,14 +638,13 @@ impl Jockey {
             ui.plot_lines(im_str!("right"), &self.audio.r_signal)
                 .build();
 
-            self.audio.update_fft();
-            ui.plot_lines(im_str!("left FFT"), self.audio.l_spectrum.as_slice())
+            ui.plot_lines(im_str!("left FFT"), self.audio.l_raw_spectrum.as_slice())
                 .build();
-            ui.plot_lines(im_str!("right FFT"), self.audio.r_spectrum.as_slice())
+            ui.plot_lines(im_str!("right FFT"), self.audio.r_raw_spectrum.as_slice())
                 .build();
-            ui.plot_lines(im_str!("nice L FFT"), self.audio.l_nice_spectrum.as_slice())
+            ui.plot_lines(im_str!("nice L FFT"), self.audio.l_spectrum.as_slice())
                 .build();
-            ui.plot_lines(im_str!("nice R FFT"), self.audio.r_nice_spectrum.as_slice())
+            ui.plot_lines(im_str!("nice R FFT"), self.audio.r_spectrum.as_slice())
                 .build();
 
             ui.separator();

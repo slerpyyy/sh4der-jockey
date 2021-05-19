@@ -4,6 +4,8 @@ out vec4 out_color;
 
 uniform sampler1D samples;
 uniform vec4 resolution;
+uniform sampler2D lines;
+uniform sampler2D fft;
 
 float graph(float y, float f, float t) {
 
@@ -14,10 +16,11 @@ void main() {
     vec2 uv = gl_FragCoord.xy / resolution.xy;
     vec3 samp = texture(samples, uv.x).rgb + .5;
 
-    vec3 c = vec3(1.);
-    c.g = 0.;
-    c.r *= graph(uv.y, samp.r, 0.05);
-    c.b *= graph(uv.y, samp.g, 0.05);
+    vec3 c = vec3(0.01);
+    c += texture(lines, uv).rgb;
+    c += texture(fft, uv).rgb;
+
+    c = pow(c, vec3(.4545));
 
     out_color = vec4(c, 1.);
 }

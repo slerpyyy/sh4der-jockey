@@ -15,22 +15,25 @@ pub enum Channels {
 pub struct Audio {
     pub l_signal: Vec<f32>,
     pub r_signal: Vec<f32>,
+    pub l_raw_spectrum: Vec<f32>,
+    pub r_raw_spectrum: Vec<f32>,
     pub l_spectrum: Vec<f32>,
     pub r_spectrum: Vec<f32>,
-    pub l_nice_spectrum: Vec<f32>,
-    pub r_nice_spectrum: Vec<f32>,
+    pub size: usize,
+    pub nice_size: usize,
     l_fft: Vec<Complex<f32>>,
     r_fft: Vec<Complex<f32>>,
     l_samples: Arc<Mutex<RingBuffer<f32>>>,
     r_samples: Arc<Mutex<RingBuffer<f32>>>,
     _stream: Option<cpal::Stream>,
     channels: Channels,
+    sample_freq: usize,
     fft: Arc<dyn Fft<f32>>,
 }
 
 impl Audio {
     pub fn new() -> Self {
-        let size = 8192 * 2;
+        let size = 8192;
         let _stream = None;
         let channels = Channels::None;
 
@@ -44,30 +47,33 @@ impl Audio {
         let r_fft = vec![Complex::new(0f32, 0f32); size];
 
         let spec_size = size / 2;
-        let l_spectrum = vec![0_f32; spec_size];
-        let r_spectrum = vec![0_f32; spec_size];
+        let l_raw_spectrum = vec![0_f32; spec_size];
+        let r_raw_spectrum = vec![0_f32; spec_size];
 
-        let bands = 80_usize;
-        let l_nice_spectrum = vec![0_f32; bands];
-        let r_nice_spectrum = vec![0_f32; bands];
+        let bands = 100_usize;
+        let l_spectrum = vec![0_f32; bands];
+        let r_spectrum = vec![0_f32; bands];
 
         let mut planner = FftPlanner::<f32>::new();
         let fft = planner.plan_fft_forward(size);
 
         let mut this = Self {
+            size,
+            nice_size: bands,
             l_signal,
             r_signal,
             l_fft,
             r_fft,
+            l_raw_spectrum,
+            r_raw_spectrum,
             l_spectrum,
             r_spectrum,
-            l_nice_spectrum,
-            r_nice_spectrum,
             l_samples,
             r_samples,
             _stream,
             channels,
             fft,
+            sample_freq: 0,
         };
         this.connect();
         this
@@ -150,6 +156,8 @@ impl Audio {
         };
 
         stream.play().expect("Failed to play input stream");
+        let sample_freq = config.sample_rate.0;
+        self.sample_freq = sample_freq as _;
 
         self._stream = Some(stream);
     }
@@ -185,34 +193,79 @@ impl Audio {
         self.fft.process(&mut self.l_fft);
         self.fft.process(&mut self.r_fft);
 
-        let left_spectrum: Vec<_> = self.l_fft.iter().map(|z| z.norm()).collect();
-        let right_spectrum: Vec<_> = self.r_fft.iter().map(|z| z.norm()).collect();
+        let mut left_spectrum: Vec<_> = self.l_fft.iter().map(|z| z.norm_sqr()).collect();
+        let mut right_spectrum: Vec<_> = self.r_fft.iter().map(|z| z.norm_sqr()).collect();
+
+        let cmp = |x: &&f32, y: &&f32| x.partial_cmp(y).unwrap();
+        let max_left = left_spectrum.iter().max_by(cmp).unwrap().clone();
+        let max_right = right_spectrum.iter().max_by(cmp).unwrap().clone();
+        for i in 0..left_spectrum.len() {
+            left_spectrum[i] /= max_left;
+            right_spectrum[i] /= max_right;
+        }
 
         let len = left_spectrum.len() / 2;
-        self.l_spectrum.copy_from_slice(&left_spectrum[..len]);
-        self.r_spectrum.copy_from_slice(&right_spectrum[..len]);
+        self.l_raw_spectrum.copy_from_slice(&left_spectrum[..len]);
+        self.r_raw_spectrum.copy_from_slice(&right_spectrum[..len]);
 
         self.update_nice_fft();
     }
 
     fn update_nice_fft(&mut self) {
-        let inv_gamma = 0.5f32;
-        let f_max = self.l_spectrum.len();
+        self.l_spectrum.fill(0f32);
+        self.r_spectrum.fill(0f32);
 
-        self.l_nice_spectrum.fill(0f32);
-        self.r_nice_spectrum.fill(0f32);
+        let n = self.l_raw_spectrum.len() * 2;
+        let bins = self.l_spectrum.len();
 
+        let fs_over_n = self.sample_freq as f32 / n as f32;
+
+        let half_n = self.l_raw_spectrum.len() as f32;
+        let inv_half_n = 1f32 / half_n;
+
+        let mut max_left = 0f32;
+        let mut max_right = 0f32;
         for (i, (l, r)) in self
-            .l_spectrum
+            .l_raw_spectrum
             .iter()
-            .zip(self.r_spectrum.iter())
+            .zip(self.r_raw_spectrum.iter())
             .enumerate()
         {
-            let fi = (i as f32 / f_max as f32).powf(inv_gamma);
-            let bi = (fi * self.l_nice_spectrum.len() as f32) as usize;
+            let freq = i as f64 * fs_over_n as f64;
 
-            self.l_nice_spectrum[bi] = self.l_nice_spectrum[bi].max(l.clone());
-            self.r_nice_spectrum[bi] = self.r_nice_spectrum[bi].max(r.clone());
+            // https://www.wikiwand.com/en/Piano_key_frequencies
+            let bin = (12f64 * (freq / 440f64).log2()) as i32 + 49;
+            let bi = if bin >= bins as _ {
+                bins - 1
+            } else if bin < 0 {
+                0
+            } else {
+                bin as usize
+            };
+
+            //https://github.com/jberg/butterchurn/blob/master/src/audio/fft.js#L20
+            let eq = -0.02 * ((half_n - i as f32) * inv_half_n).log10();
+            let l_int = l * eq;
+            let r_int = r * eq;
+            max_left = max_left.max(l_int);
+            max_right = max_right.max(r_int);
+
+            self.l_spectrum[bi] = self.l_spectrum[bi].max(l_int);
+            self.r_spectrum[bi] = self.r_spectrum[bi].max(r_int);
+        }
+
+        for i in 1..(bins - 1) {
+            if self.l_spectrum[i] == 0f32 {
+                self.l_spectrum[i] = (self.l_spectrum[i - 1] + self.l_spectrum[i + 1]) / 2f32;
+            }
+            if self.r_spectrum[i] == 0f32 {
+                self.r_spectrum[i] = (self.r_spectrum[i - 1] + self.r_spectrum[i + 1]) / 2f32;
+            }
+        }
+
+        for i in 0..bins {
+            self.l_spectrum[i] /= max_left;
+            self.r_spectrum[i] /= max_right;
         }
     }
 

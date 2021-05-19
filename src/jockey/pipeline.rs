@@ -116,9 +116,35 @@ impl Pipeline {
             TextureFormat::RG32F,
         );
 
+        let raw_spectrums_texture = Texture1D::with_params(
+            [(fft_size / 2) as _],
+            gl::NEAREST,
+            gl::NEAREST,
+            gl::CLAMP_TO_EDGE,
+            TextureFormat::RG32F,
+        );
+
+        let spectrums_texture = Texture1D::with_params(
+            [100],
+            gl::NEAREST,
+            gl::NEAREST,
+            gl::CLAMP_TO_EDGE,
+            TextureFormat::RG32F,
+        );
+
         buffers.insert(
             CString::new("samples").unwrap(),
             Box::new(audio_samples_texture),
+        );
+
+        buffers.insert(
+            CString::new("raw_spectrum").unwrap(),
+            Box::new(raw_spectrums_texture),
+        );
+
+        buffers.insert(
+            CString::new("spectrum").unwrap(),
+            Box::new(spectrums_texture),
         );
 
         // add noise texture

@@ -1,2 +1,10 @@
 stages:
-  - fs: "./scene.glsl"
+  - vs: "./osci.vert"
+    mode: "LINES"
+    count: 24000
+    target: "lines"
+  - vs: "./fft.vert"
+    mode: "LINES"
+    count: 24000
+    target: "fft"
+  - fs: "./scene.frag"
