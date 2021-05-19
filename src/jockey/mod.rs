@@ -1,11 +1,10 @@
 use crate::util::*;
+use crate::viewport::*;
+
 use gl::types::*;
 use imgui::im_str;
+use imgui_winit_support::{HiDpiMode, WinitPlatform};
 use lazy_static::lazy_static;
-use sdl2::{
-    event::{Event, WindowEvent},
-    keyboard::{Keycode, Mod},
-};
 use std::{
     ffi::CString,
     sync::atomic::{AtomicBool, Ordering},
@@ -36,15 +35,14 @@ static mut PIPELINE_STALE: AtomicBool = AtomicBool::new(false);
 
 /// A struct for all the ugly internals.
 pub struct MegaContext {
-    pub event_pump: sdl2::EventPump,
-    pub gl_context: sdl2::video::GLContext,
-    pub imgui_sdl2: imgui_sdl2::ImguiSdl2,
     pub imgui: imgui::Context,
     pub renderer: imgui_opengl_renderer::Renderer,
     pub vao: GLuint,
     pub vbo: GLuint,
     pub watcher: notify::RecommendedWatcher,
-    pub window: sdl2::video::Window,
+    pub windowed_context: glutin::WindowedContext<glutin::PossiblyCurrent>,
+    pub events_loop: glutin::EventsLoop,
+    pub platform: WinitPlatform,
 }
 
 /// A struct to keep the state of the tool.
@@ -87,7 +85,7 @@ impl Jockey {
 
     /// Initializes the tool.
     ///
-    /// This will spin up a SDL2 window, initialize Imgui,
+    /// This will spin up a Winit window, initialize Imgui,
     /// create a OpenGL context and more!
     pub fn init() -> Self {
         // We need to init audio before SDL
@@ -96,38 +94,40 @@ impl Jockey {
         // this discusses "init A first or B first" so they are related somehow.
         let audio = Audio::new();
 
-        let sdl_context = sdl2::init().unwrap();
-        let video = sdl_context.video().unwrap();
-
-        {
-            let gl_attr = video.gl_attr();
-            gl_attr.set_context_profile(sdl2::video::GLProfile::Core);
-            gl_attr.set_context_version(3, 0);
-        }
-
         let title = Self::title();
-        let window = video
-            .window(&title, 1280, 720)
-            .position_centered()
-            .resizable()
-            .opengl()
-            .allow_highdpi()
-            .build()
-            .unwrap();
-
-        let gl_context = window
-            .gl_create_context()
-            .expect("Couldn't create GL context");
-
-        let prog_addr = |s| video.gl_get_proc_address(s) as _;
-        gl::load_with(prog_addr);
+        let events_loop = glutin::EventsLoop::new();
+        let window_builder = glutin::WindowBuilder::new()
+            .with_dimensions(glutin::dpi::LogicalSize::new(1280f64, 720f64))
+            .with_resizable(true)
+            .with_title(title.to_owned());
 
         let mut imgui = imgui::Context::create();
+        imgui.io_mut().config_flags |=
+            imgui::ConfigFlags::DOCKING_ENABLE | imgui::ConfigFlags::VIEWPORTS_ENABLE;
         imgui.set_ini_filename(None);
 
-        let imgui_sdl2 = imgui_sdl2::ImguiSdl2::new(&mut imgui, &window);
+        let request = glutin::GlRequest::Specific(glutin::Api::OpenGl, (4, 4));
+        let context_builder = glutin::ContextBuilder::new()
+            .with_vsync(true)
+            .with_gl(request);
+
+        let built_context = context_builder
+            .build_windowed(window_builder, &events_loop)
+            .expect("Failed to create windowed context");
+        let context = unsafe {
+            built_context
+                .make_current()
+                .expect("Failed to activate windowed context")
+        };
+
+        let prog_addr = |s| context.get_proc_address(s) as _;
+        gl::load_with(prog_addr);
+
         let renderer = imgui_opengl_renderer::Renderer::new(&mut imgui, prog_addr);
-        let event_pump = sdl_context.event_pump().unwrap();
+        let mut platform = WinitPlatform::init(&mut imgui);
+        let hidpi_factor = platform.hidpi_factor();
+        imgui.io_mut().font_global_scale = (1.0 / hidpi_factor) as f32;
+        platform.attach_window(imgui.io_mut(), context.window(), HiDpiMode::Rounded);
 
         let mut vao = 0;
         let mut vbo = 0;
@@ -150,20 +150,18 @@ impl Jockey {
 
         notify::Watcher::watch(&mut watcher, ".", notify::RecursiveMode::Recursive).unwrap();
 
-        let midi = Midi::new();
-
         let ctx = MegaContext {
-            event_pump,
-            gl_context,
-            imgui_sdl2,
             imgui,
             renderer,
             vao,
             vbo,
             watcher,
-            window,
+            windowed_context: context,
+            events_loop,
+            platform,
         };
 
+        let midi = Midi::new();
         let mut beat_delta = RunningAverage::new();
         beat_delta.buffer.fill(1.0);
 
@@ -188,6 +186,8 @@ impl Jockey {
         };
 
         gl_debug_check!();
+
+        this.setup_docks();
 
         this.update_pipeline();
         this
@@ -254,6 +254,38 @@ impl Jockey {
         style.colors[ModalWindowDimBg       as usize] = gray(0.80, 0.35);
     }
 
+    fn setup_docks(&mut self) {
+        let io = self.ctx.imgui.io_mut();
+        self.ctx
+            .platform
+            .prepare_frame(io, self.ctx.windowed_context.window())
+            .expect("Failed to start frame");
+
+        let ui = self.ctx.imgui.frame();
+
+        imgui::Dock::new().build(|root| {
+            root.size([500_f32, 500_f32])
+                .position([0_f32, 0_f32])
+                .split(
+                    imgui::Direction::Left,
+                    0.7_f32,
+                    |left| {
+                        left.dock_window(im_str!("Viewport"));
+                        left.dock_window(im_str!("NodeGraph"));
+                    },
+                    |right| {
+                        right.dock_window(im_str!("Properties"));
+                        right.dock_window(im_str!("Outliner"));
+                    },
+                )
+        });
+
+        self.ctx
+            .platform
+            .prepare_render(&ui, self.ctx.windowed_context.window());
+        self.ctx.renderer.render(ui);
+    }
+
     /// Reload the render pipeline and replace the old one.
     ///
     /// This will load the `pipeline.yaml` from the specified file and
@@ -286,7 +318,8 @@ impl Jockey {
         };
 
         // build pipeline
-        let screen_size = self.ctx.window.size();
+        let screen_size = self.ctx.windowed_context.window().get_inner_size().unwrap();
+        let screen_size = (screen_size.width as u32, screen_size.height as u32);
         let update = match Pipeline::load(path, screen_size) {
             Ok(pl) => pl,
             Err(err) => {
@@ -304,46 +337,50 @@ impl Jockey {
     }
 
     pub fn handle_events(&mut self) {
-        self.midi.check_connections();
-        self.midi.handle_input();
+        let platform = &mut self.ctx.platform;
+        let events_loop = &mut self.ctx.events_loop;
+        let imgui = &mut self.ctx.imgui;
+        let windowed_context = &mut self.ctx.windowed_context;
+        let pipeline = &mut self.pipeline;
+        let mut done = false;
 
-        self.audio.update_samples();
-        self.audio.update_fft();
+        &mut self.midi.check_connections();
+        &mut self.midi.handle_input();
+
+        &mut self.audio.update_samples();
+        &mut self.audio.update_fft();
 
         let mut do_update_pipeline = unsafe { PIPELINE_STALE.swap(false, Ordering::Relaxed) }
             && self.last_build.elapsed().as_millis() > 100;
 
-        for event in self.ctx.event_pump.poll_iter() {
-            self.ctx
-                .imgui_sdl2
-                .handle_event(&mut self.ctx.imgui, &event);
+        events_loop.poll_events(|e| {
+            platform.handle_event(imgui.io_mut(), windowed_context.window(), &e);
 
-            if self.ctx.imgui_sdl2.ignore_event(&event) {
-                continue;
+            match e {
+                glutin::Event::WindowEvent { event, .. } => match event {
+                    glutin::WindowEvent::Resized(size) => {
+                        let (width, height) = (size.width as u32, size.height as u32);
+                        pipeline.resize_buffers(width, height)
+                    }
+                    glutin::WindowEvent::CloseRequested => done = true,
+                    _ => (),
+                },
+                glutin::Event::DeviceEvent { event, .. } => match event {
+                    glutin::DeviceEvent::Key(glutin::KeyboardInput {
+                        virtual_keycode: Some(glutin::VirtualKeyCode::Return),
+                        ..
+                    }) => do_update_pipeline = true,
+                    glutin::DeviceEvent::Key(glutin::KeyboardInput {
+                        virtual_keycode: Some(glutin::VirtualKeyCode::Escape),
+                        ..
+                    }) => done = true,
+                    _ => (),
+                },
+                _ => (),
             }
+        });
 
-            match event {
-                Event::Quit { .. }
-                | Event::KeyDown {
-                    keycode: Some(Keycode::Escape),
-                    ..
-                } => self.done = true,
-
-                Event::KeyDown {
-                    keycode: Some(Keycode::Return),
-                    keymod,
-                    ..
-                } if keymod & Mod::LCTRLMOD != Mod::NOMOD => do_update_pipeline = true,
-
-                Event::Window {
-                    win_event: WindowEvent::Resized(width, height),
-                    ..
-                } if !do_update_pipeline => {
-                    self.pipeline.resize_buffers(width as _, height as _);
-                }
-                _ => {}
-            }
-        }
+        self.done = done;
 
         // live shader reloading hype
         if do_update_pipeline {
@@ -377,7 +414,8 @@ impl Jockey {
         }
 
         // compute uniforms
-        let (width, height) = self.ctx.window.size();
+        let screen_size = self.ctx.windowed_context.window().get_inner_size().unwrap();
+        let (width, height) = (screen_size.width as u32, screen_size.height as u32);
         let time = self.start_time.elapsed().as_secs_f32();
         let beat = self.last_beat.elapsed().as_secs_f32() / self.beat_delta.get();
         gl_debug_check!();
@@ -563,16 +601,16 @@ impl Jockey {
 
     /// Wrapper function for all the imgui stuff.
     pub fn build_ui(&mut self) {
-        self.ctx.imgui_sdl2.prepare_frame(
-            self.ctx.imgui.io_mut(),
-            &self.ctx.window,
-            &self.ctx.event_pump.mouse_state(),
-        );
+        let io = self.ctx.imgui.io_mut();
+        self.ctx
+            .platform
+            .prepare_frame(io, self.ctx.windowed_context.window())
+            .expect("Failed to start frame");
 
         // tell imgui what time it is
         let now = Instant::now();
         let delta_time = (now - self.last_frame).as_secs_f32();
-        self.ctx.imgui.io_mut().delta_time = delta_time;
+        io.delta_time = delta_time;
         self.last_frame = now;
 
         // record frame time
@@ -580,8 +618,14 @@ impl Jockey {
         let frame_ms = self.frame_perf.get();
 
         // title section
+
         let ui = self.ctx.imgui.frame();
-        if let Some(window) = imgui::Window::new(im_str!("Not debug")).begin(&ui) {
+        // imgui::Window::new(im_str!("Viewport")).build(&ui, || {});
+        // imgui::Window::new(im_str!("NodeGraph")).build(&ui, || {});
+        // imgui::Window::new(im_str!("Properties")).build(&ui, || {});
+        // imgui::Window::new(im_str!("Outliner")).build(&ui, || {});
+
+        if let Some(window) = imgui::Window::new(im_str!("Debug")).begin(&ui) {
             ui.text(&*JOCKEY_TITLE);
             ui.separator();
 
@@ -696,7 +740,9 @@ impl Jockey {
         }
 
         // update ui
-        self.ctx.imgui_sdl2.prepare_render(&ui, &self.ctx.window);
+        self.ctx
+            .platform
+            .prepare_render(&ui, self.ctx.windowed_context.window());
         self.ctx.renderer.render(ui);
     }
 }

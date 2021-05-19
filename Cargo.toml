@@ -12,12 +12,13 @@ panic = "abort"
 [dependencies]
 getopts = "0.2.21"
 gl = "0.14.0"
-imgui = "0.7.0"
-imgui-opengl-renderer = "0.11.0"
-imgui-sdl2 = "0.14.0"
+imgui = { git = "https://github.com/luke-titley/imgui-docking-rs", branch = "release/docking/0.5.0" }
+imgui-winit-support = { git = "https://github.com/luke-titley/imgui-docking-rs", branch = "release/docking/0.5.0",  default-features = false, features = ["winit-19"] }
+imgui-opengl-renderer = { git = "https://github.com/sp4ghet/rust-imgui-opengl-renderer", branch = "master" }
+glutin = "0.21.0"
+winit = "0.23"
 lazy_static = "1.4.0"
 regex = "1.4.6"
-sdl2 = "0.34.4"
 notify = "5.0.0-pre.7"
 serde_yaml = "0.8.17"
 midir = "0.7.0"
@@ -26,6 +27,7 @@ as-any = "0.2.0"
 rand = "0.8.3"
 num-complex = "0.4"
 rustfft = "6.0"
+bitflags = "1.2"
 
 [build-dependencies]
 anyhow = "1.0.40"

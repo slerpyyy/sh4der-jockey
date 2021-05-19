@@ -4,6 +4,7 @@
 #[macro_use]
 mod util;
 mod jockey;
+mod viewport;
 
 use getopts::Options;
 use jockey::Jockey;
@@ -63,6 +64,6 @@ fn main() {
         jockey.build_ui();
 
         // update ui
-        jockey.ctx.window.gl_swap_window();
+        jockey.ctx.windowed_context.swap_buffers();
     }
 }
