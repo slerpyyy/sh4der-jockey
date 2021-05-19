@@ -1,10 +1,9 @@
+use crate::util::RingBuffer;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::Device;
 use num_complex::Complex;
 use rustfft::{Fft, FftPlanner};
 use std::sync::{Arc, Mutex};
-
-use crate::util::RingBuffer;
 
 pub enum Channels {
     None,
@@ -34,25 +33,8 @@ pub struct Audio {
 impl Audio {
     pub fn new() -> Self {
         let size = 8192;
-        let _stream = None;
-        let channels = Channels::None;
-
-        let l_samples = Arc::new(Mutex::new(RingBuffer::new(size)));
-        let r_samples = Arc::new(Mutex::new(RingBuffer::new(size)));
-
-        let l_signal = vec![0_f32; size];
-        let r_signal = vec![0_f32; size];
-
-        let l_fft = vec![Complex::new(0f32, 0f32); size];
-        let r_fft = vec![Complex::new(0f32, 0f32); size];
-
         let spec_size = size / 2;
-        let l_raw_spectrum = vec![0_f32; spec_size];
-        let r_raw_spectrum = vec![0_f32; spec_size];
-
-        let bands = 100_usize;
-        let l_spectrum = vec![0_f32; bands];
-        let r_spectrum = vec![0_f32; bands];
+        let bands = 100;
 
         let mut planner = FftPlanner::<f32>::new();
         let fft = planner.plan_fft_forward(size);
@@ -60,21 +42,22 @@ impl Audio {
         let mut this = Self {
             size,
             nice_size: bands,
-            l_signal,
-            r_signal,
-            l_fft,
-            r_fft,
-            l_raw_spectrum,
-            r_raw_spectrum,
-            l_spectrum,
-            r_spectrum,
-            l_samples,
-            r_samples,
-            _stream,
-            channels,
+            l_signal: vec![0.0; size],
+            r_signal: vec![0.0; size],
+            l_fft: vec![Complex::new(0.0, 0.0); size],
+            r_fft: vec![Complex::new(0.0, 0.0); size],
+            l_raw_spectrum: vec![0.0; spec_size],
+            r_raw_spectrum: vec![0.0; spec_size],
+            l_spectrum: vec![0.0; bands],
+            r_spectrum: vec![0.0; bands],
+            l_samples: Arc::new(Mutex::new(RingBuffer::new(size))),
+            r_samples: Arc::new(Mutex::new(RingBuffer::new(size))),
+            _stream: None,
+            channels: Channels::None,
             fft,
             sample_freq: 0,
         };
+
         this.connect();
         this
     }

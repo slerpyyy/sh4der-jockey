@@ -1,5 +1,5 @@
 use crate::util::*;
-use crate::viewport::*;
+use viewports::*;
 
 use gl::types::*;
 use imgui::im_str;
@@ -576,7 +576,7 @@ impl Jockey {
                     if let StageKind::Vert { count, mode, .. } = stage.kind {
                         gl::ClearColor(0.0, 0.0, 0.0, 0.0);
                         gl::Clear(gl::COLOR_BUFFER_BIT);
-                        gl::LineWidth(10.);
+                        //gl::LineWidth(10.);
                         draw_anything(self.ctx.vao, count, mode)
                     } else {
                         draw_fullscreen_rect(self.ctx.vao);

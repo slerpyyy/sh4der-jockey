@@ -1,0 +1,40 @@
+[package]
+name = "viewports"
+version = "0.1.0"
+authors = ["qthree <qthree3@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+default = []
+wgpu-renderer = ["wgpu", "imgui-wgpu"]
+from-image = ["wgpu-renderer", "image"]
+
+[dependencies]
+winit = "0.23"
+raw-window-handle = "0.3"
+bitflags = "1.2"
+wgpu = { version = "0.6", optional = true }
+image = { version = "0.23", default-features = false, optional = true }
+
+[dependencies.imgui]
+git = "https://github.com/luke-titley/imgui-docking-rs.git"
+branch = "release/docking/0.5.0"
+
+[dependencies.imgui-wgpu]
+#git = "https://github.com/Yatekii/imgui-wgpu-rs.git"
+git = "https://github.com/qthree/imgui-wgpu-rs.git" # the only change here is the use of imgui-docking-rs instead of imgui-rs
+branch = "docking"
+optional = true
+
+[dev-dependencies]
+bytemuck = { version = "1.4", features = ["derive"] }
+image = "0.23"
+wgpu-subscriber = "0.1"
+futures = "0.3"
+cgmath = "0.17"
+
+[[example]]
+name = "wgpu"
+required-features = ["wgpu-renderer", "from-image"]

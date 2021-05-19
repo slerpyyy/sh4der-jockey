@@ -19,10 +19,8 @@ mat2 r2d(float t) {
 }
 
 void main() {
-    int vid = (gl_VertexID + 1) / 2;
-    float x = float(vid) / vertexCount;
-    x *= 4;
-    x -= 1.;
+    int vid = gl_VertexID;
+    float x = 2 * float(vid) / vertexCount - 1;
 
     vec2 samp = texture(spectrum, abs(x)).rg;
 
@@ -37,7 +35,7 @@ void main() {
     p.x *= resolution.w;
 
     gl_Position = vec4(p, 1);
-    gl_PointSize = 0.0;
+    gl_PointSize = 4.0;
 
     v_color = vec4(c, 1.);
 }

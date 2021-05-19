@@ -2139,7 +2139,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "as-any",
- "bitflags",
  "cpal",
  "getopts",
  "gl",
@@ -2156,6 +2155,7 @@ dependencies = [
  "rustfft",
  "serde_yaml",
  "vergen",
+ "viewports",
  "winit 0.23.0",
 ]
 
@@ -2440,6 +2440,16 @@ name = "version_check"
 version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5fecdca9a5291cc2b8dcf7dc02453fee791a280f3743cb0905f8822ae463b3fe"
+
+[[package]]
+name = "viewports"
+version = "0.1.0"
+dependencies = [
+ "bitflags",
+ "imgui",
+ "raw-window-handle",
+ "winit 0.23.0",
+]
 
 [[package]]
 name = "void"
