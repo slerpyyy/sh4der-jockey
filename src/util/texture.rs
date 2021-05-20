@@ -45,6 +45,9 @@ impl FrameBuffer {
         mipmap: bool,
         float: bool,
     ) -> Self {
+        let width = width.max(1);
+        let height = height.max(1);
+
         unsafe {
             let mut tex_id = 0;
             let mut fb_id = 0;
@@ -222,12 +225,16 @@ macro_rules! impl_texture {
             }
 
             pub fn with_params(
-                resolution: [u32; $dim],
+                mut resolution: [u32; $dim],
                 min_filter: GLenum,
                 mag_filter: GLenum,
                 wrap_mode: GLenum,
                 format: TextureFormat,
             ) -> Self {
+                for k in resolution.iter_mut() {
+                    *k = 1.max(*k);
+                }
+
                 unsafe {
                     let mut tex_id = 0;
 
