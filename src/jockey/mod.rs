@@ -332,13 +332,11 @@ impl Jockey {
     }
 
     pub fn handle_events(mut self) -> Self {
-        // self.ctx.ui_context = unsafe { self.ctx.ui_context.make_current().unwrap() };
         self.ctx.context = unsafe { self.ctx.context.make_current().unwrap() };
 
         let platform = &mut self.ctx.platform;
         let events_loop = &mut self.ctx.events_loop;
         let imgui = &mut self.ctx.imgui;
-        let main_window = self.ctx.context.window();
         let ui_window = self.ctx.ui_context.window();
         let pipeline = &mut self.pipeline;
         let mut done = false;
@@ -351,44 +349,33 @@ impl Jockey {
 
         let mut do_update_pipeline = unsafe { PIPELINE_STALE.swap(false, Ordering::Relaxed) }
             && self.last_build.elapsed().as_millis() > 100;
-        let main_id = main_window.id();
         let ui_id = ui_window.id();
-        let mut width = 0;
-        let mut height = 0;
 
         events_loop.poll_events(|e| {
             let big_event = e.clone();
             match e {
-                glutin::Event::WindowEvent { window_id, event } if window_id == main_id => {
-                    // platform.handle_event(imgui.io_mut(), main_window, &big_event);
+                glutin::Event::WindowEvent { window_id, event } => {
+                    if window_id == ui_id {
+                        platform.handle_event(imgui.io_mut(), ui_window, &big_event);
+                    }
                     match event {
                         glutin::WindowEvent::Resized(size) => {
-                            width = size.width as u32;
-                            height = size.height as u32;
+                            let width = size.width as u32;
+                            let height = size.height as u32;
                             pipeline.resize_buffers(width, height);
                         }
                         glutin::WindowEvent::CloseRequested => done = true,
+                        glutin::WindowEvent::KeyboardInput { input, .. } => {
+                            if Some(glutin::VirtualKeyCode::Return) == input.virtual_keycode {
+                                do_update_pipeline = true;
+                            }
+                            if Some(glutin::VirtualKeyCode::Escape) == input.virtual_keycode {
+                                done = true;
+                            }
+                        }
                         _ => (),
                     }
                 }
-                glutin::Event::WindowEvent { event, window_id } if window_id == ui_id => {
-                    platform.handle_event(imgui.io_mut(), ui_window, &big_event);
-                    match event {
-                        glutin::WindowEvent::CloseRequested => done = true,
-                        _ => (),
-                    }
-                }
-                glutin::Event::DeviceEvent { event, .. } => match event {
-                    glutin::DeviceEvent::Key(glutin::KeyboardInput {
-                        virtual_keycode: Some(glutin::VirtualKeyCode::Return),
-                        ..
-                    }) => do_update_pipeline = true,
-                    glutin::DeviceEvent::Key(glutin::KeyboardInput {
-                        virtual_keycode: Some(glutin::VirtualKeyCode::Escape),
-                        ..
-                    }) => done = true,
-                    _ => (),
-                },
                 _ => (),
             };
         });
