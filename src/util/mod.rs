@@ -7,10 +7,12 @@ use std::{
 };
 
 mod average;
+mod imgui_dockspace;
 mod ringbuffer;
 mod texture;
 
 pub use average::*;
+pub use imgui_dockspace::*;
 pub use ringbuffer::*;
 pub use texture::*;
 
