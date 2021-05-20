@@ -332,11 +332,13 @@ impl Jockey {
     }
 
     pub fn handle_events(mut self) -> Self {
+        // self.ctx.ui_context = unsafe { self.ctx.ui_context.make_current().unwrap() };
         self.ctx.context = unsafe { self.ctx.context.make_current().unwrap() };
 
         let platform = &mut self.ctx.platform;
         let events_loop = &mut self.ctx.events_loop;
         let imgui = &mut self.ctx.imgui;
+        let main_window = self.ctx.context.window();
         let ui_window = self.ctx.ui_context.window();
         let pipeline = &mut self.pipeline;
         let mut done = false;
@@ -349,6 +351,7 @@ impl Jockey {
 
         let mut do_update_pipeline = unsafe { PIPELINE_STALE.swap(false, Ordering::Relaxed) }
             && self.last_build.elapsed().as_millis() > 100;
+        let main_id = main_window.id();
         let ui_id = ui_window.id();
 
         events_loop.poll_events(|e| {
@@ -359,7 +362,7 @@ impl Jockey {
                         platform.handle_event(imgui.io_mut(), ui_window, &big_event);
                     }
                     match event {
-                        glutin::WindowEvent::Resized(size) => {
+                        glutin::WindowEvent::Resized(size) if window_id == main_id => {
                             let width = size.width as u32;
                             let height = size.height as u32;
                             pipeline.resize_buffers(width, height);
@@ -609,8 +612,6 @@ impl Jockey {
             .expect("Failed to start frame");
 
         let ui = self.ctx.imgui.frame();
-        let dims = self.ctx.ui_context.window().get_inner_size().unwrap();
-        let (width, height) = (dims.width as f32, dims.height as f32);
 
         imgui::Dock::new().build(|root| {
             root.size([500_f32, 500_f32])
