@@ -27,8 +27,6 @@ jobs:
 #   runs-on: windows-latest
 #   steps:
 #   - uses: actions/checkout@v2
-#   - name: Install dependencies
-#     run: vcpkg.exe install sdl2:x64-windows
 #   - name: Build
 #     run: cargo build --verbose
 #   - name: Run tests

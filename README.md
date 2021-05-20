@@ -42,9 +42,6 @@ A non-exhaustive list of things we want our tool to be able to do, vaguely order
 
 ## Setup
 
-Before building this project, make sure you have the **SDL2 development library** installed. You can find instructions on how to do that on the [rust-sdl2 repo](https://github.com/Rust-SDL2/rust-sdl2#requirements).
-
-Once that's done, the rest should be muscle memory:
 ```sh
 # clone the repo
 git clone https://github.com/slerpyyy/sh4der-jockey.git
