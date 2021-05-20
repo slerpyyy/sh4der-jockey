@@ -214,7 +214,7 @@ macro_rules! impl_texture {
                     TextureFormat::R8
                     | TextureFormat::RG8
                     | TextureFormat::RGB8
-                    | TextureFormat::RGBA8 => gl::INT,
+                    | TextureFormat::RGBA8 => gl::UNSIGNED_BYTE,
                     TextureFormat::R32F
                     | TextureFormat::RG32F
                     | TextureFormat::RGB32F
@@ -354,10 +354,10 @@ pub fn make_noise() -> Texture3D {
         gl::LINEAR,
         gl::LINEAR,
         gl::REPEAT,
-        TextureFormat::RGBA32F,
+        TextureFormat::RGBA8,
     );
 
-    let data: Vec<f32> = (0..SIZE).map(|_| rand::random()).collect();
+    let data: Vec<u8> = (0..SIZE).map(|_| rand::random()).collect();
     tex.write(data.as_ptr() as _);
     tex
 }
