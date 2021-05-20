@@ -49,7 +49,7 @@ fn main() {
 
     loop {
         // do event stuff
-        jockey = jockey.handle_events();
+        jockey.handle_events();
 
         // exit loop
         if jockey.done {

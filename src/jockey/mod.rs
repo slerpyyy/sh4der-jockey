@@ -100,12 +100,10 @@ impl Jockey {
 
         // Setup for imgui
         let ui_window_builder = glutin::WindowBuilder::new()
-            .with_dimensions(glutin::dpi::LogicalSize::new(1280f64, 720f64))
+            .with_dimensions(glutin::dpi::LogicalSize::new(640.0, 640.0))
             .with_resizable(true)
-            .with_title(format!("{}-ui", title).to_owned());
-        let ui_context_builder = glutin::ContextBuilder::new()
-            .with_vsync(true)
-            .with_gl(request);
+            .with_title("Control Panel");
+        let ui_context_builder = glutin::ContextBuilder::new().with_vsync(true);
         let ui_built_context = ui_context_builder
             .build_windowed(ui_window_builder, &events_loop)
             .expect("Failed to create windowed context");
@@ -131,10 +129,10 @@ impl Jockey {
 
         // Set up winit for OpenGL stuff
         let context_builder = glutin::ContextBuilder::new()
-            .with_vsync(true)
+            .with_vsync(false)
             .with_gl(request);
         let window_builder = glutin::WindowBuilder::new()
-            .with_dimensions(glutin::dpi::LogicalSize::new(1280f64, 720f64))
+            .with_dimensions(glutin::dpi::LogicalSize::new(1280.0, 720.0))
             .with_resizable(true)
             .with_title(title.to_owned());
         let built_context = context_builder
@@ -281,6 +279,55 @@ impl Jockey {
         style.colors[ModalWindowDimBg       as usize] = gray(0.80, 0.35);
     }
 
+    fn setup_docks(&mut self) {
+        let io = self.ctx.imgui.io_mut();
+        self.ctx
+            .platform
+            .prepare_frame(io, self.ctx.ui_context.window())
+            .expect("Failed to start frame");
+
+        let ui = self.ctx.imgui.frame();
+
+        imgui::Dock::new().build(|root| {
+            root.size([500_f32, 500_f32])
+                .position([0_f32, 0_f32])
+                .split(
+                    imgui::Direction::Left,
+                    0.5_f32,
+                    |left| {
+                        left.split(
+                            imgui::Direction::Down,
+                            0.5_f32,
+                            |up| {
+                                up.dock_window(im_str!("Buttons"));
+                            },
+                            |down| {
+                                down.dock_window(im_str!("Sliders"));
+                            },
+                        );
+                    },
+                    |right| {
+                        right.split(
+                            imgui::Direction::Down,
+                            0.5_f32,
+                            |up| {
+                                up.dock_window(im_str!("Audio"));
+                                up.dock_window(im_str!("Debug"));
+                            },
+                            |down| {
+                                down.dock_window(im_str!("Perf"));
+                            },
+                        );
+                    },
+                );
+        });
+
+        self.ctx
+            .platform
+            .prepare_render(&ui, self.ctx.ui_context.window());
+        self.ctx.renderer.render(ui);
+    }
+
     /// Reload the render pipeline and replace the old one.
     ///
     /// This will load the `pipeline.yaml` from the specified file and
@@ -331,14 +378,13 @@ impl Jockey {
         println!("Build pipeline in {}ms", 1000.0 * time);
     }
 
-    pub fn handle_events(mut self) -> Self {
+    pub fn handle_events(&mut self) {
         // self.ctx.ui_context = unsafe { self.ctx.ui_context.make_current().unwrap() };
-        self.ctx.context = unsafe { self.ctx.context.make_current().unwrap() };
+        //self.ctx.context = unsafe { self.ctx.context.make_current().unwrap() };
 
         let platform = &mut self.ctx.platform;
         let events_loop = &mut self.ctx.events_loop;
         let imgui = &mut self.ctx.imgui;
-        let main_window = self.ctx.context.window();
         let ui_window = self.ctx.ui_context.window();
         let pipeline = &mut self.pipeline;
         let mut done = false;
@@ -351,15 +397,17 @@ impl Jockey {
 
         let mut do_update_pipeline = unsafe { PIPELINE_STALE.swap(false, Ordering::Relaxed) }
             && self.last_build.elapsed().as_millis() > 100;
-        let main_id = main_window.id();
+        let main_id = self.ctx.context.window().id();
         let ui_id = ui_window.id();
 
         events_loop.poll_events(|e| {
-            let big_event = e.clone();
             match e {
-                glutin::Event::WindowEvent { window_id, event } => {
+                glutin::Event::WindowEvent {
+                    window_id,
+                    ref event,
+                } => {
                     if window_id == ui_id {
-                        platform.handle_event(imgui.io_mut(), ui_window, &big_event);
+                        platform.handle_event(imgui.io_mut(), ui_window, &e);
                     }
                     match event {
                         glutin::WindowEvent::Resized(size) if window_id == main_id => {
@@ -391,7 +439,6 @@ impl Jockey {
             self.update_pipeline();
             self.last_build = Instant::now();
         }
-        self
     }
 
     /// Does all the OpenGL magic.
@@ -604,55 +651,6 @@ impl Jockey {
         }
     }
 
-    fn setup_docks(&mut self) {
-        let io = self.ctx.imgui.io_mut();
-        self.ctx
-            .platform
-            .prepare_frame(io, self.ctx.ui_context.window())
-            .expect("Failed to start frame");
-
-        let ui = self.ctx.imgui.frame();
-
-        imgui::Dock::new().build(|root| {
-            root.size([500_f32, 500_f32])
-                .position([0_f32, 0_f32])
-                .split(
-                    imgui::Direction::Left,
-                    0.5_f32,
-                    |left| {
-                        left.split(
-                            imgui::Direction::Down,
-                            0.5_f32,
-                            |up| {
-                                up.dock_window(im_str!("Buttons"));
-                            },
-                            |down| {
-                                down.dock_window(im_str!("Sliders"));
-                            },
-                        );
-                    },
-                    |right| {
-                        right.split(
-                            imgui::Direction::Down,
-                            0.5_f32,
-                            |up| {
-                                up.dock_window(im_str!("Audio"));
-                                up.dock_window(im_str!("Debug"));
-                            },
-                            |down| {
-                                down.dock_window(im_str!("Perf"));
-                            },
-                        );
-                    },
-                );
-        });
-
-        self.ctx
-            .platform
-            .prepare_render(&ui, self.ctx.ui_context.window());
-        self.ctx.renderer.render(ui);
-    }
-
     /// Wrapper function for all the imgui stuff.
     pub fn build_ui(&mut self) {
         let io = self.ctx.imgui.io_mut();
@@ -674,12 +672,16 @@ impl Jockey {
         // title section
         let ui = self.ctx.imgui.frame();
 
-        crate::util::DockSpace::new();
+        // create docking space
+        unsafe {
+            let flags = imgui::sys::ImGuiDockNodeFlags_None as i32;
+            let viewport = imgui::sys::igGetMainViewport();
+            let window_class = imgui::sys::ImGuiWindowClass_ImGuiWindowClass();
 
-        if let Some(window) = imgui::Window::new(im_str!("Debug")).begin(&ui) {
-            ui.text(&*JOCKEY_TITLE);
-            ui.separator();
+            imgui::sys::igDockSpaceOverViewport(viewport, flags, window_class);
+        }
 
+        if let Some(window) = imgui::Window::new(im_str!("Pipelines")).begin(&ui) {
             // pipelines
             if self.pipeline_files.len() > 1 {
                 for (k, file) in self.pipeline_files.iter().enumerate() {
@@ -690,7 +692,6 @@ impl Jockey {
                         unsafe { PIPELINE_STALE.store(true, Ordering::Relaxed) }
                     }
                 }
-                ui.separator();
             }
 
             window.end(&ui);
