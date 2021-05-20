@@ -144,13 +144,13 @@ pub enum TextureKind {
 
 #[derive(Debug, Clone, Copy)]
 pub enum TextureFormat {
-    R8I = gl::R8I as _,
+    R8 = gl::R8 as _,
+    RG8 = gl::RG8 as _,
+    RGB8 = gl::RGB8 as _,
+    RGBA8 = gl::RGBA8 as _,
     R32F = gl::R32F as _,
-    RG8I = gl::RG8I as _,
     RG32F = gl::RG32F as _,
-    RGB8I = gl::RGB8I as _,
     RGB32F = gl::RGB32F as _,
-    RGBA8I = gl::RGBA8I as _,
     RGBA32F = gl::RGBA32F as _,
 }
 
@@ -204,17 +204,17 @@ macro_rules! impl_texture {
 
             pub fn get_formats(format: TextureFormat) -> (i32, u32, u32) {
                 let color_format = match format {
-                    TextureFormat::R8I | TextureFormat::R32F => gl::RED,
-                    TextureFormat::RG8I | TextureFormat::RG32F => gl::RG,
-                    TextureFormat::RGB8I | TextureFormat::RGB32F => gl::RGB,
-                    TextureFormat::RGBA32F | TextureFormat::RGBA8I => gl::RGBA,
+                    TextureFormat::R8 | TextureFormat::R32F => gl::RED,
+                    TextureFormat::RG8 | TextureFormat::RG32F => gl::RG,
+                    TextureFormat::RGB8 | TextureFormat::RGB32F => gl::RGB,
+                    TextureFormat::RGBA32F | TextureFormat::RGBA8 => gl::RGBA,
                 };
 
                 let type_ = match format {
-                    TextureFormat::R8I
-                    | TextureFormat::RG8I
-                    | TextureFormat::RGB8I
-                    | TextureFormat::RGBA8I => gl::INT,
+                    TextureFormat::R8
+                    | TextureFormat::RG8
+                    | TextureFormat::RGB8
+                    | TextureFormat::RGBA8 => gl::INT,
                     TextureFormat::R32F
                     | TextureFormat::RG32F
                     | TextureFormat::RGB32F
@@ -288,7 +288,7 @@ macro_rules! impl_texture {
                 }
             }
 
-            pub fn write(&mut self, data: &[f32]) {
+            pub fn write(&mut self, data: *const c_void) {
                 unsafe {
                     let tex_id = self.id;
                     let (internal_format, color_format, type_) = Self::get_formats(self.format);
@@ -302,7 +302,7 @@ macro_rules! impl_texture {
                         0,
                         color_format,
                         type_,
-                        data.as_ptr() as _,
+                        data,
                     );
 
                     gl_debug_check!();
@@ -348,6 +348,7 @@ pub fn make_texture(resolution: &[u32]) -> Box<dyn Texture> {
 pub fn make_noise() -> Texture3D {
     const WIDTH: usize = 32;
     const SIZE: usize = 4 * WIDTH * WIDTH * WIDTH;
+
     let mut tex = Texture3D::with_params(
         [WIDTH as _; 3],
         gl::LINEAR,
@@ -355,7 +356,8 @@ pub fn make_noise() -> Texture3D {
         gl::REPEAT,
         TextureFormat::RGBA32F,
     );
-    let data: Vec<_> = (0..SIZE).map(|_| rand::random()).collect();
-    tex.write(&data);
+
+    let data: Vec<f32> = (0..SIZE).map(|_| rand::random()).collect();
+    tex.write(data.as_ptr() as _);
     tex
 }

@@ -480,7 +480,7 @@ impl Jockey {
                 .as_any_mut()
                 .downcast_mut::<Texture1D>()
                 .unwrap()
-                .write(&interlaced_samples);
+                .write(interlaced_samples.as_ptr() as _);
         }
         gl_debug_check!();
 
@@ -491,7 +491,7 @@ impl Jockey {
                 .as_any_mut()
                 .downcast_mut::<Texture1D>()
                 .unwrap()
-                .write(&raw_spectrum);
+                .write(raw_spectrum.as_ptr() as _);
         }
         gl_debug_check!();
 
@@ -502,7 +502,7 @@ impl Jockey {
                 .as_any_mut()
                 .downcast_mut::<Texture1D>()
                 .unwrap()
-                .write(&spectrum);
+                .write(spectrum.as_ptr() as _);
         }
         gl_debug_check!();
 
@@ -610,6 +610,7 @@ impl Jockey {
                     gl_debug_check!();
 
                     // Specify the layout of the vertex data
+                    //gl::BindVertexArray(self.ctx.vao);
                     let pos_attr = gl::GetAttribLocation(stage.prog_id, POSITION_NAME.as_ptr());
                     if pos_attr != -1 {
                         gl::EnableVertexAttribArray(pos_attr as GLuint);
@@ -628,7 +629,6 @@ impl Jockey {
                     if let StageKind::Vert { count, mode, .. } = stage.kind {
                         gl::ClearColor(0.0, 0.0, 0.0, 0.0);
                         gl::Clear(gl::COLOR_BUFFER_BIT);
-                        //gl::LineWidth(10.);
                         draw_anything(self.ctx.vao, count, mode)
                     } else {
                         draw_fullscreen_rect(self.ctx.vao);
