@@ -88,15 +88,11 @@ impl Jockey {
     /// This will spin up a Winit window, initialize Imgui,
     /// create a OpenGL context and more!
     pub fn init() -> Self {
-        // We need to init audio before SDL
-        // I have no clue why
-        // https://github.com/RustAudio/cpal/pull/330
-        // this discusses "init A first or B first" so they are related somehow.
         let audio = Audio::new();
 
         let title = Self::title();
         let events_loop = glutin::EventsLoop::new();
-        let request = glutin::GlRequest::Specific(glutin::Api::OpenGl, (4, 4));
+        let request = glutin::GlRequest::Latest;
 
         // Setup for imgui
         let ui_window_builder = glutin::WindowBuilder::new()
@@ -610,7 +606,6 @@ impl Jockey {
                     gl_debug_check!();
 
                     // Specify the layout of the vertex data
-                    //gl::BindVertexArray(self.ctx.vao);
                     let pos_attr = gl::GetAttribLocation(stage.prog_id, POSITION_NAME.as_ptr());
                     if pos_attr != -1 {
                         gl::EnableVertexAttribArray(pos_attr as GLuint);
