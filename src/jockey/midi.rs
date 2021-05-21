@@ -155,9 +155,11 @@ impl<const N: usize> Midi<N> {
                         } => {
                             self.last_button = [channel, key];
                             if let Some(&id) = self.button_bindings.get(&self.last_button) {
+                                if self.buttons[id].0 == 0_f32 {
+                                    self.buttons[id].3 += 1;
+                                }
                                 self.buttons[id].0 = velocity as f32 / 127_f32;
                                 self.buttons[id].1 = Instant::now();
-                                self.buttons[id].3 += 1;
                             }
                         }
                         MessageKind::NoteOff { channel, key, .. } => {
