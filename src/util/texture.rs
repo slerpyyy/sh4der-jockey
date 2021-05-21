@@ -3,7 +3,8 @@ use crate::util::*;
 use crate::*;
 use as_any::AsAny;
 use core::panic;
-use std::fmt::Debug;
+use image::DynamicImage;
+use std::{fmt::Debug, u8};
 
 fn _assert_is_object_safe(_: &dyn Texture) {}
 
@@ -359,5 +360,19 @@ pub fn make_noise() -> Texture3D {
 
     let data: Vec<u8> = (0..SIZE).map(|_| rand::random()).collect();
     tex.write(data.as_ptr() as _);
+    tex
+}
+
+pub fn make_texture_from_image(dyn_image: DynamicImage) -> Texture2D {
+    let image = dyn_image.flipv().to_rgba8();
+    let mut tex = Texture2D::with_params(
+        [image.width(), image.height()],
+        gl::LINEAR,
+        gl::LINEAR,
+        gl::REPEAT,
+        TextureFormat::RGBA8,
+    );
+
+    tex.write(image.as_raw().as_ptr() as _);
     tex
 }

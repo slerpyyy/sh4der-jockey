@@ -1,4 +1,5 @@
 use crate::jockey::*;
+use image::io::Reader as ImageReader;
 use serde_yaml::Value;
 use std::{collections::HashMap, ffi::CString, path::Path};
 
@@ -67,45 +68,6 @@ impl Pipeline {
 
         // put buffers into hashmap
         let mut buffers = HashMap::<CString, Box<dyn Texture>>::new();
-        for stage in stages.iter() {
-            let target = match &stage.target {
-                Some(s) => s,
-                None => continue,
-            };
-
-            // check if target exists already
-            if let Some(tex) = buffers.get(target) {
-                if Some(tex.resolution()) != stage.resolution() {
-                    return Err(format!(
-                        "Texture {:?} already has a different resolution",
-                        target
-                    ));
-                }
-
-                continue;
-            }
-
-            // create textures
-            let texture: Box<dyn Texture> = match stage.kind {
-                StageKind::Frag { res } | StageKind::Vert { res, .. } => {
-                    let (width, height) = res.unwrap_or(screen_size);
-                    Box::new(FrameBuffer::with_params(
-                        width as _,
-                        height as _,
-                        stage.repeat,
-                        stage.linear,
-                        stage.mipmap,
-                        stage.float,
-                    ))
-                }
-                StageKind::Comp {
-                    tex_type, tex_dim, ..
-                } => make_image(&tex_dim[..(tex_type as _)]),
-            };
-
-            // insert texture into hashmap
-            buffers.insert(target.clone(), texture);
-        }
 
         // add audio samples to buffers
         let audio_samples_texture = Texture1D::with_params(
@@ -150,6 +112,87 @@ impl Pipeline {
         // add noise texture
         let noise = Box::new(make_noise());
         buffers.insert(CString::new("noise").unwrap(), noise);
+
+        let images = match object.get("images") {
+            Some(Value::Sequence(s)) => s.clone(),
+            None => vec![],
+            s => {
+                return Err(format!(
+                    "Expected \"images\" to be an array, got {:?} instead",
+                    s
+                ))
+            }
+        };
+
+        for image_val in images {
+            let path = match image_val.get("path") {
+                Some(Value::String(s)) => s,
+                s => {
+                    return Err(format!(
+                        "Expected \"path\" to be a string, got {:?} instead.",
+                        s
+                    ));
+                }
+            };
+            let name = match image_val.get("name") {
+                Some(Value::String(s)) => CString::new(s.as_str()).unwrap(),
+                s => return Err(format!("Expected name to be a string, got {:?} instead", s)),
+            };
+
+            if let Some(_) = buffers.get(&name) {
+                return Err(format!(
+                    "Texture {:?} already exists, please try a different name",
+                    name
+                ));
+            }
+
+            let dyn_image = ImageReader::open(path)
+                .expect(format!("Failed to load image {:?} at {}", name, path).as_str())
+                .decode()
+                .expect(format!("Failed to decode image {:?} at {}", name, path).as_str());
+            let tex = Box::new(make_texture_from_image(dyn_image));
+            buffers.insert(name, tex);
+        }
+
+        for stage in stages.iter() {
+            let target = match &stage.target {
+                Some(s) => s,
+                None => continue,
+            };
+
+            // check if target exists already
+            if let Some(tex) = buffers.get(target) {
+                if Some(tex.resolution()) != stage.resolution() {
+                    return Err(format!(
+                        "Texture {:?} already has a different resolution",
+                        target
+                    ));
+                }
+
+                continue;
+            }
+
+            // create textures
+            let texture: Box<dyn Texture> = match stage.kind {
+                StageKind::Frag { res } | StageKind::Vert { res, .. } => {
+                    let (width, height) = res.unwrap_or(screen_size);
+                    Box::new(FrameBuffer::with_params(
+                        width as _,
+                        height as _,
+                        stage.repeat,
+                        stage.linear,
+                        stage.mipmap,
+                        stage.float,
+                    ))
+                }
+                StageKind::Comp {
+                    tex_type, tex_dim, ..
+                } => make_image(&tex_dim[..(tex_type as _)]),
+            };
+
+            // insert texture into hashmap
+            buffers.insert(target.clone(), texture);
+        }
 
         // compute uniform dependencies
         for stage in stages.iter_mut() {

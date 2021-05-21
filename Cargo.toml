@@ -26,6 +26,7 @@ as-any = "0.2.0"
 rand = "0.8.3"
 num-complex = "0.4"
 rustfft = "6.0"
+image = "0.23"
 
 [build-dependencies]
 anyhow = "1.0.40"
