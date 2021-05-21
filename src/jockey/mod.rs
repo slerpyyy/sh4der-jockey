@@ -459,6 +459,7 @@ impl Jockey {
             static ref RAW_SPECTRUM_NAME: CString = CString::new("raw_spectrum").unwrap();
             static ref SPECTRUM_NAME: CString = CString::new("spectrum").unwrap();
             static ref NOISE_NAME: CString = CString::new("noise").unwrap();
+            static ref VOLUME_NAME: CString = CString::new("volume").unwrap();
         }
 
         // compute uniforms
@@ -530,14 +531,24 @@ impl Jockey {
                         res_loc,
                         target_res.0 as f32,
                         target_res.1 as f32,
-                        target_res.0 as f32 / target_res.1 as f32,
-                        target_res.1 as f32 / target_res.0 as f32,
+                        target_res.0 as f32 / target_res.1 as f32, // x/y
+                        target_res.1 as f32 / target_res.0 as f32, // y/x
                     );
                     gl::Uniform3f(r_loc, target_res.0 as _, target_res.1 as _, time);
                     gl::Uniform1i(k_loc, pass_num as _);
                     gl::Uniform1i(pass_loc, pass_num as _);
                     gl::Uniform1f(time_loc, time);
                     gl::Uniform1f(beat_loc, beat);
+                }
+
+                {
+                    let volume_loc = gl::GetUniformLocation(stage.prog_id, VOLUME_NAME.as_ptr());
+                    gl::Uniform3f(
+                        volume_loc,
+                        self.audio.volume[0], // average L/R
+                        self.audio.volume[1], // L
+                        self.audio.volume[2], // R
+                    );
                     gl_debug_check!();
                 }
 
