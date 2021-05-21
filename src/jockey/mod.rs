@@ -59,7 +59,7 @@ pub struct Jockey {
     pub last_beat: Instant,
     pub last_build: Instant,
     pub last_frame: Instant,
-    pub midi: Midi<8>,
+    pub midi: Midi<32>,
     pub audio: Audio,
     pub pipeline_files: Vec<String>,
     pipelines: HashMap<String, Pipeline>,
@@ -603,13 +603,17 @@ impl Jockey {
                     let s_loc = gl::GetUniformLocation(stage.prog_id, SLIDERS_NAME.as_ptr());
                     let b_loc = gl::GetUniformLocation(stage.prog_id, BUTTONS_NAME.as_ptr());
 
-                    let mut buttons = [0.0; 8];
-                    for (k, last_press) in self.midi.buttons.iter().enumerate() {
-                        buttons[k] = last_press.elapsed().as_secs_f32();
+                    let mut buttons = [0.0; 4 * 32];
+                    for (k, button) in self.midi.buttons.iter().enumerate() {
+                        buttons[k * 4 + 0] = button.0;
+                        buttons[k * 4 + 1] = button.1.elapsed().as_secs_f32();
+                        buttons[k * 4 + 2] = button.2.elapsed().as_secs_f32();
+                        buttons[k * 4 + 3] = button.3 as f32;
                     }
 
                     gl::Uniform1fv(s_loc, self.midi.sliders.len() as _, &self.midi.sliders as _);
-                    gl::Uniform1fv(b_loc, buttons.len() as _, &buttons as _);
+                    gl_debug_check!();
+                    gl::Uniform4fv(b_loc, self.midi.buttons.len() as _, &buttons as _);
                     gl_debug_check!();
                 }
 
@@ -762,11 +766,28 @@ impl Jockey {
                 let name = format!("button{}", k);
                 let cst = CString::new(name).unwrap();
                 let ims = unsafe { imgui::ImStr::from_cstr_unchecked(&cst) };
-                if ui.button(ims, [64.0, 18.0]) {
-                    self.midi.buttons[k] = Instant::now();
+                let button = ui.button(ims, [64.0, 18.0]);
+
+                // button is false while it's held down.
+                // we consider button to be pressed when the mouse is over button
+                // and the mouse is held down
+                if self.midi.buttons[k].0 == 0_f32
+                    && ui.is_mouse_down(imgui::MouseButton::Left)
+                    && ui.is_item_hovered()
+                {
+                    self.midi.buttons[k].0 = 1_f32;
+                    self.midi.buttons[k].1 = Instant::now();
+                    self.midi.buttons[k].3 += 1;
                 }
+
+                // button is true when it gets released
+                if self.midi.buttons[k].0 != 0_f32 && button {
+                    self.midi.buttons[k].0 = 0_f32;
+                    self.midi.buttons[k].2 = Instant::now();
+                }
+
                 if k & 3 != 3 {
-                    ui.same_line(0.0)
+                    ui.same_line(0.0);
                 }
             }
 

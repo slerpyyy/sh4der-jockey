@@ -8,28 +8,41 @@ use std::{
 pub struct Midi<const N: usize> {
     pub conns: Vec<MidiInputConnection<()>>,
     pub queues: Vec<Receiver<[u8; 3]>>,
-    pub last: [u8; 2],
+    pub last_button: [u8; 2],
+    pub last_slider: [u8; 2],
     pub sliders: [f32; N],
-    pub buttons: [Instant; N],
-    pub bindings: HashMap<[u8; 2], usize>,
+    pub buttons: [(f32, Instant, Instant, u32); N],
+    pub button_bindings: HashMap<[u8; 2], usize>,
+    pub slider_bindings: HashMap<[u8; 2], usize>,
+}
+#[derive(Debug)]
+pub enum MessageKind {
+    NoteOn { channel: u8, key: u8, velocity: u8 },
+    NoteOff { channel: u8, key: u8, velocity: u8 },
+    KeyPressure { channel: u8, key: u8, pressure: u8 },
+    ControlChange { channel: u8, key: u8, value: u8 },
 }
 
 impl<const N: usize> Midi<N> {
     pub fn new() -> Self {
         let conns = Vec::new();
         let queues = Vec::new();
-        let last = [0, 0];
+        let last_button = [0, 0];
+        let last_slider = [0, 0];
         let sliders = [0.0; N];
-        let buttons = [Instant::now(); N];
-        let bindings = HashMap::new();
+        let buttons = [(0f32, Instant::now(), Instant::now(), 0); N];
+        let button_bindings = HashMap::new();
+        let slider_bindings = HashMap::new();
 
         let mut this = Self {
             conns,
             queues,
-            last,
+            last_button,
+            last_slider,
             sliders,
             buttons,
-            bindings,
+            button_bindings,
+            slider_bindings,
         };
 
         this.connect();
@@ -93,39 +106,102 @@ impl<const N: usize> Midi<N> {
         (conn, rx)
     }
 
+    pub fn parse_msg(message: [u8; 3]) -> Option<MessageKind> {
+        let status = message[0];
+        let data0 = message[1];
+        let data1 = message[2];
+        let kind_bits = 0xF0_u8 & status;
+        let channel = status & 0x0F_u8;
+        match kind_bits {
+            0x80 => Some(MessageKind::NoteOff {
+                channel,
+                key: data0,
+                velocity: data1,
+            }),
+            0x90 => Some(MessageKind::NoteOn {
+                channel,
+                key: data0,
+                velocity: data1,
+            }),
+            0xA0 => Some(MessageKind::KeyPressure {
+                channel,
+                key: data0,
+                pressure: data1,
+            }),
+            0xB0 => Some(MessageKind::ControlChange {
+                channel,
+                key: data0,
+                value: data1,
+            }),
+            _ => None,
+        }
+    }
+
     pub fn handle_input(&mut self) {
         for queue in &self.queues {
             for message in queue.try_iter() {
-                let key = &message[..2];
-                self.last.copy_from_slice(key);
-                match self.bindings.get(key) {
-                    Some(&id) if id < N => {
-                        self.sliders[id as usize] = (message[2] as f32) / 127.0;
+                let kind = Self::parse_msg(message);
+                // println!("{:#02x} {} {}", message[0], message[1], message[2]);
+                // println!("{:?}", kind);
+                match kind {
+                    None => {
+                        continue;
                     }
-
-                    Some(&id) if id < 2 * N => {
-                        self.buttons[(id - N) as usize] = Instant::now();
-                    }
-
-                    _ => (),
+                    Some(k) => match k {
+                        MessageKind::NoteOn {
+                            channel,
+                            key,
+                            velocity,
+                        } => {
+                            self.last_button = [channel, key];
+                            if let Some(&id) = self.button_bindings.get(&self.last_button) {
+                                self.buttons[id].0 = velocity as f32 / 127_f32;
+                                self.buttons[id].1 = Instant::now();
+                                self.buttons[id].3 += 1;
+                            }
+                        }
+                        MessageKind::NoteOff { channel, key, .. } => {
+                            self.last_button = [channel, key];
+                            if let Some(&id) = self.button_bindings.get(&self.last_button) {
+                                self.buttons[id].0 = 0_f32;
+                                self.buttons[id].2 = Instant::now();
+                            }
+                        }
+                        MessageKind::KeyPressure {
+                            channel,
+                            key,
+                            pressure,
+                        } => {
+                            self.last_button = [channel, key];
+                            if let Some(&id) = self.button_bindings.get(&self.last_button) {
+                                self.buttons[id].0 = pressure as f32 / 127_f32;
+                            }
+                        }
+                        MessageKind::ControlChange {
+                            channel,
+                            key,
+                            value,
+                        } => {
+                            self.last_slider = [channel, key];
+                            if let Some(&id) = self.slider_bindings.get(&self.last_slider) {
+                                self.sliders[id] = value as f32 / 127_f32;
+                            }
+                        }
+                    },
                 }
             }
         }
     }
 
-    pub fn bind(&mut self, key: [u8; 2], id: usize) {
-        self.bindings.insert(key, id);
-    }
-
     pub fn auto_bind_slider(&mut self, id: usize) {
         if id < N {
-            self.bind(self.last, id);
+            self.slider_bindings.insert(self.last_slider, id);
         }
     }
 
     pub fn auto_bind_button(&mut self, id: usize) {
         if id < N {
-            self.bind(self.last, id + N);
+            self.button_bindings.insert(self.last_button, id);
         }
     }
 }
