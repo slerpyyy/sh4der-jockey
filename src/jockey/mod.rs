@@ -391,9 +391,6 @@ impl Jockey {
     }
 
     pub fn handle_events(&mut self) {
-        // self.ctx.ui_context = unsafe { self.ctx.ui_context.make_current().unwrap() };
-        //self.ctx.context = unsafe { self.ctx.context.make_current().unwrap() };
-
         let mut done = false;
         let platform = &mut self.ctx.platform;
         let events_loop = &mut self.ctx.events_loop;
@@ -467,6 +464,10 @@ impl Jockey {
             Some(s) => s,
             None => return,
         };
+
+        take_mut::take(&mut self.ctx.context, |s| unsafe {
+            s.make_current().unwrap()
+        });
 
         lazy_static! {
             static ref R_NAME: CString = CString::new("R").unwrap();
@@ -694,10 +695,16 @@ impl Jockey {
             let stage_time = stage_start.elapsed().as_secs_f32();
             stage.perf.push(1000.0 * stage_time);
         }
+
+        self.ctx.context.swap_buffers().unwrap();
     }
 
     /// Wrapper function for all the imgui stuff.
-    pub fn build_ui(&mut self) {
+    pub fn update_ui(&mut self) {
+        take_mut::take(&mut self.ctx.ui_context, |s| unsafe {
+            s.make_current().unwrap()
+        });
+
         let io = self.ctx.imgui.io_mut();
         self.ctx
             .platform
@@ -726,25 +733,22 @@ impl Jockey {
             imgui::sys::igDockSpaceOverViewport(viewport, flags, window_class);
         }
 
-        if let Some(window) = imgui::Window::new(im_str!("Audio")).begin(&ui) {
-            ui.plot_lines(im_str!("left"), &self.audio.l_signal).build();
-            ui.plot_lines(im_str!("right"), &self.audio.r_signal)
-                .build();
-
-            ui.plot_lines(im_str!("left FFT"), self.audio.l_raw_spectrum.as_slice())
-                .build();
-            ui.plot_lines(im_str!("right FFT"), self.audio.r_raw_spectrum.as_slice())
-                .build();
-            ui.plot_lines(im_str!("nice L FFT"), self.audio.l_spectrum.as_slice())
-                .build();
-            ui.plot_lines(im_str!("nice R FFT"), self.audio.r_spectrum.as_slice())
-                .build();
+        if let Some(window) = imgui::Window::new(im_str!("Pipelines")).begin(&ui) {
+            if self.pipeline_files.len() > 1 {
+                for (k, file) in self.pipeline_files.iter().enumerate() {
+                    let cst = CString::new(file.as_bytes()).unwrap();
+                    let ims = unsafe { imgui::ImStr::from_cstr_unchecked(&cst) };
+                    if ui.button(ims, [256.0, 18.0]) {
+                        self.pipeline_index = k;
+                        unsafe { PIPELINE_STALE.store(true, Ordering::Relaxed) }
+                    }
+                }
+            }
 
             window.end(&ui);
         }
 
         if let Some(window) = imgui::Window::new(im_str!("Buttons")).begin(&ui) {
-            // buttons
             for k in 0..self.midi.buttons.len() {
                 let token = ui.push_id(i32::MAX - k as i32);
                 if ui.small_button(im_str!("bind")) {
@@ -782,8 +786,8 @@ impl Jockey {
 
             window.end(&ui);
         }
+
         if let Some(window) = imgui::Window::new(im_str!("Sliders")).begin(&ui) {
-            // sliders
             for k in 0..self.midi.sliders.len() {
                 let token = ui.push_id(k as i32);
                 if ui.small_button(im_str!("bind")) {
@@ -800,8 +804,25 @@ impl Jockey {
 
             window.end(&ui);
         }
-        if let Some(window) = imgui::Window::new(im_str!("Perf")).begin(&ui) {
-            // beat sync
+
+        if let Some(window) = imgui::Window::new(im_str!("Audio")).begin(&ui) {
+            ui.plot_lines(im_str!("left"), &self.audio.l_signal).build();
+            ui.plot_lines(im_str!("right"), &self.audio.r_signal)
+                .build();
+
+            ui.plot_lines(im_str!("left FFT"), self.audio.l_raw_spectrum.as_slice())
+                .build();
+            ui.plot_lines(im_str!("right FFT"), self.audio.r_raw_spectrum.as_slice())
+                .build();
+            ui.plot_lines(im_str!("nice L FFT"), self.audio.l_spectrum.as_slice())
+                .build();
+            ui.plot_lines(im_str!("nice R FFT"), self.audio.r_spectrum.as_slice())
+                .build();
+
+            window.end(&ui);
+        }
+
+        if let Some(window) = imgui::Window::new(im_str!("Beat Sync")).begin(&ui) {
             if ui.button(im_str!("Tab here"), [128.0, 32.0]) {
                 let delta = self.last_beat.elapsed().as_secs_f32();
                 self.beat_delta.push(delta);
@@ -812,7 +833,10 @@ impl Jockey {
                 "BPM: {}\nCycle: {}", 60.0 / self.beat_delta.get(), self.beat_delta.index
             });
 
-            // perf monitor
+            window.end(&ui);
+        }
+
+        if let Some(window) = imgui::Window::new(im_str!("Performance")).begin(&ui) {
             ui.text(format!(
                 "FPS: {:.2} ({:.2} ms)",
                 1000.0 / frame_ms,
@@ -848,26 +872,13 @@ impl Jockey {
             window.end(&ui);
         }
 
-        if let Some(window) = imgui::Window::new(im_str!("Pipelines")).begin(&ui) {
-            // pipelines
-            if self.pipeline_files.len() > 1 {
-                for (k, file) in self.pipeline_files.iter().enumerate() {
-                    let cst = CString::new(file.as_bytes()).unwrap();
-                    let ims = unsafe { imgui::ImStr::from_cstr_unchecked(&cst) };
-                    if ui.button(ims, [256.0, 18.0]) {
-                        self.pipeline_index = k;
-                        unsafe { PIPELINE_STALE.store(true, Ordering::Relaxed) }
-                    }
-                }
-            }
-
-            window.end(&ui);
-        }
-
         // update ui
         self.ctx
             .platform
             .prepare_render(&ui, self.ctx.ui_context.window());
+
+        // render and swap buffers
         self.ctx.renderer.render(ui);
+        self.ctx.ui_context.swap_buffers().unwrap();
     }
 }

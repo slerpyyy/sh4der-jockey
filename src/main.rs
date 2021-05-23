@@ -49,7 +49,6 @@ fn main() {
 
     loop {
         // do event stuff
-        jockey.ctx.context = unsafe { jockey.ctx.context.make_current().unwrap() };
         jockey.handle_events();
 
         // exit loop
@@ -59,10 +58,8 @@ fn main() {
 
         // run all shader stages
         jockey.draw();
-        jockey.ctx.context.swap_buffers().unwrap();
 
-        jockey.ctx.ui_context = unsafe { jockey.ctx.ui_context.make_current().unwrap() };
-        jockey.build_ui();
-        jockey.ctx.ui_context.swap_buffers().unwrap();
+        // update ui
+        jockey.update_ui();
     }
 }
