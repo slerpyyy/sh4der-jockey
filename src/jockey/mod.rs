@@ -658,9 +658,20 @@ impl Jockey {
                     gl_debug_check!();
 
                     // Draw stuff
-                    if let StageKind::Vert { count, mode, .. } = stage.kind {
+                    if let StageKind::Vert {
+                        count,
+                        mode,
+                        line_width,
+                        ..
+                    } = stage.kind
+                    {
                         gl::ClearColor(0.0, 0.0, 0.0, 0.0);
                         gl::Clear(gl::COLOR_BUFFER_BIT);
+                        if let Some(width) = line_width {
+                            gl::LineWidth(width);
+                        } else {
+                            gl::LineWidth(1_f32);
+                        }
                         draw_anything(self.ctx.vao, count, mode)
                     } else {
                         draw_fullscreen_rect(self.ctx.vao);

@@ -15,6 +15,7 @@ pub enum StageKind {
     Vert {
         count: GLsizei,
         mode: GLenum,
+        line_width: Option<f32>,
         res: Option<(u32, u32)>,
     },
     Frag {
@@ -118,6 +119,13 @@ impl Stage {
             Some(s) => return Err(format!("Expected \"float\" to be a bool, got {:?}", s)),
         };
 
+        // get lineWidth for Vertex Shader
+        let line_width = match object.get("lineWidth").map(Value::as_f64) {
+            Some(Some(width)) => Some(width as f32),
+            None => None,
+            Some(s) => return Err(format!("Expected \"lineWidth\" to be float, got {:?}", s)),
+        };
+
         // read all shaders to strings
         let shaders: [Option<(String, String)>; 3] = {
             let mut out = [None, None, None];
@@ -209,7 +217,12 @@ impl Stage {
                     _ => gl::TRIANGLES,
                 };
 
-                let kind = StageKind::Vert { res, count, mode };
+                let kind = StageKind::Vert {
+                    res,
+                    count,
+                    mode,
+                    line_width,
+                };
 
                 Ok(Stage {
                     prog_id,
