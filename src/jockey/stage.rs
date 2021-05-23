@@ -63,12 +63,19 @@ impl Stage {
 
         // get target resolution
         let res = match object.get("res").or_else(|| object.get("resolution")) {
-            Some(Value::Sequence(arr)) if arr.len() == 2 => {
-                let err_msg = "Resolution not a positive integer";
-                Some((
-                    arr[0].as_u64().expect(err_msg) as _,
-                    arr[1].as_u64().expect(err_msg) as _,
-                ))
+            Some(Value::Sequence(arr)) => {
+                let vec = arr.iter().map(Value::as_u64).collect::<Vec<_>>();
+                match vec.as_slice() {
+                    &[Some(width), Some(height)] if width > 0 && height > 0 => {
+                        Some((width as _, height as _))
+                    }
+                    _ => {
+                        return Err(format!(
+                            "Expected \"resolution\" to be a list of positive numbers, got {:?}",
+                            arr
+                        ))
+                    }
+                }
             }
             _ => None,
         };

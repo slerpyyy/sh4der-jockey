@@ -1,5 +1,4 @@
 use crate::util::*;
-
 use gl::types::*;
 use imgui::im_str;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
@@ -7,6 +6,7 @@ use lazy_static::lazy_static;
 use std::{
     collections::HashMap,
     ffi::CString,
+    rc::Rc,
     sync::atomic::{AtomicBool, Ordering},
     time::Instant,
 };
@@ -216,7 +216,6 @@ impl Jockey {
         gl_debug_check!();
 
         this.ctx.context = unsafe { this.ctx.context.make_current().unwrap() };
-        this.init_pipelines();
         this.update_pipeline();
         gl_debug_check!();
         this
@@ -332,26 +331,6 @@ impl Jockey {
         self.ctx.renderer.render(ui);
     }
 
-    pub fn init_pipelines(&mut self) {
-        // find pipeline files in working directory
-        self.pipeline_files = std::fs::read_dir(".")
-            .unwrap()
-            .map(|s| s.unwrap().file_name().into_string().unwrap())
-            .filter(|s| s.ends_with(".yaml"))
-            .collect();
-
-        println!("Found pipeline files: {:?}", &self.pipeline_files);
-
-        // override pipeline index, if the user has no choice
-        if self.pipeline_files.len() < 2 {
-            self.pipeline_index = 0;
-        }
-
-        for path in self.pipeline_files.iter() {
-            self.pipelines.insert(path.clone(), Pipeline::new());
-        }
-    }
-
     /// Reload the render pipeline and replace the old one.
     ///
     /// This will load the `pipeline.yaml` from the specified file and
@@ -383,33 +362,28 @@ impl Jockey {
             }
         };
 
-        // build pipeline
         let screen_size = self.ctx.context.window().get_inner_size().unwrap();
         let screen_size = (screen_size.width as u32, screen_size.height as u32);
-        match self.pipelines.get_mut(path) {
-            Some(pl) => {
-                match pl.update(path, screen_size) {
-                    Ok(_) => (),
-                    Err(err) => {
-                        eprintln!("Failed to load pipeline\n {}", err);
-                        return;
-                    }
-                };
-            }
-            None => {
-                let update = match Pipeline::load(path, screen_size) {
-                    Ok(pl) => pl,
-                    Err(err) => {
-                        eprintln!("Failed to load pipeline:\n{}", err);
-                        return;
-                    }
-                };
 
-                // stomp old pipeline
-                self.pipelines.insert(path.clone(), update);
-            }
+        // build pipeline
+        let update = match self.pipelines.get(path) {
+            Some(old) => match Pipeline::update(path, screen_size, old) {
+                Ok(pl) => pl,
+                Err(err) => {
+                    eprintln!("Failed to load pipeline\n{}", err);
+                    return;
+                }
+            },
+            None => match Pipeline::load(path, screen_size) {
+                Ok(old) => old,
+                Err(err) => {
+                    eprintln!("Failed to load pipeline:\n{}", err);
+                    Pipeline::new()
+                }
+            },
         };
 
+        self.pipelines.insert(path.clone(), update);
         println!("\n{:?}\n", self.pipelines.get(path).unwrap());
 
         let time = start_time.elapsed().as_secs_f64();
@@ -420,13 +394,19 @@ impl Jockey {
         // self.ctx.ui_context = unsafe { self.ctx.ui_context.make_current().unwrap() };
         //self.ctx.context = unsafe { self.ctx.context.make_current().unwrap() };
 
+        let mut done = false;
         let platform = &mut self.ctx.platform;
         let events_loop = &mut self.ctx.events_loop;
         let imgui = &mut self.ctx.imgui;
         let ui_window = self.ctx.ui_context.window();
         let pipeline_name = &self.pipeline_files[self.pipeline_index];
-        let pipeline = self.pipelines.get_mut(pipeline_name).unwrap();
-        let mut done = false;
+        let pipeline = match self.pipelines.get_mut(pipeline_name) {
+            Some(s) => s,
+            None => {
+                self.update_pipeline();
+                return;
+            }
+        };
 
         &mut self.midi.check_connections();
         &mut self.midi.handle_input();
@@ -487,7 +467,11 @@ impl Jockey {
     /// is to record performance statistics.
     pub fn draw(&mut self) {
         let pipeline_name = &self.pipeline_files[self.pipeline_index];
-        let pipeline = self.pipelines.get_mut(pipeline_name).unwrap();
+        let pipeline = match self.pipelines.get_mut(pipeline_name) {
+            Some(s) => s,
+            None => return,
+        };
+
         lazy_static! {
             static ref R_NAME: CString = CString::new("R").unwrap();
             static ref K_NAME: CString = CString::new("K").unwrap();
@@ -518,7 +502,8 @@ impl Jockey {
         let sample_name: &CString = &SAMPLES_NAME;
         if let Some(samples_tex) = pipeline.buffers.get_mut(sample_name) {
             let interlaced_samples = interlace(&self.audio.l_signal, &self.audio.r_signal);
-            samples_tex
+            Rc::get_mut(samples_tex)
+                .unwrap()
                 .as_any_mut()
                 .downcast_mut::<Texture1D>()
                 .unwrap()
@@ -529,7 +514,8 @@ impl Jockey {
         let raw_spectrum_name: &CString = &RAW_SPECTRUM_NAME;
         if let Some(raw_spectrum_tex) = pipeline.buffers.get_mut(raw_spectrum_name) {
             let raw_spectrum = interlace(&self.audio.l_raw_spectrum, &self.audio.r_raw_spectrum);
-            raw_spectrum_tex
+            Rc::get_mut(raw_spectrum_tex)
+                .unwrap()
                 .as_any_mut()
                 .downcast_mut::<Texture1D>()
                 .unwrap()
@@ -540,7 +526,8 @@ impl Jockey {
         let spectrum_name: &CString = &SPECTRUM_NAME;
         if let Some(spectrum_tex) = pipeline.buffers.get_mut(spectrum_name) {
             let spectrum = interlace(&self.audio.l_spectrum, &self.audio.r_spectrum);
-            spectrum_tex
+            Rc::get_mut(spectrum_tex)
+                .unwrap()
                 .as_any_mut()
                 .downcast_mut::<Texture1D>()
                 .unwrap()
@@ -835,17 +822,18 @@ impl Jockey {
 
             let mut stage_sum_ms = 0.0;
             let pipeline_name = &self.pipeline_files[self.pipeline_index];
-            let pipeline = self.pipelines.get_mut(pipeline_name).unwrap();
-            for (k, stage) in pipeline.stages.iter().enumerate() {
-                let stage_ms = stage.perf.get();
-                stage_sum_ms += stage_ms;
-                if let Some(tex_name) = stage.target.as_ref() {
-                    ui.text(format!(
-                        "Stage {}: {:.4} ms (-> {:?})",
-                        k, stage_ms, tex_name
-                    ));
-                } else {
-                    ui.text(format!("Stage {}: {:.4} ms", k, stage_ms));
+            if let Some(pipeline) = self.pipelines.get(pipeline_name) {
+                for (k, stage) in pipeline.stages.iter().enumerate() {
+                    let stage_ms = stage.perf.get();
+                    stage_sum_ms += stage_ms;
+                    if let Some(tex_name) = stage.target.as_ref() {
+                        ui.text(format!(
+                            "Stage {}: {:.4} ms (-> {:?})",
+                            k, stage_ms, tex_name
+                        ));
+                    } else {
+                        ui.text(format!("Stage {}: {:.4} ms", k, stage_ms));
+                    }
                 }
             }
 

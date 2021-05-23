@@ -4,7 +4,7 @@ use crate::*;
 use as_any::AsAny;
 use core::panic;
 use image::DynamicImage;
-use std::{fmt::Debug, u8};
+use std::{fmt::Debug, rc::Rc, u8};
 
 fn _assert_is_object_safe(_: &dyn Texture) {}
 
@@ -328,20 +328,20 @@ impl_texture!(Texture1D, gl::TEXTURE_1D, 1, false);
 impl_texture!(Texture2D, gl::TEXTURE_2D, 2, false);
 impl_texture!(Texture3D, gl::TEXTURE_3D, 3, false);
 
-pub fn make_image(resolution: &[u32]) -> Box<dyn Texture> {
+pub fn make_image(resolution: &[u32]) -> Rc<dyn Texture> {
     match resolution {
-        &[w] => Box::new(Image1D::new([w])),
-        &[w, h] => Box::new(Image2D::new([w, h])),
-        &[w, h, d] => Box::new(Image3D::new([w, h, d])),
+        &[w] => Rc::new(Image1D::new([w])),
+        &[w, h] => Rc::new(Image2D::new([w, h])),
+        &[w, h, d] => Rc::new(Image3D::new([w, h, d])),
         _ => unreachable!(),
     }
 }
 
-pub fn make_texture(resolution: &[u32]) -> Box<dyn Texture> {
+pub fn make_texture(resolution: &[u32]) -> Rc<dyn Texture> {
     match resolution {
-        &[w] => Box::new(Texture1D::new([w])),
-        &[w, h] => Box::new(Texture2D::new([w, h])),
-        &[w, h, d] => Box::new(Texture3D::new([w, h, d])),
+        &[w] => Rc::new(Texture1D::new([w])),
+        &[w, h] => Rc::new(Texture2D::new([w, h])),
+        &[w, h, d] => Rc::new(Texture3D::new([w, h, d])),
         _ => unreachable!(),
     }
 }
