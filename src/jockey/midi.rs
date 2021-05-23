@@ -96,6 +96,9 @@ impl<const N: usize> Midi<N> {
                 in_port,
                 format!("sh4der-jockey-read-input-{}", port_name).as_str(),
                 move |_, message, _| {
+                    if message.len() != 3 {
+                        return;
+                    }
                     let mut out = [0; 3];
                     out.copy_from_slice(message);
                     tx.send(out).unwrap();
