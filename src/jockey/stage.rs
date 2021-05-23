@@ -15,7 +15,7 @@ pub enum StageKind {
     Vert {
         count: GLsizei,
         mode: GLenum,
-        line_width: Option<f32>,
+        thickness: f32,
         res: Option<(u32, u32)>,
     },
     Frag {
@@ -119,13 +119,6 @@ impl Stage {
             Some(s) => return Err(format!("Expected \"float\" to be a bool, got {:?}", s)),
         };
 
-        // get lineWidth for Vertex Shader
-        let line_width = match object.get("lineWidth").map(Value::as_f64) {
-            Some(Some(width)) => Some(width as f32),
-            None => None,
-            Some(s) => return Err(format!("Expected \"lineWidth\" to be float, got {:?}", s)),
-        };
-
         // read all shaders to strings
         let shaders: [Option<(String, String)>; 3] = {
             let mut out = [None, None, None];
@@ -217,11 +210,28 @@ impl Stage {
                     _ => gl::TRIANGLES,
                 };
 
+                let thickness = match object
+                    .get("thickness")
+                    .or(object.get("stroke_weight"))
+                    .or(object.get("point_size"))
+                    .or(object.get("line_width"))
+                    .map(Value::as_f64)
+                {
+                    Some(Some(t)) if t > 0.0 => t as f32,
+                    None => 1.0,
+                    Some(s) => {
+                        return Err(format!(
+                            "Expected \"thickness\" to be positive float, got {:?}",
+                            s
+                        ))
+                    }
+                };
+
                 let kind = StageKind::Vert {
                     res,
                     count,
                     mode,
-                    line_width,
+                    thickness,
                 };
 
                 Ok(Stage {

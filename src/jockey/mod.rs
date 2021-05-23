@@ -661,22 +661,24 @@ impl Jockey {
                     if let StageKind::Vert {
                         count,
                         mode,
-                        line_width,
+                        thickness,
                         ..
                     } = stage.kind
                     {
                         gl::ClearColor(0.0, 0.0, 0.0, 0.0);
                         gl::Clear(gl::COLOR_BUFFER_BIT);
-                        if let Some(width) = line_width {
-                            gl::LineWidth(width);
-                        } else {
-                            gl::LineWidth(1_f32);
-                        }
-                        draw_anything(self.ctx.vao, count, mode)
+                        gl_debug_check!();
+
+                        gl::PointSize(thickness);
+                        gl::LineWidth(thickness);
+                        gl_debug_check!();
+
+                        draw_anything(self.ctx.vao, count, mode);
+                        gl_debug_check!();
                     } else {
                         draw_fullscreen_rect(self.ctx.vao);
+                        gl_debug_check!();
                     }
-                    gl_debug_check!();
 
                     // Generate mip maps
                     // don't do it for the screen buffer
