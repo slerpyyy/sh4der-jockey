@@ -295,6 +295,8 @@ macro_rules! impl_texture {
                     let (internal_format, color_format, type_) = Self::get_formats(self.format);
 
                     gl::BindTexture($enum_type, tex_id);
+                    gl_debug_check!();
+
                     gl_TexImageND(
                         $enum_type,
                         0,
@@ -305,7 +307,6 @@ macro_rules! impl_texture {
                         type_,
                         data,
                     );
-
                     gl_debug_check!();
                 }
             }

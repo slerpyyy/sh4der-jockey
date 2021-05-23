@@ -383,8 +383,8 @@ impl Jockey {
             },
         };
 
+        println!("\n{:?}\n", update);
         self.pipelines.insert(path.clone(), update);
-        println!("\n{:?}\n", self.pipelines.get(path).unwrap());
 
         let time = start_time.elapsed().as_secs_f64();
         println!("Build pipeline in {}ms", 1000.0 * time);
@@ -400,13 +400,7 @@ impl Jockey {
         let imgui = &mut self.ctx.imgui;
         let ui_window = self.ctx.ui_context.window();
         let pipeline_name = &self.pipeline_files[self.pipeline_index];
-        let pipeline = match self.pipelines.get_mut(pipeline_name) {
-            Some(s) => s,
-            None => {
-                self.update_pipeline();
-                return;
-            }
-        };
+        let pipeline = &mut self.pipelines.get_mut(pipeline_name);
 
         &mut self.midi.check_connections();
         &mut self.midi.handle_input();
@@ -430,9 +424,11 @@ impl Jockey {
                     }
                     match event {
                         glutin::WindowEvent::Resized(size) if window_id == main_id => {
-                            let width = size.width as u32;
-                            let height = size.height as u32;
-                            pipeline.resize_buffers(width, height);
+                            if let Some(pl) = pipeline {
+                                let width = size.width as u32;
+                                let height = size.height as u32;
+                                pl.resize_buffers(width, height);
+                            }
                         }
                         glutin::WindowEvent::CloseRequested => done = true,
                         glutin::WindowEvent::KeyboardInput { input, .. } => {
@@ -496,7 +492,6 @@ impl Jockey {
         let (width, height) = (screen_size.width as u32, screen_size.height as u32);
         let time = self.start_time.elapsed().as_secs_f32();
         let beat = self.last_beat.elapsed().as_secs_f32() / self.beat_delta.get();
-        gl_debug_check!();
 
         // update audio samples texture
         let sample_name: &CString = &SAMPLES_NAME;
@@ -509,7 +504,6 @@ impl Jockey {
                 .unwrap()
                 .write(interlaced_samples.as_ptr() as _);
         }
-        gl_debug_check!();
 
         let raw_spectrum_name: &CString = &RAW_SPECTRUM_NAME;
         if let Some(raw_spectrum_tex) = pipeline.buffers.get_mut(raw_spectrum_name) {
@@ -521,7 +515,6 @@ impl Jockey {
                 .unwrap()
                 .write(raw_spectrum.as_ptr() as _);
         }
-        gl_debug_check!();
 
         let spectrum_name: &CString = &SPECTRUM_NAME;
         if let Some(spectrum_tex) = pipeline.buffers.get_mut(spectrum_name) {
@@ -533,10 +526,8 @@ impl Jockey {
                 .unwrap()
                 .write(spectrum.as_ptr() as _);
         }
-        gl_debug_check!();
 
         // render all shader stages
-
         for (pass_num, stage) in pipeline.stages.iter_mut().enumerate() {
             let stage_start = Instant::now();
 
@@ -576,13 +567,13 @@ impl Jockey {
 
                 {
                     let volume_loc = gl::GetUniformLocation(stage.prog_id, VOLUME_NAME.as_ptr());
+
                     gl::Uniform3f(
                         volume_loc,
                         self.audio.volume[0], // average L/R
                         self.audio.volume[1], // L
                         self.audio.volume[2], // R
                     );
-                    gl_debug_check!();
                 }
 
                 {
@@ -599,9 +590,7 @@ impl Jockey {
                     }
 
                     gl::Uniform1fv(s_loc, self.midi.sliders.len() as _, &self.midi.sliders as _);
-                    gl_debug_check!();
                     gl::Uniform4fv(b_loc, self.midi.buttons.len() as _, &buttons as _);
-                    gl_debug_check!();
                 }
 
                 // Add vertex count uniform

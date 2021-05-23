@@ -38,7 +38,7 @@ impl Pipeline {
     fn from_file_with_cache(
         path: impl AsRef<Path>,
         screen_size: (u32, u32),
-        old_buffers: &HashMap<CString, Rc<dyn Texture>>,
+        cache: &HashMap<CString, Rc<dyn Texture>>,
     ) -> Result<Self, String> {
         let reader = match std::fs::File::open(path) {
             Ok(s) => s,
@@ -50,26 +50,15 @@ impl Pipeline {
             Err(e) => return Err(e.to_string()),
         };
 
-        Pipeline::from_yaml_with_cache(object, screen_size, old_buffers)
+        Pipeline::from_yaml_with_cache(object, screen_size, cache)
     }
 
     fn from_yaml_with_cache(
         object: Value,
         screen_size: (u32, u32),
-        old_buffers: &HashMap<CString, Rc<dyn Texture>>,
+        cache: &HashMap<CString, Rc<dyn Texture>>,
     ) -> Result<Self, String> {
-        let passes = match object.get("stages") {
-            Some(Value::Sequence(s)) => s.clone(),
-            None => return Err("Required field \"stages\" not found".to_string()),
-            s => return Err(format!("Expected \"stages\" to be an array, got {:?}", s)),
-        };
-
-        // parse stages
-        let mut stages = Vec::with_capacity(passes.len());
-        for pass in passes {
-            let stage = Stage::from_yaml(pass)?;
-            stages.push(stage);
-        }
+        let mut buffers = HashMap::<CString, Rc<dyn Texture>>::new();
 
         // get fft texture size
         let fft_size = match object.get("fft_size") {
@@ -87,52 +76,49 @@ impl Pipeline {
             s => return Err(format!("Expected \"fft_size\" to be number, got: {:?}", s)),
         };
 
-        // put buffers into hashmap
-        let mut buffers = HashMap::<CString, Rc<dyn Texture>>::new();
-
         // add audio samples to buffers
-        let audio_samples_texture = Texture1D::with_params(
-            [fft_size as _],
-            gl::NEAREST,
-            gl::NEAREST,
-            gl::CLAMP_TO_EDGE,
-            TextureFormat::RG32F,
-        );
-
-        let raw_spectrums_texture = Texture1D::with_params(
-            [(fft_size / 2) as _],
-            gl::NEAREST,
-            gl::NEAREST,
-            gl::CLAMP_TO_EDGE,
-            TextureFormat::RG32F,
-        );
-
-        let spectrums_texture = Texture1D::with_params(
-            [100],
-            gl::NEAREST,
-            gl::NEAREST,
-            gl::CLAMP_TO_EDGE,
-            TextureFormat::RG32F,
-        );
-
         buffers.insert(
             CString::new("samples").unwrap(),
-            Rc::new(audio_samples_texture),
+            Rc::new(Texture1D::with_params(
+                [fft_size as _],
+                gl::NEAREST,
+                gl::NEAREST,
+                gl::CLAMP_TO_EDGE,
+                TextureFormat::RG32F,
+            )),
         );
 
         buffers.insert(
             CString::new("raw_spectrum").unwrap(),
-            Rc::new(raw_spectrums_texture),
+            Rc::new(Texture1D::with_params(
+                [(fft_size / 2) as _],
+                gl::NEAREST,
+                gl::NEAREST,
+                gl::CLAMP_TO_EDGE,
+                TextureFormat::RG32F,
+            )),
         );
 
         buffers.insert(
             CString::new("spectrum").unwrap(),
-            Rc::new(spectrums_texture),
+            Rc::new(Texture1D::with_params(
+                [100],
+                gl::NEAREST,
+                gl::NEAREST,
+                gl::CLAMP_TO_EDGE,
+                TextureFormat::RG32F,
+            )),
         );
 
-        // add noise texture
-        let noise = Rc::new(make_noise());
-        buffers.insert(CString::new("noise").unwrap(), noise);
+        {
+            // add noise texture
+            let noise_name = CString::new("noise").unwrap();
+            let noise = match cache.get(&noise_name) {
+                Some(old) => Rc::clone(old),
+                None => Rc::new(make_noise()),
+            };
+            buffers.insert(noise_name, noise);
+        }
 
         // parse images section
         let images = match object.get("images") {
@@ -162,7 +148,7 @@ impl Pipeline {
                 ));
             }
 
-            let tex = match old_buffers.get(&name) {
+            let tex = match cache.get(&name) {
                 Some(cached_tex) => Rc::clone(cached_tex),
                 None => {
                     let dyn_image = ImageReader::open(path)
@@ -175,6 +161,20 @@ impl Pipeline {
             };
 
             buffers.insert(name, tex);
+        }
+
+        // parse stages section
+        let passes = match object.get("stages") {
+            Some(Value::Sequence(s)) => s.clone(),
+            None => return Err("Required field \"stages\" not found".to_string()),
+            s => return Err(format!("Expected \"stages\" to be an array, got {:?}", s)),
+        };
+
+        // parse stages
+        let mut stages = Vec::with_capacity(passes.len());
+        for pass in passes {
+            let stage = Stage::from_yaml(pass)?;
+            stages.push(stage);
         }
 
         // create render targets for stages
