@@ -391,6 +391,10 @@ impl Jockey {
     }
 
     pub fn handle_events(&mut self) {
+        take_mut::take(&mut self.ctx.context, |s| unsafe {
+            s.make_current().unwrap()
+        });
+
         let mut done = false;
         let platform = &mut self.ctx.platform;
         let events_loop = &mut self.ctx.events_loop;

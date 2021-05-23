@@ -200,6 +200,7 @@ macro_rules! impl_texture {
                     gl::LINEAR,
                     gl::REPEAT,
                     TextureFormat::RGBA32F,
+                    std::ptr::null(),
                 )
             }
 
@@ -231,6 +232,7 @@ macro_rules! impl_texture {
                 mag_filter: GLenum,
                 wrap_mode: GLenum,
                 format: TextureFormat,
+                data: *const c_void,
             ) -> Self {
                 for k in resolution.iter_mut() {
                     *k = 1.max(*k);
@@ -265,8 +267,9 @@ macro_rules! impl_texture {
                         0,
                         color_format,
                         type_,
-                        std::ptr::null(),
+                        data,
                     );
+                    gl_debug_check!();
 
                     if $is_image {
                         gl::BindImageTexture(
@@ -291,12 +294,10 @@ macro_rules! impl_texture {
 
             pub fn write(&mut self, data: *const c_void) {
                 unsafe {
-                    let tex_id = self.id;
-                    let (internal_format, color_format, type_) = Self::get_formats(self.format);
-
-                    gl::BindTexture($enum_type, tex_id);
+                    gl::BindTexture($enum_type, self.id);
                     gl_debug_check!();
 
+                    let (internal_format, color_format, type_) = Self::get_formats(self.format);
                     gl_TexImageND(
                         $enum_type,
                         0,
@@ -350,30 +351,29 @@ pub fn make_texture(resolution: &[u32]) -> Rc<dyn Texture> {
 pub fn make_noise() -> Texture3D {
     const WIDTH: usize = 32;
     const SIZE: usize = 4 * WIDTH * WIDTH * WIDTH;
-
-    let mut tex = Texture3D::with_params(
+    let data: Vec<u8> = (0..SIZE).map(|_| rand::random()).collect();
+    let tex = Texture3D::with_params(
         [WIDTH as _; 3],
         gl::LINEAR,
         gl::LINEAR,
         gl::REPEAT,
         TextureFormat::RGBA8,
+        data.as_ptr() as _
     );
 
-    let data: Vec<u8> = (0..SIZE).map(|_| rand::random()).collect();
-    tex.write(data.as_ptr() as _);
     tex
 }
 
 pub fn make_texture_from_image(dyn_image: DynamicImage) -> Texture2D {
     let image = dyn_image.flipv().to_rgba8();
-    let mut tex = Texture2D::with_params(
+    let tex = Texture2D::with_params(
         [image.width(), image.height()],
         gl::LINEAR,
         gl::LINEAR,
         gl::REPEAT,
         TextureFormat::RGBA8,
+        image.as_raw().as_ptr() as _,
     );
 
-    tex.write(image.as_raw().as_ptr() as _);
     tex
 }

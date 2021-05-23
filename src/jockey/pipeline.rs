@@ -85,6 +85,7 @@ impl Pipeline {
                 gl::NEAREST,
                 gl::CLAMP_TO_EDGE,
                 TextureFormat::RG32F,
+                std::ptr::null(),
             )),
         );
 
@@ -96,6 +97,7 @@ impl Pipeline {
                 gl::NEAREST,
                 gl::CLAMP_TO_EDGE,
                 TextureFormat::RG32F,
+                std::ptr::null(),
             )),
         );
 
@@ -107,6 +109,7 @@ impl Pipeline {
                 gl::NEAREST,
                 gl::CLAMP_TO_EDGE,
                 TextureFormat::RG32F,
+                std::ptr::null(),
             )),
         );
 
@@ -186,7 +189,8 @@ impl Pipeline {
 
             // check if target exists already
             if let Some(tex) = buffers.get(target) {
-                if Some(tex.resolution()) != stage.resolution() {
+                let res = stage.resolution();
+                if Some(tex.resolution()) != res || res.is_none() {
                     return Err(format!(
                         "Texture {:?} already has a different resolution",
                         target
