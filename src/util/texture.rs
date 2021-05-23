@@ -358,7 +358,7 @@ pub fn make_noise() -> Texture3D {
         gl::LINEAR,
         gl::REPEAT,
         TextureFormat::RGBA8,
-        data.as_ptr() as _
+        data.as_ptr() as _,
     );
 
     tex

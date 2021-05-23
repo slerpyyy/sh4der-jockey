@@ -14,6 +14,37 @@ pub use average::*;
 pub use ringbuffer::*;
 pub use texture::*;
 
+#[macro_export]
+macro_rules! gl_check {
+    () => {
+        // this unsafe in unnecessary if the macro is used in an unsafe block
+        #[allow(unused_unsafe)]
+        let err = unsafe { gl::GetError() };
+
+        if err != gl::NO_ERROR {
+            let name = match err {
+                gl::INVALID_ENUM => "INVALID_ENUM",
+                gl::INVALID_VALUE => "INVALID_VALUE",
+                gl::INVALID_OPERATION => "INVALID_OPERATION",
+                gl::INVALID_FRAMEBUFFER_OPERATION => "INVALID_ENUM",
+                gl::OUT_OF_MEMORY => "OUT_OF_MEMORY",
+                _ => "unknown",
+            };
+
+            panic!("OpenGL error: {} ({})", name, err);
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! gl_debug_check {
+    () => {
+        if cfg!(debug_assertions) {
+            gl_check!();
+        }
+    };
+}
+
 const FULLSCREEN_RECT: [GLfloat; 12] = [
     -1.0, -1.0, -1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, -1.0, -1.0, -1.0,
 ];
@@ -22,6 +53,7 @@ pub fn draw_fullscreen_rect(vao: GLuint) {
     unsafe {
         gl::BindVertexArray(vao);
         gl::BindBuffer(gl::ARRAY_BUFFER, vao);
+        gl_debug_check!();
 
         let data_size = FULLSCREEN_RECT.len() * std::mem::size_of::<GLfloat>();
         gl::BufferData(
@@ -30,9 +62,11 @@ pub fn draw_fullscreen_rect(vao: GLuint) {
             std::mem::transmute(&FULLSCREEN_RECT[0]),
             gl::STATIC_DRAW,
         );
+        gl_debug_check!();
 
         let vert_count = FULLSCREEN_RECT.len() as GLsizei / 2;
         gl::DrawArrays(gl::TRIANGLES, 0, vert_count);
+        gl_debug_check!();
     }
 }
 
@@ -40,10 +74,13 @@ pub fn draw_anything(vao: GLuint, count: GLsizei, mode: GLenum) {
     unsafe {
         gl::BindVertexArray(vao);
         gl::BindBuffer(gl::ARRAY_BUFFER, vao);
+        gl_debug_check!();
 
         gl::BufferData(gl::ARRAY_BUFFER, 0, std::ptr::null(), gl::STATIC_DRAW);
+        gl_debug_check!();
 
         gl::DrawArrays(mode, 0, count);
+        gl_debug_check!();
     }
 }
 
@@ -160,35 +197,29 @@ pub unsafe fn gl_TexImageND(
     }
 }
 
-#[macro_export]
-macro_rules! gl_check {
-    () => {
-        // this unsafe in unnecessary if the macro is used in an unsafe block
-        #[allow(unused_unsafe)]
-        let err = unsafe { gl::GetError() };
+fn in_block(prefix: &str, start: &str, end: &str) -> bool {
+    debug_assert_ne!(start, end);
 
-        if err != gl::NO_ERROR {
-            let name = match err {
-                gl::INVALID_ENUM => "INVALID_ENUM",
-                gl::INVALID_VALUE => "INVALID_VALUE",
-                gl::INVALID_OPERATION => "INVALID_OPERATION",
-                gl::INVALID_FRAMEBUFFER_OPERATION => "INVALID_ENUM",
-                gl::OUT_OF_MEMORY => "OUT_OF_MEMORY",
-                _ => "unknown",
-            };
+    let start_opt = prefix.rfind(start);
+    let end_opt = prefix.rfind(end);
 
-            panic!("OpenGL error: {} ({})", name, err);
-        }
-    };
+    match (start_opt, end_opt) {
+        (Some(s), Some(e)) => s + start.len() > e,
+        (Some(_), None) => true,
+        (None, _) => false,
+    }
 }
 
-#[macro_export]
-macro_rules! gl_debug_check {
-    () => {
-        if cfg!(debug_assertions) {
-            gl_check!();
-        }
-    };
+#[test]
+fn in_block_simple() {
+    assert!(in_block("aa ( bb", "(", ")"));
+    assert!(in_block("( aa ) bb (", "(", ")"));
+
+    assert!(!in_block("( aa ( bb )", "(", ")"));
+    assert!(!in_block("aa bb", "(", ")"));
+
+    assert!(in_block("(x)", "(x", "x)"));
+    assert!(!in_block("(xx)", "(x", "x)"));
 }
 
 pub fn preprocess(code: &str, file_name: &str) -> Result<String, String> {
@@ -214,22 +245,27 @@ pub fn preprocess(code: &str, file_name: &str) -> Result<String, String> {
             let prefix = &code[..include.start()];
             let postfix = recurse(&code[include.end()..], src_name, seen.clone())?;
 
-            // detect include cycles
-            if !seen.insert(file_name.to_owned()) {
-                return Err(format!(
-                    "Cycle detected! File {} has been included further down the tree",
-                    file_name
-                ));
-            }
+            // respect comments
+            let file = if !in_block(prefix, "//", "\n") && !in_block(prefix, "/*", "*/") {
+                // detect include cycles
+                if !seen.insert(file_name.into()) {
+                    return Err(format!(
+                        "Cycle detected! File {} has been included further down the tree",
+                        file_name
+                    ));
+                }
 
-            // fetch file
-            let file = match std::fs::read_to_string(file_name) {
-                Ok(s) => s,
-                Err(e) => return Err(e.to_string()),
+                // fetch file
+                let file = match std::fs::read_to_string(file_name) {
+                    Ok(s) => s,
+                    Err(e) => return Err(e.to_string()),
+                };
+
+                // recursively process included file
+                recurse(&file, &file_name, seen)?
+            } else {
+                String::new()
             };
-
-            // recursively process included file
-            let file = recurse(&file, &file_name, seen)?;
 
             Ok(format!(
                 "{}\n#line 0 \"{}\"\n{}\n#line {} \"{}\"\n{}",
