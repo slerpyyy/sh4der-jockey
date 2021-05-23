@@ -210,6 +210,10 @@ pub fn preprocess(code: &str, file_name: &str) -> Result<String, String> {
                 .count()
                 .saturating_sub(1);
 
+            // compute substring before and after match
+            let prefix = &code[..include.start()];
+            let postfix = recurse(&code[include.end()..], src_name, seen.clone())?;
+
             // detect include cycles
             if !seen.insert(file_name.to_owned()) {
                 return Err(format!(
@@ -218,14 +222,14 @@ pub fn preprocess(code: &str, file_name: &str) -> Result<String, String> {
                 ));
             }
 
+            // fetch file
             let file = match std::fs::read_to_string(file_name) {
                 Ok(s) => s,
                 Err(e) => return Err(e.to_string()),
             };
 
-            let prefix = &code[..include.start()];
-            let file = recurse(&file, &file_name, seen.clone())?;
-            let postfix = recurse(&code[include.end()..], src_name, seen)?;
+            // recursively process included file
+            let file = recurse(&file, &file_name, seen)?;
 
             Ok(format!(
                 "{}\n#line 0 \"{}\"\n{}\n#line {} \"{}\"\n{}",
