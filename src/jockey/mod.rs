@@ -120,7 +120,7 @@ impl Jockey {
         let mut imgui = imgui::Context::create();
         imgui.io_mut().config_flags |=
             imgui::ConfigFlags::DOCKING_ENABLE | imgui::ConfigFlags::VIEWPORTS_ENABLE;
-        imgui.set_ini_filename(None);
+        imgui.set_ini_filename(Some("layout.ini".into()));
 
         let renderer = imgui_opengl_renderer::Renderer::new(&mut imgui, ui_prog_addr);
         let mut platform = WinitPlatform::init(&mut imgui);
