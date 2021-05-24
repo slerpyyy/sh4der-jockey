@@ -885,4 +885,33 @@ impl Jockey {
         self.ctx.renderer.render(ui);
         self.ctx.ui_context.swap_buffers().unwrap();
     }
+
+    #[allow(dead_code)]
+    pub fn save_frame(&mut self) {
+        take_mut::take(&mut self.ctx.context, |s| unsafe {
+            s.make_current().unwrap()
+        });
+
+        let screen_size = self.ctx.context.window().get_inner_size().unwrap();
+        let (width, height) = (screen_size.width as u32, screen_size.height as u32);
+
+        let mut img = image::ImageBuffer::<image::Rgb<u8>, Vec<u8>>::new(width, height);
+        let data = img.as_flat_samples_mut().as_mut_slice().as_mut_ptr();
+
+        unsafe {
+            gl::ReadnPixels(
+                0,
+                0,
+                width as _,
+                height as _,
+                gl::RGB,
+                gl::UNSIGNED_BYTE,
+                (3 * width * height) as _,
+                data as _,
+            );
+        }
+
+        image::imageops::flip_vertical_in_place(&mut img);
+        img.save("frame.png").unwrap();
+    }
 }
