@@ -9,6 +9,7 @@ const PASS_FRAG: &str = include_str!("shaders/pass.frag");
 #[derive(Debug)]
 pub enum StageKind {
     Comp {
+        dispatch: [GLuint; 3],
         res: Vec<u32>,
     },
     Vert {
@@ -78,10 +79,12 @@ impl Stage {
                 let mut out = Vec::with_capacity(3);
                 for dim in dims {
                     match dim.as_u64() {
-                        None => return Err(format!(
+                        None => {
+                            return Err(format!(
                             "Expected \"resolution\" to be a list of positive numbers, got {:?}",
                             dims
-                        )),
+                        ))
+                        }
 
                         Some(0) => {
                             return Err(format!(
@@ -282,6 +285,45 @@ impl Stage {
             [None, None, Some(cs)] => {
                 let cs = preprocess(&cs.0, &cs.1)?;
 
+                // get target resolution
+                let dispatch = match object
+                    .get("dispatch_size")
+                    .or_else(|| object.get("dispatch"))
+                {
+                    Some(Value::Sequence(dims)) => {
+                        if dims.is_empty() || dims.len() > 3 {
+                            return Err(format!(
+                                "Field \"dispatch_size\" must be a list of 1 to 3 numbers, got {} elements",
+                                dims.len()
+                            ));
+                        }
+
+                        let mut out = [1; 3];
+                        for (k, dim) in dims.iter().enumerate() {
+                            match dim.as_u64() {
+                                Some(n) if n > 0 => out[k] = n as _,
+                                _ => return Err(format!(
+                                    "Expected \"dispatch_size\" to be a list of positive numbers, got {:?}",
+                                    dims
+                                )),
+                            };
+                        }
+
+                        out
+                    }
+                    Some(s) => {
+                        return Err(format!(
+                        "Expected \"dispatch_size\" to be a list of unsigned integers, got {:?}",
+                        s
+                    ))
+                    }
+                    None => {
+                        return Err(
+                            "Field \"dispatch_size\" is mandatory for compute shaders".into()
+                        )
+                    }
+                };
+
                 let cs_id = compile_shader(&cs, gl::COMPUTE_SHADER)?;
                 let sh_ids = vec![cs_id];
                 let prog_id = link_program(&sh_ids)?;
@@ -292,7 +334,7 @@ impl Stage {
                     return Err("Field \"resolution\" is mandatory for compute shaders".into());
                 };
 
-                let kind = StageKind::Comp { res };
+                let kind = StageKind::Comp { dispatch, res };
 
                 Ok(Stage {
                     prog_id,

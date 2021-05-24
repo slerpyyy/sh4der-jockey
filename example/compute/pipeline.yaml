@@ -2,5 +2,6 @@ stages:
   - cs: "./test_comp.glsl"
     target: "img_output"
     size: [512, 512]
+    dispatch: [512, 512]
 
   - fs: "./present.glsl"
