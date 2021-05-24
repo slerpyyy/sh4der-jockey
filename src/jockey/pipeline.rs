@@ -1,10 +1,6 @@
-use crate::jockey::*;
-use image::io::Reader as ImageReader;
+use crate::{jockey::*, util::Cache};
 use serde_yaml::Value;
 use std::{collections::HashMap, ffi::CString, path::Path, rc::Rc};
-
-// global texture cache
-static mut TEX_CACHE: Option<HashMap<String, Rc<dyn Texture>>> = None;
 
 /// The rendering pipeline struct
 ///
@@ -64,11 +60,7 @@ impl Pipeline {
         let mut buffers = HashMap::<CString, Rc<dyn Texture>>::new();
 
         // init global texture cache
-        unsafe {
-            if TEX_CACHE.is_none() {
-                TEX_CACHE = Some(HashMap::new());
-            }
-        }
+        Cache::init();
 
         // get fft texture size
         let fft_size = match object.get("fft_size") {
@@ -154,25 +146,24 @@ impl Pipeline {
                 s => return Err(format!("Expected \"name\" to be a string, got {:?}", s)),
             };
 
-            if let Some(_) = buffers.get(&name) {
+            // check if name is already in use
+            if buffers.get(&name).is_some() {
                 return Err(format!(
                     "Texture {:?} already exists, please try a different name",
                     name
                 ));
             }
 
-            let cache_mut = unsafe { TEX_CACHE.as_mut().unwrap() };
-            let tex = match cache_mut.get(path) {
-                Some(cached_tex) => Rc::clone(cached_tex),
+            // fetch texture from global cache
+            let tex = match Cache::fetch(path) {
+                Some(cached_tex) => cached_tex,
                 None => {
-                    let dyn_image = ImageReader::open(path)
-                        .expect(format!("Failed to load image {:?} at {}", name, path).as_str())
-                        .decode()
-                        .expect(format!("Failed to decode image {:?} at {}", name, path).as_str());
-
-                    let tex: Rc<dyn Texture> = Rc::new(make_texture_from_image(dyn_image));
-                    cache_mut.insert(path.clone(), Rc::clone(&tex));
-                    tex
+                    match Cache::load(path.clone()) {
+                        Some(s) => s,
+                        None => {
+                            return Err(format!("Failed to load image {:?} at {:?}", name, path))
+                        }
+                    }
                 }
             };
 

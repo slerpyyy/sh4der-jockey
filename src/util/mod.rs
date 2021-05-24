@@ -7,10 +7,12 @@ use std::{
 };
 
 mod average;
+mod cache;
 mod ringbuffer;
 mod texture;
 
 pub use average::*;
+pub use cache::*;
 pub use ringbuffer::*;
 pub use texture::*;
 
