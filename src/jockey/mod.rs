@@ -344,7 +344,8 @@ impl Jockey {
         &mut self.audio.update_fft();
 
         let mut do_update_pipeline = unsafe { PIPELINE_STALE.swap(false, Ordering::Relaxed) }
-            && self.last_build.elapsed().as_millis() > 100;
+            && self.last_build.elapsed().as_millis() > 300;
+
         let main_id = self.ctx.context.window().id();
         let ui_id = ui_window.id();
 

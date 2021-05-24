@@ -67,14 +67,13 @@ impl Pipeline {
         let fft_size = match object.get("fft_size") {
             None => 8192,
             Some(Value::Number(n)) => {
-                let n = n.as_u64().unwrap();
-                if n.is_power_of_two() {
-                    return Err(format!(
+                match n.as_u64() {
+                    Some(n) if n.is_power_of_two() => n,
+                    _ => return Err(format!(
                         "Expected \"fft_size\" to be a power of 2, got: {:?}",
                         n
-                    ));
+                    )),
                 }
-                n
             }
             s => return Err(format!("Expected \"fft_size\" to be number, got: {:?}", s)),
         };
