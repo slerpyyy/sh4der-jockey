@@ -120,7 +120,10 @@ impl Jockey {
         let mut imgui = imgui::Context::create();
         imgui.io_mut().config_flags |=
             imgui::ConfigFlags::DOCKING_ENABLE | imgui::ConfigFlags::VIEWPORTS_ENABLE;
-        imgui.set_ini_filename(Some("layout.ini".into()));
+
+        let mut ini_path = std::env::current_exe().unwrap();
+        ini_path.set_file_name("imgui-layout.ini");
+        imgui.set_ini_filename(Some(ini_path));
 
         let renderer = imgui_opengl_renderer::Renderer::new(&mut imgui, ui_prog_addr);
         let mut platform = WinitPlatform::init(&mut imgui);
@@ -211,10 +214,6 @@ impl Jockey {
         };
         gl_debug_check!();
 
-        this.ctx.ui_context = unsafe { this.ctx.ui_context.make_current().unwrap() };
-        this.setup_docks();
-        gl_debug_check!();
-
         this.ctx.context = unsafe { this.ctx.context.make_current().unwrap() };
         this.update_pipeline();
         gl_debug_check!();
@@ -280,55 +279,6 @@ impl Jockey {
         style.colors[NavWindowingHighlight  as usize] = gray(1.00, 0.70);
         style.colors[NavWindowingDimBg      as usize] = gray(0.80, 0.20);
         style.colors[ModalWindowDimBg       as usize] = gray(0.80, 0.35);
-    }
-
-    fn setup_docks(&mut self) {
-        let io = self.ctx.imgui.io_mut();
-        self.ctx
-            .platform
-            .prepare_frame(io, self.ctx.ui_context.window())
-            .expect("Failed to start frame");
-
-        let ui = self.ctx.imgui.frame();
-
-        imgui::Dock::new().build(|root| {
-            root.size([500_f32, 500_f32])
-                .position([0_f32, 0_f32])
-                .split(
-                    imgui::Direction::Left,
-                    0.5_f32,
-                    |left| {
-                        left.split(
-                            imgui::Direction::Down,
-                            0.5_f32,
-                            |up| {
-                                up.dock_window(im_str!("Buttons"));
-                            },
-                            |down| {
-                                down.dock_window(im_str!("Sliders"));
-                            },
-                        );
-                    },
-                    |right| {
-                        right.split(
-                            imgui::Direction::Down,
-                            0.5_f32,
-                            |up| {
-                                up.dock_window(im_str!("Audio"));
-                                up.dock_window(im_str!("Debug"));
-                            },
-                            |down| {
-                                down.dock_window(im_str!("Perf"));
-                            },
-                        );
-                    },
-                );
-        });
-
-        self.ctx
-            .platform
-            .prepare_render(&ui, self.ctx.ui_context.window());
-        self.ctx.renderer.render(ui);
     }
 
     /// Reload the render pipeline and replace the old one.
