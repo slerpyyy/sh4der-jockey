@@ -157,14 +157,10 @@ impl Pipeline {
             // fetch texture from global cache
             let tex = match Cache::fetch(path) {
                 Some(cached_tex) => cached_tex,
-                None => {
-                    match Cache::load(path.clone()) {
-                        Some(s) => s,
-                        None => {
-                            return Err(format!("Failed to load image {:?} at {:?}", name, path))
-                        }
-                    }
-                }
+                None => match Cache::load(path.clone()) {
+                    Some(s) => s,
+                    None => return Err(format!("Failed to load image {:?} at {:?}", name, path)),
+                },
             };
 
             buffers.insert(name, tex);
@@ -217,9 +213,7 @@ impl Pipeline {
                         stage.float,
                     ))
                 }
-                StageKind::Comp {
-                    tex_type, tex_dim, ..
-                } => make_image(&tex_dim[..(tex_type as _)]),
+                StageKind::Comp { ref res, .. } => make_image(res.as_slice()),
             };
 
             // insert texture into hashmap

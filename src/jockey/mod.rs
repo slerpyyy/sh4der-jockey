@@ -619,8 +619,12 @@ impl Jockey {
             }
 
             match &stage.kind {
-                StageKind::Comp { tex_dim, .. } => unsafe {
-                    gl::DispatchCompute(tex_dim[0], tex_dim[1].max(1), tex_dim[2].max(1));
+                StageKind::Comp { res, .. } => unsafe {
+                    gl::DispatchCompute(
+                        *res.get(0).unwrap_or(&1),
+                        *res.get(1).unwrap_or(&1),
+                        *res.get(2).unwrap_or(&1),
+                    );
                     gl::MemoryBarrier(gl::SHADER_IMAGE_ACCESS_BARRIER_BIT);
                     gl_debug_check!();
                 },

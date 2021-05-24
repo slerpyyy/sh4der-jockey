@@ -9,8 +9,7 @@ const PASS_FRAG: &str = include_str!("shaders/pass.frag");
 #[derive(Debug)]
 pub enum StageKind {
     Comp {
-        tex_type: GLuint,
-        tex_dim: [u32; 3],
+        res: Vec<u32>,
     },
     Vert {
         count: GLsizei,
@@ -63,20 +62,39 @@ impl Stage {
         };
 
         // get target resolution
-        let res = match object.get("res").or_else(|| object.get("resolution")) {
-            Some(Value::Sequence(arr)) => {
-                let vec = arr.iter().map(Value::as_u64).collect::<Vec<_>>();
-                match vec.as_slice() {
-                    &[Some(width), Some(height)] if width > 0 && height > 0 => {
-                        Some((width as _, height as _))
-                    }
-                    _ => {
-                        return Err(format!(
-                            "Expected \"resolution\" to be a list of positive numbers, got {:?}",
-                            arr
-                        ))
-                    }
+        let res = match object
+            .get("size")
+            .or_else(|| object.get("res"))
+            .or_else(|| object.get("resolution"))
+        {
+            Some(Value::Sequence(dims)) => {
+                if dims.is_empty() || dims.len() > 3 {
+                    return Err(format!(
+                        "Field \"resolution\" must be a list of 1 to 3 numbers, got {} elements",
+                        dims.len()
+                    ));
                 }
+
+                let mut out = Vec::with_capacity(3);
+                for dim in dims {
+                    match dim.as_u64() {
+                        None => return Err(format!(
+                            "Expected \"resolution\" to be a list of positive numbers, got {:?}",
+                            dims
+                        )),
+
+                        Some(0) => {
+                            return Err(format!(
+                                "Expected all numbers in \"resolution\" to be positive, got {:?}",
+                                dims
+                            ))
+                        }
+
+                        Some(n) => out.push(n as _),
+                    };
+                }
+
+                Some(out)
             }
             _ => None,
         };
@@ -153,6 +171,12 @@ impl Stage {
                 let sh_ids = vec![vs_id, fs_id];
                 let prog_id = link_program(&sh_ids)?;
 
+                let res = match res.as_ref().map(|v| v.as_slice()) {
+                    Some(&[width, height]) => Some((width, height)),
+                    None => None,
+                    Some(_) => return Err("Expected \"resolution\" to be 2D".into()),
+                };
+
                 let kind = StageKind::Frag { res };
 
                 Ok(Stage {
@@ -227,6 +251,12 @@ impl Stage {
                     }
                 };
 
+                let res = match res.as_ref().map(|v| v.as_slice()) {
+                    Some(&[width, height]) => Some((width, height)),
+                    None => None,
+                    Some(_) => return Err("Expected \"resolution\" to be 2D".into()),
+                };
+
                 let kind = StageKind::Vert {
                     res,
                     count,
@@ -252,43 +282,17 @@ impl Stage {
             [None, None, Some(cs)] => {
                 let cs = preprocess(&cs.0, &cs.1)?;
 
-                let tex_type = match object.get("cs_type") {
-                    Some(Value::String(s)) if s.as_str() == "1D" => 1,
-                    Some(Value::String(s)) if s.as_str() == "2D" => 2,
-                    Some(Value::String(s)) if s.as_str() == "3D" => 3,
-                    s => return Err(format!("Expected texture type, got {:?}", s)),
-                };
-
-                let tex_dim = match object.get("cs_size") {
-                    Some(Value::Sequence(ar)) if ar.len() <= 3 => {
-                        let mut tex_dim: [u32; 3] = [0; 3];
-                        for (i, sz) in ar.iter().enumerate() {
-                            let val = sz.as_u64();
-                            tex_dim[i] = match val {
-                                Some(dim) => dim as _,
-                                _ => return Err(format!("Texture size not an integer: {:?}", val)),
-                            };
-                        }
-                        tex_dim
-                    }
-
-                    Some(Value::Number(n)) => [
-                        match n.as_u64() {
-                            Some(k) => k as _,
-                            _ => return Err(format!("Texture size not an integer: {:?}", n)),
-                        },
-                        0,
-                        0,
-                    ],
-
-                    s => return Err(format!("Expected texture size, got {:?}", s)),
-                };
-
                 let cs_id = compile_shader(&cs, gl::COMPUTE_SHADER)?;
                 let sh_ids = vec![cs_id];
                 let prog_id = link_program(&sh_ids)?;
 
-                let kind = StageKind::Comp { tex_type, tex_dim };
+                let res = if let Some(vec) = res {
+                    vec
+                } else {
+                    return Err("Field \"resolution\" is mandatory for compute shaders".into());
+                };
+
+                let kind = StageKind::Comp { res };
 
                 Ok(Stage {
                     prog_id,
@@ -311,7 +315,11 @@ impl Stage {
 
     pub fn resolution(&self) -> Option<[u32; 3]> {
         match self.kind {
-            StageKind::Comp { tex_dim, .. } => Some(tex_dim),
+            StageKind::Comp { ref res, .. } => {
+                let mut out = [0; 3];
+                out[..res.len()].clone_from_slice(res.as_slice());
+                Some(out)
+            }
             StageKind::Frag {
                 res: Some((width, height)),
                 ..

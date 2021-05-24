@@ -1,8 +1,5 @@
-use super::{Texture, make_texture_from_image};
-use std::{
-    collections::HashMap,
-    rc::Rc,
-};
+use super::{make_texture_from_image, Texture};
+use std::{collections::HashMap, rc::Rc};
 
 static mut CACHE_INTERNAL: Option<HashMap<String, CacheEntry>> = None;
 
