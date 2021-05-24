@@ -26,6 +26,7 @@ impl Pipeline {
         Pipeline::from_file_with_cache(path, screen_size, &empty_cache)
     }
 
+    #[allow(dead_code)]
     pub fn update(
         path: impl AsRef<Path>,
         screen_size: (u32, u32),

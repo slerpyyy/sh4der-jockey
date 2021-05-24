@@ -4,7 +4,6 @@ use imgui::im_str;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 use lazy_static::lazy_static;
 use std::{
-    collections::HashMap,
     ffi::CString,
     rc::Rc,
     sync::atomic::{AtomicBool, Ordering},
@@ -62,8 +61,8 @@ pub struct Jockey {
     pub midi: Midi<32>,
     pub audio: Audio,
     pub pipeline_files: Vec<String>,
-    pipelines: HashMap<String, Pipeline>,
-    pipeline_index: usize,
+    pub pipeline_index: usize,
+    pub pipeline: Pipeline,
     pub start_time: Instant,
 }
 
@@ -72,13 +71,7 @@ impl std::fmt::Debug for Jockey {
         f.debug_struct(stringify!(Jockey))
             .field("vao", &self.ctx.vao)
             .field("vbo", &self.ctx.vbo)
-            .field(
-                "pipeline",
-                &self
-                    .pipelines
-                    .get(&self.pipeline_files[self.pipeline_index])
-                    .unwrap(),
-            )
+            .field("pipeline", &self.pipeline)
             .finish()
     }
 }
@@ -166,7 +159,6 @@ impl Jockey {
             gl::GenBuffers(1, &mut vbo);
         }
 
-        let pipelines = HashMap::new();
         let last_build = Instant::now();
         let frame_perf = RunningAverage::new();
 
@@ -189,6 +181,8 @@ impl Jockey {
             platform,
         };
 
+        let pipeline = Pipeline::new();
+
         let midi = Midi::new();
         let mut beat_delta = RunningAverage::new();
         beat_delta.buffer.fill(1.0);
@@ -208,7 +202,7 @@ impl Jockey {
             midi,
             audio,
             pipeline_files: vec![],
-            pipelines,
+            pipeline,
             pipeline_index: 0,
             start_time,
         };
@@ -316,25 +310,16 @@ impl Jockey {
         let screen_size = (screen_size.width as u32, screen_size.height as u32);
 
         // build pipeline
-        let update = match self.pipelines.get(path) {
-            Some(old) => match Pipeline::update(path, screen_size, old) {
-                Ok(pl) => pl,
-                Err(err) => {
-                    eprintln!("Failed to load pipeline\n{}", err);
-                    return;
-                }
-            },
-            None => match Pipeline::load(path, screen_size) {
-                Ok(old) => old,
-                Err(err) => {
-                    eprintln!("Failed to load pipeline:\n{}", err);
-                    Pipeline::new()
-                }
-            },
+        let update = match Pipeline::load(path, screen_size) {
+            Ok(old) => old,
+            Err(err) => {
+                eprintln!("Failed to load pipeline:\n{}", err);
+                Pipeline::new()
+            }
         };
 
-        println!("\n{:?}\n", update);
-        self.pipelines.insert(path.clone(), update);
+        println!("\n{:#?}\n", update);
+        self.pipeline = update;
 
         let time = start_time.elapsed().as_secs_f64();
         println!("Build pipeline in {}ms", 1000.0 * time);
@@ -350,8 +335,7 @@ impl Jockey {
         let events_loop = &mut self.ctx.events_loop;
         let imgui = &mut self.ctx.imgui;
         let ui_window = self.ctx.ui_context.window();
-        let pipeline_name = &self.pipeline_files[self.pipeline_index];
-        let pipeline = &mut self.pipelines.get_mut(pipeline_name);
+        let pipeline = &mut self.pipeline;
 
         &mut self.midi.check_connections();
         &mut self.midi.handle_input();
@@ -375,11 +359,9 @@ impl Jockey {
                     }
                     match event {
                         glutin::WindowEvent::Resized(size) if window_id == main_id => {
-                            if let Some(pl) = pipeline {
-                                let width = size.width as u32;
-                                let height = size.height as u32;
-                                pl.resize_buffers(width, height);
-                            }
+                            let width = size.width as u32;
+                            let height = size.height as u32;
+                            pipeline.resize_buffers(width, height);
                         }
                         glutin::WindowEvent::CloseRequested => done = true,
                         glutin::WindowEvent::KeyboardInput { input, .. } => {
@@ -413,12 +395,6 @@ impl Jockey {
     /// them front to back. The only reason this function takes an `&mut self`
     /// is to record performance statistics.
     pub fn draw(&mut self) {
-        let pipeline_name = &self.pipeline_files[self.pipeline_index];
-        let pipeline = match self.pipelines.get_mut(pipeline_name) {
-            Some(s) => s,
-            None => return,
-        };
-
         take_mut::take(&mut self.ctx.context, |s| unsafe {
             s.make_current().unwrap()
         });
@@ -450,7 +426,7 @@ impl Jockey {
 
         // update audio samples texture
         let sample_name: &CString = &SAMPLES_NAME;
-        if let Some(samples_tex) = pipeline.buffers.get_mut(sample_name) {
+        if let Some(samples_tex) = self.pipeline.buffers.get_mut(sample_name) {
             let interlaced_samples = interlace(&self.audio.l_signal, &self.audio.r_signal);
             Rc::get_mut(samples_tex)
                 .unwrap()
@@ -461,7 +437,7 @@ impl Jockey {
         }
 
         let raw_spectrum_name: &CString = &RAW_SPECTRUM_NAME;
-        if let Some(raw_spectrum_tex) = pipeline.buffers.get_mut(raw_spectrum_name) {
+        if let Some(raw_spectrum_tex) = self.pipeline.buffers.get_mut(raw_spectrum_name) {
             let raw_spectrum = interlace(&self.audio.l_raw_spectrum, &self.audio.r_raw_spectrum);
             Rc::get_mut(raw_spectrum_tex)
                 .unwrap()
@@ -472,7 +448,7 @@ impl Jockey {
         }
 
         let spectrum_name: &CString = &SPECTRUM_NAME;
-        if let Some(spectrum_tex) = pipeline.buffers.get_mut(spectrum_name) {
+        if let Some(spectrum_tex) = self.pipeline.buffers.get_mut(spectrum_name) {
             let spectrum = interlace(&self.audio.l_spectrum, &self.audio.r_spectrum);
             Rc::get_mut(spectrum_tex)
                 .unwrap()
@@ -483,7 +459,7 @@ impl Jockey {
         }
 
         // render all shader stages
-        for (pass_num, stage) in pipeline.stages.iter_mut().enumerate() {
+        for (pass_num, stage) in self.pipeline.stages.iter_mut().enumerate() {
             let stage_start = Instant::now();
 
             // get size of the render target
@@ -557,7 +533,7 @@ impl Jockey {
 
                 // Add and bind uniform texture dependencies
                 for (k, name) in stage.deps.iter().enumerate() {
-                    let tex = pipeline.buffers.get(name).unwrap();
+                    let tex = self.pipeline.buffers.get(name).unwrap();
                     let loc = gl::GetUniformLocation(stage.prog_id, name.as_ptr());
 
                     gl::ActiveTexture(gl::TEXTURE0 + k as GLenum);
@@ -577,7 +553,7 @@ impl Jockey {
                 _ => unsafe {
                     // get render target id
                     let (target_tex, target_fb) = if let Some(name) = &stage.target {
-                        let tex = &pipeline.buffers[name];
+                        let tex = &self.pipeline.buffers[name];
 
                         if let Some(s) = tex.as_any().downcast_ref::<FrameBuffer>() {
                             (s.tex_id, s.fb_id)
@@ -801,19 +777,16 @@ impl Jockey {
                 .build();
 
             let mut stage_sum_ms = 0.0;
-            let pipeline_name = &self.pipeline_files[self.pipeline_index];
-            if let Some(pipeline) = self.pipelines.get(pipeline_name) {
-                for (k, stage) in pipeline.stages.iter().enumerate() {
-                    let stage_ms = stage.perf.get();
-                    stage_sum_ms += stage_ms;
-                    if let Some(tex_name) = stage.target.as_ref() {
-                        ui.text(format!(
-                            "Stage {}: {:.4} ms (-> {:?})",
-                            k, stage_ms, tex_name
-                        ));
-                    } else {
-                        ui.text(format!("Stage {}: {:.4} ms", k, stage_ms));
-                    }
+            for (k, stage) in self.pipeline.stages.iter().enumerate() {
+                let stage_ms = stage.perf.get();
+                stage_sum_ms += stage_ms;
+                if let Some(tex_name) = stage.target.as_ref() {
+                    ui.text(format!(
+                        "Stage {}: {:.4} ms (-> {:?})",
+                        k, stage_ms, tex_name
+                    ));
+                } else {
+                    ui.text(format!("Stage {}: {:.4} ms", k, stage_ms));
                 }
             }
 
