@@ -210,18 +210,6 @@ fn in_block(prefix: &str, start: &str, end: &str) -> bool {
     }
 }
 
-#[test]
-fn in_block_simple() {
-    assert!(in_block("aa ( bb", "(", ")"));
-    assert!(in_block("( aa ) bb (", "(", ")"));
-
-    assert!(!in_block("( aa ( bb )", "(", ")"));
-    assert!(!in_block("aa bb", "(", ")"));
-
-    assert!(in_block("(x)", "(x", "x)"));
-    assert!(!in_block("(xx)", "(x", "x)"));
-}
-
 pub fn preprocess(code: &str, file_name: &str) -> Result<String, String> {
     lazy_static! {
         // based on the "glsl-include" crate, which almost does what we want
@@ -246,33 +234,38 @@ pub fn preprocess(code: &str, file_name: &str) -> Result<String, String> {
             let postfix = recurse(&code[include.end()..], src_name, seen.clone())?;
 
             // respect comments
-            let file = if !in_block(prefix, "//", "\n") && !in_block(prefix, "/*", "*/") {
-                // detect include cycles
-                if !seen.insert(file_name.into()) {
-                    return Err(format!(
-                        "Cycle detected! File {} has been included further down the tree",
-                        file_name
-                    ));
-                }
+            if in_block(prefix, "//", "\n") || in_block(prefix, "/*", "*/") {
+                return Ok(format!("{}{}", &code[..include.end()], postfix));
+            }
 
-                // fetch file
-                let file = match std::fs::read_to_string(file_name) {
-                    Ok(s) => s,
-                    Err(e) => return Err(e.to_string()),
-                };
+            // detect include cycles
+            if !seen.insert(file_name.into()) {
+                return Err(format!(
+                    "Cycle detected! File {} has been included further down the tree",
+                    file_name
+                ));
+            }
 
-                // recursively process included file
-                recurse(&file, &file_name, seen)?
-            } else {
-                String::new()
+            // fetch file
+            #[cfg(not(test))]
+            let file = match std::fs::read_to_string(file_name) {
+                Ok(s) => s,
+                Err(e) => return Err(e.to_string()),
             };
+
+            // dummy for unit tests
+            #[cfg(test)]
+            let file = "int hoge = 0;\n";
+
+            // recursively process included file
+            let file = recurse(&file, &file_name, seen)?;
 
             Ok(format!(
                 "{}\n#line 0 \"{}\"\n{}\n#line {} \"{}\"\n{}",
                 prefix, file_name, file, leading_lines, src_name, postfix
             ))
         } else {
-            Ok(code.to_owned())
+            Ok(code.into())
         }
     }
 
@@ -312,6 +305,28 @@ mod test {
     use super::*;
 
     #[test]
+    fn in_block_simple() {
+        assert!(in_block("aa ( bb", "(", ")"));
+        assert!(in_block("( aa ) bb (", "(", ")"));
+
+        assert!(!in_block("( aa ( bb )", "(", ")"));
+        assert!(!in_block("aa bb", "(", ")"));
+    }
+
+    #[test]
+    fn in_block_overlap() {
+        assert!(in_block("(x)", "(x", "x)"));
+        assert!(in_block("(xx)", "(xx", "xx)"));
+        assert!(in_block("(xx)", "(xx", "x)"));
+        assert!(in_block("(xx)", "(x", "xx)"));
+        assert!(in_block("(xxx)", "(xx", "xx)"));
+
+        assert!(!in_block("(xx)", "(x", "x)"));
+        assert!(!in_block("(xxx)", "(xx", "x)"));
+        assert!(!in_block("(xxx)", "(x", "xx)"));
+    }
+
+    #[test]
     fn interlace_simple() {
         let first = &[1, 2, 3, 4];
         let second = &[5, 6, 7, 8];
@@ -345,6 +360,38 @@ mod test {
 
         assert_eq!(first, &[1, 3, 5]);
         assert_eq!(second, &[2, 4]);
+    }
+
+    #[test]
+    fn preprocess_line_number() {
+        let original = "#version 123\nmain(){}";
+        let expected = "#version 123\n#line 1 \"test\"\nmain(){}";
+        let result = preprocess(original, "test").unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn preprocess_include_simple() {
+        let original = "#version 123\n#pragma include \"foo.glsl\"\nmain(){}";
+        let expected = "#version 123\n#line 1 \"test\"\n\n#line 0 \"foo.glsl\"\nint hoge = 0;\n\n#line 1 \"test\"\n\nmain(){}";
+        let result = preprocess(original, "test").unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn preprocess_include_in_comment_single() {
+        let original = "#version 123\n//#pragma include \"foo.glsl\"\nmain(){}";
+        let expected = "#version 123\n#line 1 \"test\"\n//#pragma include \"foo.glsl\"\nmain(){}";
+        let result = preprocess(original, "test").unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn preprocess_include_in_comment_block() {
+        let original = "#version 123\n/*#pragma include \"foo.glsl\"*/\nmain(){}";
+        let expected = "#version 123\n#line 1 \"test\"\n/*#pragma include \"foo.glsl\"*/\nmain(){}";
+        let result = preprocess(original, "test").unwrap();
+        assert_eq!(result, expected);
     }
 }
 
