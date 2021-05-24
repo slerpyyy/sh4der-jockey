@@ -3,6 +3,9 @@ use image::io::Reader as ImageReader;
 use serde_yaml::Value;
 use std::{collections::HashMap, ffi::CString, path::Path, rc::Rc};
 
+// global texture cache
+static mut TEX_CACHE: Option<HashMap<String, Rc<dyn Texture>>> = None;
+
 /// The rendering pipeline struct
 ///
 /// This struct holds the structure of the rendering pipeline. Note that it
@@ -59,6 +62,13 @@ impl Pipeline {
         cache: &HashMap<CString, Rc<dyn Texture>>,
     ) -> Result<Self, String> {
         let mut buffers = HashMap::<CString, Rc<dyn Texture>>::new();
+
+        // init global texture cache
+        unsafe {
+            if TEX_CACHE.is_none() {
+                TEX_CACHE = Some(HashMap::new());
+            }
+        }
 
         // get fft texture size
         let fft_size = match object.get("fft_size") {
@@ -151,7 +161,8 @@ impl Pipeline {
                 ));
             }
 
-            let tex = match cache.get(&name) {
+            let cache_mut = unsafe { TEX_CACHE.as_mut().unwrap() };
+            let tex = match cache_mut.get(path) {
                 Some(cached_tex) => Rc::clone(cached_tex),
                 None => {
                     let dyn_image = ImageReader::open(path)
@@ -159,7 +170,9 @@ impl Pipeline {
                         .decode()
                         .expect(format!("Failed to decode image {:?} at {}", name, path).as_str());
 
-                    Rc::new(make_texture_from_image(dyn_image))
+                    let tex: Rc<dyn Texture> = Rc::new(make_texture_from_image(dyn_image));
+                    cache_mut.insert(path.clone(), Rc::clone(&tex));
+                    tex
                 }
             };
 
