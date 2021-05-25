@@ -58,6 +58,7 @@ pub struct Jockey {
     pub last_beat: Instant,
     pub last_build: Instant,
     pub last_frame: Instant,
+    pub last_frame_ui: Instant,
     pub midi: Midi,
     pub audio: Audio,
     pub pipeline_files: Vec<String>,
@@ -159,7 +160,6 @@ impl Jockey {
             gl::GenBuffers(1, &mut vbo);
         }
 
-        let last_build = Instant::now();
         let frame_perf = RunningAverage::new();
 
         #[rustfmt::skip]
@@ -188,17 +188,15 @@ impl Jockey {
         beat_delta.buffer.fill(1.0);
 
         let start_time = Instant::now();
-        let last_frame = start_time;
-        let last_beat = start_time;
-
         let mut this = Self {
             beat_delta,
             ctx,
             done: false,
             frame_perf,
-            last_beat,
-            last_build,
-            last_frame,
+            last_beat: start_time,
+            last_build: start_time,
+            last_frame: start_time,
+            last_frame_ui: start_time,
             midi,
             audio,
             pipeline_files: vec![],
@@ -406,6 +404,7 @@ impl Jockey {
             static ref RESOLUTION_NAME: CString = CString::new("resolution").unwrap();
             static ref PASS_INDEX_NAME: CString = CString::new("passIndex").unwrap();
             static ref TIME_NAME: CString = CString::new("time").unwrap();
+            static ref DELTA_NAME: CString = CString::new("delta").unwrap();
             static ref BEAT_NAME: CString = CString::new("beat").unwrap();
             static ref SLIDERS_NAME: CString = CString::new("sliders").unwrap();
             static ref BUTTONS_NAME: CString = CString::new("buttons").unwrap();
@@ -422,8 +421,11 @@ impl Jockey {
         // compute uniforms
         let screen_size = self.ctx.context.window().get_inner_size().unwrap();
         let (width, height) = (screen_size.width as u32, screen_size.height as u32);
-        let time = self.start_time.elapsed().as_secs_f32();
         let beat = self.last_beat.elapsed().as_secs_f32() / self.beat_delta.get();
+        let now = Instant::now();
+        let time = now.duration_since(self.start_time).as_secs_f32();
+        let delta = now.duration_since(self.last_frame).as_secs_f32();
+        self.last_frame = now;
 
         // update audio samples texture
         let sample_name: &CString = &SAMPLES_NAME;
@@ -481,6 +483,7 @@ impl Jockey {
                     let res_loc = gl::GetUniformLocation(stage.prog_id, RESOLUTION_NAME.as_ptr());
                     let pass_loc = gl::GetUniformLocation(stage.prog_id, PASS_INDEX_NAME.as_ptr());
                     let time_loc = gl::GetUniformLocation(stage.prog_id, TIME_NAME.as_ptr());
+                    let delta_loc = gl::GetUniformLocation(stage.prog_id, DELTA_NAME.as_ptr());
                     let beat_loc = gl::GetUniformLocation(stage.prog_id, BEAT_NAME.as_ptr());
                     let volume_loc = gl::GetUniformLocation(stage.prog_id, VOLUME_NAME.as_ptr());
 
@@ -502,6 +505,7 @@ impl Jockey {
                     gl::Uniform1i(pass_loc, pass_num as _);
                     gl::Uniform1f(time_loc, time);
                     gl::Uniform1f(beat_loc, beat);
+                    gl::Uniform1f(delta_loc, delta);
                     gl_debug_check!();
                 }
 
@@ -642,9 +646,9 @@ impl Jockey {
 
         // tell imgui what time it is
         let now = Instant::now();
-        let delta_time = (now - self.last_frame).as_secs_f32();
+        let delta_time = now.duration_since(self.last_frame_ui).as_secs_f32();
         io.delta_time = delta_time;
-        self.last_frame = now;
+        self.last_frame_ui = now;
 
         // record frame time
         self.frame_perf.push(1000.0 * delta_time);
