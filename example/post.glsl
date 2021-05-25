@@ -2,10 +2,6 @@
 
 out vec4 color;
 
-uniform vec3 R;
-uniform sampler2D distorted;
-uniform float sliders[8];
-
 #pragma include "common.glsl"
 
 void main() {

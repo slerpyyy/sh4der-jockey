@@ -2,7 +2,7 @@
 
 out vec4 color;
 
-uniform vec3 R;
+#pragma include "common.glsl"
 
 void main() {
     vec2 p = gl_FragCoord.xy / R.xy;

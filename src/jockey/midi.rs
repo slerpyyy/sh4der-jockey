@@ -5,13 +5,15 @@ use std::{
     time::Instant,
 };
 
-pub struct Midi<const N: usize> {
+pub const MIDI_N: usize = 32;
+
+pub struct Midi {
     pub conns: Vec<MidiInputConnection<()>>,
     pub queues: Vec<Receiver<[u8; 3]>>,
     pub last_button: [u8; 2],
     pub last_slider: [u8; 2],
-    pub sliders: [f32; N],
-    pub buttons: [(f32, Instant, Instant, u32); N],
+    pub sliders: [f32; MIDI_N],
+    pub buttons: [(f32, Instant, Instant, u32); MIDI_N],
     pub button_bindings: HashMap<[u8; 2], usize>,
     pub slider_bindings: HashMap<[u8; 2], usize>,
 }
@@ -23,14 +25,14 @@ pub enum MessageKind {
     ControlChange { channel: u8, key: u8, value: u8 },
 }
 
-impl<const N: usize> Midi<N> {
+impl Midi {
     pub fn new() -> Self {
         let conns = Vec::new();
         let queues = Vec::new();
         let last_button = [0, 0];
         let last_slider = [0, 0];
-        let sliders = [0.0; N];
-        let buttons = [(0f32, Instant::now(), Instant::now(), 0); N];
+        let sliders = [0.0; MIDI_N];
+        let buttons = [(0f32, Instant::now(), Instant::now(), 0); MIDI_N];
         let button_bindings = HashMap::new();
         let slider_bindings = HashMap::new();
 
@@ -197,13 +199,13 @@ impl<const N: usize> Midi<N> {
     }
 
     pub fn auto_bind_slider(&mut self, id: usize) {
-        if id < N {
+        if id < MIDI_N {
             self.slider_bindings.insert(self.last_slider, id);
         }
     }
 
     pub fn auto_bind_button(&mut self, id: usize) {
-        if id < N {
+        if id < MIDI_N {
             self.button_bindings.insert(self.last_button, id);
         }
     }

@@ -1,9 +1,9 @@
 stages:
-  - fs: "./scene.glsl"
+  - fs: "scene.glsl"
     mipmap: true
     target: "tex"
 
-  - fs: "./distort.glsl"
+  - fs: "distort.glsl"
     target: "distorted"
 
-  - fs: "./post.glsl"
+  - fs: "post.glsl"

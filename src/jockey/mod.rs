@@ -58,7 +58,7 @@ pub struct Jockey {
     pub last_beat: Instant,
     pub last_build: Instant,
     pub last_frame: Instant,
-    pub midi: Midi<32>,
+    pub midi: Midi,
     pub audio: Audio,
     pub pipeline_files: Vec<String>,
     pub pipeline_index: usize,
@@ -475,13 +475,14 @@ impl Jockey {
                 gl_debug_check!();
 
                 {
-                    // Add time, beat and resolution
+                    // Add time, beat, resolution and volume
                     let r_loc = gl::GetUniformLocation(stage.prog_id, R_NAME.as_ptr());
                     let k_loc = gl::GetUniformLocation(stage.prog_id, K_NAME.as_ptr());
                     let res_loc = gl::GetUniformLocation(stage.prog_id, RESOLUTION_NAME.as_ptr());
                     let pass_loc = gl::GetUniformLocation(stage.prog_id, PASS_INDEX_NAME.as_ptr());
                     let time_loc = gl::GetUniformLocation(stage.prog_id, TIME_NAME.as_ptr());
                     let beat_loc = gl::GetUniformLocation(stage.prog_id, BEAT_NAME.as_ptr());
+                    let volume_loc = gl::GetUniformLocation(stage.prog_id, VOLUME_NAME.as_ptr());
 
                     gl::Uniform4f(
                         res_loc,
@@ -491,21 +492,17 @@ impl Jockey {
                         target_res.1 as f32 / target_res.0 as f32, // y/x
                     );
                     gl::Uniform3f(r_loc, target_res.0 as _, target_res.1 as _, time);
-                    gl::Uniform1i(k_loc, pass_num as _);
-                    gl::Uniform1i(pass_loc, pass_num as _);
-                    gl::Uniform1f(time_loc, time);
-                    gl::Uniform1f(beat_loc, beat);
-                }
-
-                {
-                    let volume_loc = gl::GetUniformLocation(stage.prog_id, VOLUME_NAME.as_ptr());
-
                     gl::Uniform3f(
                         volume_loc,
                         self.audio.volume[0], // average L/R
                         self.audio.volume[1], // L
                         self.audio.volume[2], // R
                     );
+                    gl::Uniform1i(k_loc, pass_num as _);
+                    gl::Uniform1i(pass_loc, pass_num as _);
+                    gl::Uniform1f(time_loc, time);
+                    gl::Uniform1f(beat_loc, beat);
+                    gl_debug_check!();
                 }
 
                 {
@@ -513,7 +510,7 @@ impl Jockey {
                     let s_loc = gl::GetUniformLocation(stage.prog_id, SLIDERS_NAME.as_ptr());
                     let b_loc = gl::GetUniformLocation(stage.prog_id, BUTTONS_NAME.as_ptr());
 
-                    let mut buttons = [0.0; 4 * 32];
+                    let mut buttons = [0.0; 4 * MIDI_N];
                     for (k, button) in self.midi.buttons.iter().enumerate() {
                         buttons[k * 4 + 0] = button.0;
                         buttons[k * 4 + 1] = button.1.elapsed().as_secs_f32();
@@ -523,6 +520,7 @@ impl Jockey {
 
                     gl::Uniform1fv(s_loc, self.midi.sliders.len() as _, &self.midi.sliders as _);
                     gl::Uniform4fv(b_loc, self.midi.buttons.len() as _, &buttons as _);
+                    gl_debug_check!();
                 }
 
                 // Add vertex count uniform

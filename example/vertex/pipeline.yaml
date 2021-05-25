@@ -1,4 +1,5 @@
 stages:
   - vs: "./shader.vert"
     mode: "LINES"
+    line_width: 3
     count: 500
