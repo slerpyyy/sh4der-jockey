@@ -65,7 +65,7 @@ impl Pipeline {
 
         // get fft texture size
         let fft_size = match object.get("fft_size") {
-            None => 8192,
+            None => AUDIO_SAMPLES as _,
             Some(Value::Number(n)) => {
                 match n.as_u64() {
                     Some(n) if n.is_power_of_two() => n,

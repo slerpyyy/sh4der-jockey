@@ -546,7 +546,7 @@ impl Jockey {
             match &stage.kind {
                 StageKind::Comp { dispatch, .. } => unsafe {
                     gl::DispatchCompute(dispatch[0], dispatch[1], dispatch[2]);
-                    gl::MemoryBarrier(gl::SHADER_IMAGE_ACCESS_BARRIER_BIT);
+                    gl::MemoryBarrier(gl::TEXTURE_UPDATE_BARRIER_BIT);
                     gl_debug_check!();
                 },
                 _ => unsafe {

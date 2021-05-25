@@ -5,6 +5,8 @@ use num_complex::Complex;
 use rustfft::{Fft, FftPlanner};
 use std::sync::{Arc, Mutex};
 
+pub const AUDIO_SAMPLES: usize = 8192;
+
 pub enum Channels {
     None,
     Mono,
@@ -33,7 +35,7 @@ pub struct Audio {
 
 impl Audio {
     pub fn new() -> Self {
-        let size = 8192;
+        let size = AUDIO_SAMPLES;
         let spec_size = size / 2;
         let bands = 100;
 
