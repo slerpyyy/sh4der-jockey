@@ -62,6 +62,7 @@ impl Pipeline {
         cache: &HashMap<CString, Rc<dyn Texture>>,
     ) -> Result<Self, String> {
         let mut buffers = HashMap::<CString, Rc<dyn Texture>>::new();
+        yield_now().await;
 
         // init global texture cache
         Cache::init();
@@ -169,7 +170,6 @@ impl Pipeline {
             };
 
             buffers.insert(name, tex);
-
             yield_now().await;
         }
 
@@ -185,7 +185,6 @@ impl Pipeline {
         for pass in passes {
             let stage = Stage::from_yaml(pass)?;
             stages.push(stage);
-
             yield_now().await;
         }
 
@@ -227,7 +226,6 @@ impl Pipeline {
 
             // insert texture into hashmap
             buffers.insert(target.clone(), texture);
-
             yield_now().await;
         }
 
@@ -242,6 +240,8 @@ impl Pipeline {
                     stage.deps.push(tex_name.clone());
                 }
             }
+
+            yield_now().await;
         }
 
         Ok(Self { stages, buffers })

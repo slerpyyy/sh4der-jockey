@@ -3,13 +3,7 @@ use gl::types::*;
 use imgui::im_str;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 use lazy_static::lazy_static;
-use std::{
-    ffi::CString,
-    pin::Pin,
-    rc::Rc,
-    sync::atomic::{AtomicBool, Ordering},
-    time::Instant,
-};
+use std::{ffi::CString, pin::Pin, rc::Rc, sync::atomic::{AtomicBool, Ordering}, time::{Duration, Instant}};
 
 mod audio;
 mod midi;
@@ -329,8 +323,13 @@ impl Jockey {
         //println!("Build pipeline in {}ms", 1000.0 * time);
     }
 
-    fn update_pipeline_incremental(&mut self) {
+    fn update_pipeline_incremental(&mut self, timeout: Duration) {
+        let start = Instant::now();
         if let Some(part) = self.pipeline_partial.as_mut() {
+            if start.elapsed() > timeout {
+                return;
+            }
+
             if let Some(result) = futures::FutureExt::now_or_never(part) {
                 let update = match result {
                     Ok(old) => old,
@@ -422,7 +421,8 @@ impl Jockey {
             s.make_current().unwrap()
         });
 
-        self.update_pipeline_incremental();
+        // build pipeline a little
+        self.update_pipeline_incremental(Duration::from_micros(100));
 
         lazy_static! {
             static ref R_NAME: CString = CString::new("R").unwrap();
