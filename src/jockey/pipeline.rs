@@ -163,7 +163,7 @@ impl Pipeline {
             // fetch texture from global cache
             let tex = match Cache::fetch(path) {
                 Some(cached_tex) => cached_tex,
-                None => match Cache::load(path.clone()) {
+                None => match Cache::load(path.clone()).await {
                     Some(s) => s,
                     None => return Err(format!("Failed to load image {:?} at {:?}", name, path)),
                 },

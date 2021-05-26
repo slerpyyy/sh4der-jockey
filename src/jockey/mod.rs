@@ -422,7 +422,7 @@ impl Jockey {
         });
 
         // build pipeline a little
-        self.update_pipeline_incremental(Duration::from_micros(100));
+        self.update_pipeline_incremental(Duration::from_micros(50));
 
         lazy_static! {
             static ref R_NAME: CString = CString::new("R").unwrap();
