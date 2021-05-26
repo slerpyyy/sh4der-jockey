@@ -1,4 +1,5 @@
 use crate::{jockey::*, util::Cache};
+use async_std::task::yield_now;
 use serde_yaml::Value;
 use std::{collections::HashMap, ffi::CString, path::Path, rc::Rc};
 
@@ -21,11 +22,12 @@ impl Pipeline {
         }
     }
 
-    pub fn load(path: impl AsRef<Path>, screen_size: (u32, u32)) -> Result<Self, String> {
+    pub async fn load(path: impl AsRef<Path>, screen_size: (u32, u32)) -> Result<Self, String> {
         let empty_cache = HashMap::new();
-        Pipeline::from_file_with_cache(path, screen_size, &empty_cache)
+        Pipeline::from_file_with_cache(path, screen_size, &empty_cache).await
     }
 
+    /*
     #[allow(dead_code)]
     pub fn update(
         path: impl AsRef<Path>,
@@ -34,8 +36,9 @@ impl Pipeline {
     ) -> Result<Self, String> {
         Pipeline::from_file_with_cache(path, screen_size, &old.buffers)
     }
+    */
 
-    fn from_file_with_cache(
+    async fn from_file_with_cache(
         path: impl AsRef<Path>,
         screen_size: (u32, u32),
         cache: &HashMap<CString, Rc<dyn Texture>>,
@@ -50,10 +53,10 @@ impl Pipeline {
             Err(e) => return Err(e.to_string()),
         };
 
-        Pipeline::from_yaml_with_cache(object, screen_size, cache)
+        Pipeline::from_yaml_with_cache(object, screen_size, cache).await
     }
 
-    fn from_yaml_with_cache(
+    async fn from_yaml_with_cache(
         object: Value,
         screen_size: (u32, u32),
         cache: &HashMap<CString, Rc<dyn Texture>>,
@@ -125,6 +128,8 @@ impl Pipeline {
             buffers.insert(noise_name, noise);
         }
 
+        yield_now().await;
+
         // parse images section
         let images = match object.get("images") {
             Some(Value::Sequence(s)) => s.clone(),
@@ -164,6 +169,8 @@ impl Pipeline {
             };
 
             buffers.insert(name, tex);
+
+            yield_now().await;
         }
 
         // parse stages section
@@ -178,6 +185,8 @@ impl Pipeline {
         for pass in passes {
             let stage = Stage::from_yaml(pass)?;
             stages.push(stage);
+
+            yield_now().await;
         }
 
         // create render targets for stages
@@ -218,6 +227,8 @@ impl Pipeline {
 
             // insert texture into hashmap
             buffers.insert(target.clone(), texture);
+
+            yield_now().await;
         }
 
         // compute uniform dependencies

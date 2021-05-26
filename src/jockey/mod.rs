@@ -5,6 +5,7 @@ use imgui_winit_support::{HiDpiMode, WinitPlatform};
 use lazy_static::lazy_static;
 use std::{
     ffi::CString,
+    pin::Pin,
     rc::Rc,
     sync::atomic::{AtomicBool, Ordering},
     time::Instant,
@@ -64,6 +65,8 @@ pub struct Jockey {
     pub pipeline_files: Vec<String>,
     pub pipeline_index: usize,
     pub pipeline: Pipeline,
+    pub pipeline_partial:
+        Option<Pin<Box<dyn std::future::Future<Output = Result<Pipeline, String>>>>>,
     pub start_time: Instant,
 }
 
@@ -202,6 +205,7 @@ impl Jockey {
             pipeline_files: vec![],
             pipeline,
             pipeline_index: 0,
+            pipeline_partial: None,
             start_time,
         };
         gl_debug_check!();
@@ -279,7 +283,7 @@ impl Jockey {
     /// attempt to read and compile all necessary shaders. If everything loaded
     /// successfully, the new Pipeline struct will stomp the old one.
     pub fn update_pipeline(&mut self) {
-        let start_time = Instant::now();
+        //let start_time = Instant::now();
 
         // find pipeline files in working directory
         self.pipeline_files = std::fs::read_dir(".")
@@ -307,20 +311,40 @@ impl Jockey {
         let screen_size = self.ctx.context.window().get_inner_size().unwrap();
         let screen_size = (screen_size.width as u32, screen_size.height as u32);
 
+        self.pipeline_partial = Some(Box::pin(Pipeline::load(path.to_owned(), screen_size)));
+
         // build pipeline
-        let update = match Pipeline::load(path, screen_size) {
-            Ok(old) => old,
-            Err(err) => {
-                eprintln!("Failed to load pipeline:\n{}", err);
-                Pipeline::new()
+        //let update = match Pipeline::load(path, screen_size) {
+        //    Ok(old) => old,
+        //    Err(err) => {
+        //        eprintln!("Failed to load pipeline:\n{}", err);
+        //        Pipeline::new()
+        //    }
+        //};
+
+        //println!("\n{:#?}\n", update);
+        //self.pipeline = update;
+
+        //let time = start_time.elapsed().as_secs_f64();
+        //println!("Build pipeline in {}ms", 1000.0 * time);
+    }
+
+    fn update_pipeline_incremental(&mut self) {
+        if let Some(part) = self.pipeline_partial.as_mut() {
+            if let Some(result) = futures::FutureExt::now_or_never(part) {
+                let update = match result {
+                    Ok(old) => old,
+                    Err(err) => {
+                        eprintln!("Failed to load pipeline:\n{}", err);
+                        Pipeline::new()
+                    }
+                };
+
+                println!("\n{:?}\n", update);
+                self.pipeline = update;
+                self.pipeline_partial = None;
             }
-        };
-
-        println!("\n{:#?}\n", update);
-        self.pipeline = update;
-
-        let time = start_time.elapsed().as_secs_f64();
-        println!("Build pipeline in {}ms", 1000.0 * time);
+        }
     }
 
     pub fn handle_events(&mut self) {
@@ -397,6 +421,8 @@ impl Jockey {
         take_mut::take(&mut self.ctx.context, |s| unsafe {
             s.make_current().unwrap()
         });
+
+        self.update_pipeline_incremental();
 
         lazy_static! {
             static ref R_NAME: CString = CString::new("R").unwrap();
