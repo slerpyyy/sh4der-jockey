@@ -3,6 +3,7 @@ use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::Device;
 use num_complex::Complex;
 use rustfft::{Fft, FftPlanner};
+use std::cmp::Ordering;
 use std::sync::{Arc, Mutex};
 
 pub const AUDIO_SAMPLES: usize = 8192;
@@ -150,22 +151,18 @@ impl Audio {
     }
 
     pub fn update_samples(&mut self) {
-        let l_samples_p = self.l_samples.clone();
+        let l_samples_p = Arc::clone(&self.l_samples);
         let l_samples = l_samples_p.lock().unwrap();
         l_samples.copy_to_slice(&mut self.l_signal);
 
         // calculate volume with RMS
-        self.volume[1] = (self.l_signal.iter().fold(0f32, |acc, x| acc + x).powi(2)
-            / l_samples.size as f32)
-            .sqrt();
+        self.volume[1] = (self.l_signal.iter().map(|&x| x.powi(2)).sum::<f32>() / l_samples.size as f32).sqrt();
 
         if let Channels::Stereo = self.channels {
             let r_samples_p = self.r_samples.clone();
             let r_samples = r_samples_p.lock().unwrap();
             r_samples.copy_to_slice(&mut self.r_signal);
-            self.volume[2] = (self.l_signal.iter().fold(0f32, |acc, x| acc + x).powi(2)
-                / l_samples.size as f32)
-                .sqrt();
+            self.volume[2] = (self.l_signal.iter().map(|&x| x.powi(2)).sum::<f32>() / l_samples.size as f32).sqrt();
             self.volume[0] = (self.volume[1] + self.volume[2]) / 2f32;
         } else {
             self.volume[0] = self.volume[1];
@@ -194,9 +191,12 @@ impl Audio {
         let mut left_spectrum: Vec<_> = self.l_fft.iter().map(|z| z.norm_sqr()).collect();
         let mut right_spectrum: Vec<_> = self.r_fft.iter().map(|z| z.norm_sqr()).collect();
 
-        let cmp = |x: &&f32, y: &&f32| x.partial_cmp(y).unwrap();
-        let max_left = left_spectrum.iter().max_by(cmp).unwrap().clone();
-        let max_right = right_spectrum.iter().max_by(cmp).unwrap().clone();
+        debug_assert!(left_spectrum.iter().all(|f| f.is_finite()));
+        debug_assert!(right_spectrum.iter().all(|f| f.is_finite()));
+
+        let cmp = |x: &&f32, y: &&f32| x.partial_cmp(y).unwrap_or(Ordering::Equal);
+        let max_left = left_spectrum.iter().max_by(cmp).cloned().unwrap_or(0.0);
+        let max_right = right_spectrum.iter().max_by(cmp).cloned().unwrap_or(0.0);
         for i in 0..left_spectrum.len() {
             left_spectrum[i] /= max_left;
             right_spectrum[i] /= max_right;

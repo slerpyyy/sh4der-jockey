@@ -390,9 +390,9 @@ impl Jockey {
                             if Some(glutin::VirtualKeyCode::Return) == input.virtual_keycode {
                                 do_update_pipeline = true;
                             }
-                            if Some(glutin::VirtualKeyCode::Escape) == input.virtual_keycode {
-                                done = true;
-                            }
+                            //if Some(glutin::VirtualKeyCode::Escape) == input.virtual_keycode {
+                            //    done = true;
+                            //}
                         }
                         _ => (),
                     }
