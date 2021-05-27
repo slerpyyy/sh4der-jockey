@@ -10,7 +10,7 @@ use jockey::Jockey;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
-    let bin_name = args.get(0).unwrap();
+    let bin_name = args.get(0).map(|s| s.as_str()).unwrap_or("sh4der-jockey");
 
     let mut opts = Options::new();
     opts.optflag("h", "help", "print this help message");

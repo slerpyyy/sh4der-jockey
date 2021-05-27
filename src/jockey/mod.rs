@@ -334,7 +334,7 @@ impl Jockey {
                 let update = match result {
                     Ok(old) => old,
                     Err(err) => {
-                        eprintln!("Failed to load pipeline:\n{}", err);
+                        eprintln!("Failed to build pipeline:\n{}", err);
                         Pipeline::new()
                     }
                 };
@@ -342,6 +342,9 @@ impl Jockey {
                 println!("\n{:?}\n", update);
                 self.pipeline = update;
                 self.pipeline_partial = None;
+
+                let build_time = self.last_build.elapsed().as_secs_f64();
+                println!("Build pipeline over a span of {}s", build_time);
             }
         }
     }
@@ -422,7 +425,7 @@ impl Jockey {
         });
 
         // build pipeline a little
-        self.update_pipeline_incremental(Duration::from_micros(50));
+        self.update_pipeline_incremental(Duration::from_micros(100));
 
         lazy_static! {
             static ref R_NAME: CString = CString::new("R").unwrap();
