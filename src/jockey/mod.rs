@@ -3,7 +3,13 @@ use gl::types::*;
 use imgui::im_str;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 use lazy_static::lazy_static;
-use std::{ffi::CString, pin::Pin, rc::Rc, sync::atomic::{AtomicBool, Ordering}, time::{Duration, Instant}};
+use std::{
+    ffi::CString,
+    pin::Pin,
+    rc::Rc,
+    sync::atomic::{AtomicBool, Ordering},
+    time::{Duration, Instant},
+};
 
 mod audio;
 mod midi;
@@ -178,7 +184,7 @@ impl Jockey {
             platform,
         };
 
-        let pipeline = Pipeline::new();
+        let pipeline = Pipeline::splash_screen();
 
         let midi = Midi::new();
         let mut beat_delta = RunningAverage::new();
@@ -425,7 +431,7 @@ impl Jockey {
         });
 
         // build pipeline a little
-        self.update_pipeline_incremental(Duration::from_micros(100));
+        self.update_pipeline_incremental(Duration::from_micros(50));
 
         lazy_static! {
             static ref R_NAME: CString = CString::new("R").unwrap();

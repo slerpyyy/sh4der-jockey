@@ -22,6 +22,40 @@ impl Pipeline {
         }
     }
 
+    pub fn splash_screen() -> Self {
+        const SPLASH_VERT: &str = include_str!("shaders/splash.vert");
+
+        let sh_ids = vec![
+            compile_shader(SPLASH_VERT, gl::VERTEX_SHADER).unwrap(),
+            compile_shader(PASS_FRAG, gl::FRAGMENT_SHADER).unwrap(),
+        ];
+
+        let prog_id = link_program(&sh_ids).unwrap();
+
+        let stages = vec![Stage {
+            prog_id,
+            target: None,
+            kind: StageKind::Vert {
+                res: None,
+                count: 98,
+                mode: gl::LINES,
+                thickness: 5.0,
+            },
+            sh_ids,
+            deps: Vec::new(),
+            perf: RunningAverage::new(),
+            repeat: false,
+            linear: false,
+            mipmap: false,
+            float: false,
+        }];
+
+        Self {
+            stages,
+            buffers: HashMap::new(),
+        }
+    }
+
     pub async fn load(path: impl AsRef<Path>, screen_size: (u32, u32)) -> Result<Self, String> {
         let empty_cache = HashMap::new();
         Pipeline::from_file_with_cache(path, screen_size, &empty_cache).await
@@ -70,15 +104,15 @@ impl Pipeline {
         // get fft texture size
         let fft_size = match object.get("fft_size") {
             None => AUDIO_SAMPLES as _,
-            Some(Value::Number(n)) => {
-                match n.as_u64() {
-                    Some(n) if n.is_power_of_two() => n,
-                    _ => return Err(format!(
+            Some(Value::Number(n)) => match n.as_u64() {
+                Some(n) if n.is_power_of_two() => n,
+                _ => {
+                    return Err(format!(
                         "Expected \"fft_size\" to be a power of 2, got: {:?}",
                         n
-                    )),
+                    ))
                 }
-            }
+            },
             s => return Err(format!("Expected \"fft_size\" to be number, got: {:?}", s)),
         };
 

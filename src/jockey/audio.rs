@@ -156,13 +156,16 @@ impl Audio {
         l_samples.copy_to_slice(&mut self.l_signal);
 
         // calculate volume with RMS
-        self.volume[1] = (self.l_signal.iter().map(|&x| x.powi(2)).sum::<f32>() / l_samples.size as f32).sqrt();
+        self.volume[1] =
+            (self.l_signal.iter().map(|&x| x.powi(2)).sum::<f32>() / l_samples.size as f32).sqrt();
 
         if let Channels::Stereo = self.channels {
             let r_samples_p = self.r_samples.clone();
             let r_samples = r_samples_p.lock().unwrap();
             r_samples.copy_to_slice(&mut self.r_signal);
-            self.volume[2] = (self.l_signal.iter().map(|&x| x.powi(2)).sum::<f32>() / l_samples.size as f32).sqrt();
+            self.volume[2] = (self.l_signal.iter().map(|&x| x.powi(2)).sum::<f32>()
+                / l_samples.size as f32)
+                .sqrt();
             self.volume[0] = (self.volume[1] + self.volume[2]) / 2f32;
         } else {
             self.volume[0] = self.volume[1];

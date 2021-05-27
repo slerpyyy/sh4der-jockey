@@ -3,8 +3,8 @@ use gl::types::*;
 use serde_yaml::Value;
 use std::ffi::CString;
 
-const PASS_VERT: &str = include_str!("shaders/pass.vert");
-const PASS_FRAG: &str = include_str!("shaders/pass.frag");
+pub const PASS_VERT: &str = include_str!("shaders/pass.vert");
+pub const PASS_FRAG: &str = include_str!("shaders/pass.frag");
 
 #[derive(Debug)]
 pub enum StageKind {
