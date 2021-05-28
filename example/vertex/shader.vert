@@ -2,7 +2,7 @@
 
 out vec4 v_color;
 
-uniform float vertexCount;
+uniform int vertexCount;
 uniform vec3 R;
 
 const float pi = acos(-1.0);

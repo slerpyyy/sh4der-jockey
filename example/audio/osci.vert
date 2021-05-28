@@ -4,7 +4,7 @@ out vec4 v_color;
 
 uniform sampler1D samples;
 uniform vec4 resolution;
-uniform float vertexCount;
+uniform int vertexCount;
 
 const float PI = acos(-1.);
 const float TAU = 2. * PI;

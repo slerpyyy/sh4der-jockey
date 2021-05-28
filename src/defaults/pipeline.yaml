@@ -1,2 +1,2 @@
 stages:
-  - fs: "./scene.frag"
+  - fs: "scene.frag"

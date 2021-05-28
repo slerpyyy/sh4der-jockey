@@ -2,7 +2,7 @@
 
 out vec4 v_color;
 
-uniform float vertexCount;
+uniform int vertexCount;
 uniform float time;
 uniform float beat;
 uniform vec3 R;

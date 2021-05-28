@@ -565,7 +565,7 @@ impl Jockey {
                 // Add vertex count uniform
                 if let StageKind::Vert { count, .. } = stage.kind {
                     let loc = gl::GetUniformLocation(stage.prog_id, VERTEX_COUNT_NAME.as_ptr());
-                    gl::Uniform1f(loc, count as _);
+                    gl::Uniform1i(loc, count as _);
                     gl_debug_check!();
                 }
 
