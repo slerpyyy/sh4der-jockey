@@ -38,7 +38,7 @@ A fragment shader stage must contain the following fields
 ### Optional field
 
  - `target: String` Specifies the name of the render target.
- - `resolution: [Integer; 2]` Sets the size of the target framebuffer.
+ - `resolution: [Int; 2]` Sets the size of the target framebuffer.
  - `wrap: {clamp, repeat}` Sets the wrapping mode of the target.
  - `filter: {linear, nearest}` Sets the wrapping mode of the target.
  - `mipmap: Bool` Enables or disables mipmapping for the target.
@@ -46,9 +46,48 @@ A fragment shader stage must contain the following fields
 
 
 ## Vertex Shaders
+
+...
+
+### Required fields
+
+A fragment shader stage must contain the following fields
+
+ - `vs: Path` Specifies the file name of the vertex shader file.
+
+### Optional field
+
+ - `count: Int` Set the number of vertices to draw.
+ - `mode: {LINE_LOOP, LINE_STRIP, LINES, POINTS, TRIANGLE_FAN, TRIANGLE_STRIP, TRIANGLES}`
+ - `thickness: Float` The thickness with which to draw points and lines.
+ - `fs: Path` Specifies the file name of the fragment shader file.
+ - `target: String` Specifies the name of the render target.
+ - `resolution: [Int; 2]` Sets the size of the target framebuffer.
+ - `wrap: {clamp, repeat}` Sets the wrapping mode of the target.
+ - `filter: {linear, nearest}` Sets the wrapping mode of the target.
+ - `mipmap: Bool` Enables or disables mipmapping for the target.
+ - `float: Bool` Changes the way data is stored in the target.
+
 ## Compute Shaders
 
+...
+
+### Required fields
+
+A fragment shader stage must contain the following fields
+
+ - `cs: Path` Specifies the file name of the compute shader file.
+ - `dispatch: [Int; 1-3]` Sets the number of dispatches.
+ - `resolution: [Int; 1-3]` Sets the size of the target texture.
+
+### Optional field
+
+ - `fs: Path` Specifies the file name of the fragment shader file.
+ - `target: String` Specifies the name of the render target.
+
 ## Images
+
+...
 
 ## Uniforms
 
