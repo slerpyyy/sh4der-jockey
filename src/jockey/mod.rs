@@ -132,7 +132,7 @@ impl Jockey {
 
         // Set up winit for OpenGL stuff
         let context_builder = glutin::ContextBuilder::new()
-            .with_vsync(false)
+            .with_vsync(true)
             .with_gl(request);
         let window_builder = glutin::WindowBuilder::new()
             .with_dimensions(glutin::dpi::LogicalSize::new(1280.0, 720.0))
