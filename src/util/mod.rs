@@ -216,11 +216,11 @@ pub fn preprocess(code: &str, file_name: &str) -> Result<String, String> {
     lazy_static! {
         // based on the "glsl-include" crate, which almost does what we want
         static ref INCLUDE_RE: Regex = Regex::new(
-            r#"^\s*#\s*(pragma\s*)?include\s+[<"](?P<file>.*)[>"]"#
+            r#"#\s*(pragma\s*)?include\s+[<"](?P<file>.*)[>"]"#
         ).expect("failed to compile regex");
 
         static ref ONCE_RE: Regex = Regex::new(
-            r#"^\s*#\s*pragma\s+once"#
+            r#"#\s*pragma\s+once"#
         ).expect("failed to compile regex");
     }
 

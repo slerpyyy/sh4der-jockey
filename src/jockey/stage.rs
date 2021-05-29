@@ -102,44 +102,6 @@ impl Stage {
             _ => None,
         };
 
-        // get texture filtering mode
-        let repeat = match object.get("wrap").map(Value::as_str) {
-            Some(Some("clamp")) | None => false,
-            Some(Some("repeat")) => true,
-            Some(s) => {
-                return Err(format!(
-                    "Expected \"wrap\" to be either \"repeat\" or \"clamp\", got {:?}",
-                    s
-                ))
-            }
-        };
-
-        // get texture filtering mode
-        let linear = match object.get("filter").map(Value::as_str) {
-            Some(Some("linear")) | None => true,
-            Some(Some("nearest")) => false,
-            Some(s) => {
-                return Err(format!(
-                    "Expected \"filter\" to be either \"linear\" or \"nearest\", got {:?}",
-                    s
-                ))
-            }
-        };
-
-        // get mipmap flag
-        let mipmap = match object.get("mipmap").map(Value::as_bool) {
-            Some(Some(flag)) => flag,
-            None => false,
-            Some(s) => return Err(format!("Expected \"mipmap\" to be a bool, got {:?}", s)),
-        };
-
-        // get float format flag
-        let float = match object.get("float").map(Value::as_bool) {
-            Some(Some(flag)) => flag,
-            None => false,
-            Some(s) => return Err(format!("Expected \"float\" to be a bool, got {:?}", s)),
-        };
-
         // read all shaders to strings
         let shaders: [Option<(String, String)>; 3] = {
             let mut out = [None, None, None];
@@ -179,6 +141,8 @@ impl Stage {
                     None => None,
                     Some(_) => return Err("Expected \"resolution\" to be 2D".into()),
                 };
+
+                let [repeat, linear, mipmap, float] = parse_texture_options(object)?;
 
                 let kind = StageKind::Frag { res };
 
@@ -259,6 +223,8 @@ impl Stage {
                     None => None,
                     Some(_) => return Err("Expected \"resolution\" to be 2D".into()),
                 };
+
+                let [repeat, linear, mipmap, float] = parse_texture_options(object)?;
 
                 let kind = StageKind::Vert {
                     res,
@@ -345,6 +311,10 @@ impl Stage {
                     return Err("Field \"resolution\" is mandatory for compute shaders".into());
                 };
 
+                if target.is_none() {
+                    return Err("Field \"target\" is mandatory for compute shaders".into());
+                }
+
                 let kind = StageKind::Comp { dispatch, res };
 
                 Ok(Stage {
@@ -354,10 +324,10 @@ impl Stage {
                     sh_ids,
                     deps,
                     perf,
-                    repeat,
-                    linear,
-                    mipmap,
-                    float,
+                    repeat: false,
+                    linear: false,
+                    mipmap: false,
+                    float: false,
                 })
             }
 
@@ -397,4 +367,46 @@ impl Drop for Stage {
             gl::DeleteProgram(self.prog_id);
         }
     }
+}
+
+fn parse_texture_options(object: Value) -> Result<[bool; 4], String> {
+    // get texture filtering mode
+    let repeat = match object.get("wrap").map(Value::as_str) {
+        Some(Some("clamp")) | None => false,
+        Some(Some("repeat")) => true,
+        Some(s) => {
+            return Err(format!(
+                "Expected \"wrap\" to be either \"repeat\" or \"clamp\", got {:?}",
+                s
+            ))
+        }
+    };
+
+    // get texture filtering mode
+    let linear = match object.get("filter").map(Value::as_str) {
+        Some(Some("linear")) | None => true,
+        Some(Some("nearest")) => false,
+        Some(s) => {
+            return Err(format!(
+                "Expected \"filter\" to be either \"linear\" or \"nearest\", got {:?}",
+                s
+            ))
+        }
+    };
+
+    // get mipmap flag
+    let mipmap = match object.get("mipmap").map(Value::as_bool) {
+        Some(Some(flag)) => flag,
+        None => false,
+        Some(s) => return Err(format!("Expected \"mipmap\" to be a bool, got {:?}", s)),
+    };
+
+    // get float format flag
+    let float = match object.get("float").map(Value::as_bool) {
+        Some(Some(flag)) => flag,
+        None => false,
+        Some(s) => return Err(format!("Expected \"float\" to be a bool, got {:?}", s)),
+    };
+
+    Ok([repeat, linear, mipmap, float])
 }
