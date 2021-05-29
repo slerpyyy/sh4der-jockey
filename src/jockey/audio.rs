@@ -1,6 +1,5 @@
 use crate::util::RingBuffer;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use cpal::Device;
 use num_complex::Complex;
 use rustfft::{Fft, FftPlanner};
 use std::cmp::Ordering;
@@ -28,7 +27,7 @@ pub struct Audio {
     r_fft: Vec<Complex<f32>>,
     l_samples: Arc<Mutex<RingBuffer<f32>>>,
     r_samples: Arc<Mutex<RingBuffer<f32>>>,
-    _stream: Option<cpal::Stream>,
+    stream: Option<cpal::Stream>,
     channels: Channels,
     sample_freq: usize,
     fft: Arc<dyn Fft<f32>>,
@@ -57,38 +56,30 @@ impl Audio {
             r_spectrum: vec![0.0; bands],
             l_samples: Arc::new(Mutex::new(RingBuffer::new(size))),
             r_samples: Arc::new(Mutex::new(RingBuffer::new(size))),
-            _stream: None,
+            stream: None,
             channels: Channels::None,
             fft,
             sample_freq: 0,
         };
 
-        this.connect();
+        if let Err(err) = this.connect() {
+            eprintln!("Error connecting to audio input device: {}", err);
+        }
+
         this
     }
 
-    pub fn connect(&mut self) {
+    pub fn connect(&mut self) -> Result<(), String> {
         let host = cpal::default_host();
         println!("Available Hosts: {:?}", cpal::available_hosts());
-        let devices = host.input_devices();
-
-        let device = if let Ok(devices) = devices {
-            let devices: Vec<Device> = devices.collect();
-            let mut chosen_device = host.default_input_device().unwrap();
-            for device in devices {
-                let name = device.name().unwrap();
-                if name.matches("VoiceMeeter").count() != 0 {
-                    chosen_device = device;
-                }
-            }
-            chosen_device
-        } else {
-            host.default_input_device().unwrap()
+        let device = match host.default_input_device() {
+            Some(s) => s,
+            None => return Err("No input device is available".into()),
         };
 
         println!(
             "Connected to audio input device: {:?}",
-            device.name().unwrap()
+            device.name().unwrap_or("<no-name>".into())
         );
 
         let mut supported_configs_range = device
@@ -101,7 +92,11 @@ impl Audio {
 
         println!("Supported Config: {:?}", supported_config);
 
-        let config = device.default_input_config().unwrap().config();
+        let config = match device.default_input_config() {
+            Ok(s) => s,
+            Err(e) => return Err(e.to_string()),
+        }.config();
+
         let sample_format = supported_config.sample_format();
         println!("Creating with config: {:?}", config);
 
@@ -147,10 +142,15 @@ impl Audio {
         let sample_freq = config.sample_rate.0;
         self.sample_freq = sample_freq as _;
 
-        self._stream = Some(stream);
+        self.stream = Some(stream);
+        Ok(())
     }
 
     pub fn update_samples(&mut self) {
+        if self.stream.is_none() {
+            return;
+        }
+
         let l_samples_p = Arc::clone(&self.l_samples);
         let l_samples = l_samples_p.lock().unwrap();
         l_samples.copy_to_slice(&mut self.l_signal);
@@ -173,6 +173,10 @@ impl Audio {
     }
 
     pub fn update_fft(&mut self) {
+        if self.stream.is_none() {
+            return;
+        }
+
         let left: Vec<_> = self
             .l_signal
             .iter()
@@ -213,6 +217,10 @@ impl Audio {
     }
 
     fn update_nice_fft(&mut self) {
+        if self.stream.is_none() {
+            return;
+        }
+
         self.l_spectrum.fill(0f32);
         self.r_spectrum.fill(0f32);
 
