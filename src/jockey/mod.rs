@@ -69,6 +69,7 @@ pub struct Jockey {
     pub pipeline_partial: Option<Pin<Box<dyn Future<Output = Result<Pipeline, String>>>>>,
     pub time: f32,
     pub speed: f32,
+    pub time_range: (f32, f32),
 }
 
 impl std::fmt::Debug for Jockey {
@@ -207,6 +208,7 @@ impl Jockey {
             pipeline_partial: None,
             time: 0.0,
             speed: 1.0,
+            time_range: (0.0, 60.0),
         };
 
         this.ctx.context = unsafe { this.ctx.context.make_current().unwrap() };
@@ -700,15 +702,17 @@ impl Jockey {
         }
 
         if let Some(window) = imgui::Window::new(im_str!("Pipelines")).begin(&ui) {
-            if self.pipeline_files.is_empty() {
-                ui.text("No yaml file found");
-            } else {
-                for (k, file) in self.pipeline_files.iter().enumerate() {
-                    let cst = CString::new(file.as_bytes()).unwrap();
-                    let ims = unsafe { imgui::ImStr::from_cstr_unchecked(&cst) };
-                    if ui.button(ims, [256.0, 18.0]) {
-                        self.pipeline_index = k;
-                        unsafe { PIPELINE_STALE.store(true, Ordering::Relaxed) }
+            match self.pipeline_files.len() {
+                0 => ui.text("No yaml file found"),
+                1 => ui.text("Only one yaml file found"),
+                _ => {
+                    for (k, file) in self.pipeline_files.iter().enumerate() {
+                        let cst = CString::new(file.as_bytes()).unwrap();
+                        let ims = unsafe { imgui::ImStr::from_cstr_unchecked(&cst) };
+                        if ui.button(ims, [256.0, 18.0]) {
+                            self.pipeline_index = k;
+                            unsafe { PIPELINE_STALE.store(true, Ordering::Relaxed) }
+                        }
                     }
                 }
             }
@@ -731,8 +735,20 @@ impl Jockey {
                 self.time = 0.0;
             }
 
-            imgui::Slider::new(im_str!("time")).range(0.0..=60.0).build(&ui, &mut self.time);
-            imgui::Slider::new(im_str!("speed")).range(-2.0..=2.0).build(&ui, &mut self.speed);
+            let (start, end) = &mut self.time_range;
+            imgui::Slider::new(im_str!("time"))
+                .range(*start..=*end)
+                .build(&ui, &mut self.time);
+            imgui::Slider::new(im_str!("speed"))
+                .range(-2.0..=2.0)
+                .build(&ui, &mut self.speed);
+
+            ui.set_next_item_width(64.0);
+            ui.input_float(im_str!("start"), start).build();
+
+            ui.same_line(0.0);
+            ui.set_next_item_width(64.0);
+            ui.input_float(im_str!("end"), end).build();
 
             window.end(&ui);
         }
