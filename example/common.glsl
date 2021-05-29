@@ -1,7 +1,6 @@
 uniform vec3 R;
 
 uniform sampler2D tex;
-uniform sampler2D distorted;
 
 uniform float sliders[32];
 uniform vec4 buttons[32];
