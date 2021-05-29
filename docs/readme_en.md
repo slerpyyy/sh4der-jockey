@@ -7,6 +7,11 @@ First put the executable in a place where it is allowed to create new files. It 
 
 Then run the tool in your project folder with the `-i` flag. This will instruct the tool to set up a simple example project.
 
+
+## UI
+
+You can bind buttons and sliders to MIDI buttons and sliders by holding the `bind` button while moving the slider or hitting the button. The last note before the button is released will be bound to that button/slider.
+
 ## Pipeline
 
 Once the tools is starts, it looks for files ending in `.yaml` in the current working directory and treats these as pipeline files.
