@@ -15,6 +15,7 @@ pub struct Pipeline {
 }
 
 impl Pipeline {
+    #[allow(dead_code)]
     pub fn new() -> Self {
         Self {
             stages: Vec::new(),

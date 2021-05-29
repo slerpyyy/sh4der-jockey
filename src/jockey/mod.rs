@@ -322,17 +322,18 @@ impl Jockey {
             }
 
             if let Some(result) = futures::FutureExt::now_or_never(part) {
+                self.pipeline_partial = None;
+
                 let update = match result {
                     Ok(old) => old,
                     Err(err) => {
                         eprintln!("Failed to build pipeline:\n{}", err);
-                        Pipeline::new()
+                        return;
                     }
                 };
 
                 println!("\n{:?}\n", update);
                 self.pipeline = update;
-                self.pipeline_partial = None;
 
                 let build_time = self.last_build.elapsed().as_secs_f64();
                 println!("Build pipeline over a span of {}s", build_time);
