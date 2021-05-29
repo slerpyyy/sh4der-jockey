@@ -264,19 +264,12 @@ pub fn preprocess(code: &str, file_name: &str) -> Result<String, String> {
                     .unwrap()
                     .as_str();
 
-                let offset = code
-                    .char_indices()
-                    .filter(|(_, c)| c == &'\n')
-                    .map(|t| t.0)
-                    .nth(k.saturating_sub(1))
-                    .unwrap_or(0)
-                    + include.start()
-                    + 1;
+                // get line prefix
+                let offset = unsafe { include.as_str().as_ptr().offset_from(code.as_ptr()) };
+                let prefix = &code[..offset as usize];
 
                 // check for comments
-                let prefix = &code[..offset];
                 if !(in_block(prefix, "//", "\n") || in_block(prefix, "/*", "*/")) {
-
                     // fetch file
                     #[cfg(not(test))]
                     let file = match std::fs::read_to_string(file_name) {
@@ -289,7 +282,8 @@ pub fn preprocess(code: &str, file_name: &str) -> Result<String, String> {
                     let file = "#pragma once\nint hoge = 0;\n".to_string();
 
                     // recursively process file
-                    let mut file_lines = recurse(&file, file_name, cycle_seen.clone(), once_ignore)?;
+                    let mut file_lines =
+                        recurse(&file, file_name, cycle_seen.clone(), once_ignore)?;
                     lines.append(&mut file_lines);
 
                     // put line directive above next line
