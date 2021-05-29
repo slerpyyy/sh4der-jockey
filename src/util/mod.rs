@@ -1,10 +1,7 @@
 use gl::types::*;
 use lazy_static::lazy_static;
 use regex::Regex;
-use std::{
-    collections::HashSet,
-    ffi::{c_void, CString},
-};
+use std::{collections::HashSet, ffi::{c_void, CString}};
 
 mod average;
 mod cache;
@@ -218,9 +215,13 @@ pub fn preprocess(code: &str, file_name: &str) -> Result<String, String> {
         static ref INCLUDE_RE: Regex = Regex::new(
             r#"#\s*(pragma\s*)?include\s+[<"](?P<file>.*)[>"]"#
         ).expect("failed to compile regex");
+
+        static ref ONCE_RE: Regex = Regex::new(
+            r#"#\s*pragma\s+once"#
+        ).expect("failed to compile regex");
     }
 
-    fn recurse(code: &str, src_name: &str, mut seen: HashSet<String>) -> Result<String, String> {
+    fn recurse(code: &str, src_name: &str, mut cycle_seen: HashSet<String>, once_ignore: &mut HashSet<String>) -> Result<String, String> {
         let include_re: &Regex = &INCLUDE_RE;
         if let Some(include) = include_re.find(code) {
             let caps = include_re.captures(include.as_str()).unwrap();
@@ -231,17 +232,16 @@ pub fn preprocess(code: &str, file_name: &str) -> Result<String, String> {
                 .count()
                 .saturating_sub(1);
 
-            // compute substring before and after match
-            let prefix = &code[..include.start()];
-            let postfix = recurse(&code[include.end()..], src_name, seen.clone())?;
-
             // respect comments
+            let prefix = &code[..include.start()];
+            let level_cycle_seen = cycle_seen.clone();
             if in_block(prefix, "//", "\n") || in_block(prefix, "/*", "*/") {
+                let postfix = recurse(&code[include.end()..], src_name, level_cycle_seen, once_ignore)?;
                 return Ok(format!("{}{}", &code[..include.end()], postfix));
             }
 
             // detect include cycles
-            if !seen.insert(file_name.into()) {
+            if !cycle_seen.insert(file_name.into()) {
                 return Err(format!(
                     "Cycle detected! File {} has been included further down the tree",
                     file_name
@@ -257,10 +257,21 @@ pub fn preprocess(code: &str, file_name: &str) -> Result<String, String> {
 
             // dummy for unit tests
             #[cfg(test)]
-            let file = "int hoge = 0;\n";
+            let file = "#pragma once\nint hoge = 0;\n".to_string();
+
+            // check for pragma once
+            let once_re: &Regex = &ONCE_RE;
+            if once_re.find(&file).is_some() {
+                // return empty string if file name is in once_ignore
+                if !once_ignore.insert(file_name.into()) {
+                    let postfix = recurse(&code[include.end()..], src_name, level_cycle_seen, once_ignore)?;
+                    return Ok(format!("{}{}", prefix, postfix));
+                }
+            }
 
             // recursively process included file
-            let file = recurse(&file, &file_name, seen)?;
+            let file = recurse(&file, &file_name, cycle_seen, once_ignore)?;
+            let postfix = recurse(&code[include.end()..], src_name, level_cycle_seen, once_ignore)?;
 
             Ok(format!(
                 "{}\n#line 0 \"{}\"\n{}\n#line {} \"{}\"\n{}",
@@ -277,7 +288,8 @@ pub fn preprocess(code: &str, file_name: &str) -> Result<String, String> {
     let code = format!("{}\n#line 1 \"{}\"{}", prefix, file_name, postfix);
 
     // handle includes recursively
-    recurse(&code, file_name, HashSet::new())
+    let mut once_ignore = HashSet::new();
+    recurse(&code, file_name, HashSet::new(), &mut once_ignore)
 }
 
 pub fn interlace<T: Clone>(mut first: &[T], mut second: &[T]) -> Vec<T> {
@@ -375,7 +387,7 @@ mod test {
     #[test]
     fn preprocess_include_simple() {
         let original = "#version 123\n#pragma include \"foo.glsl\"\nmain(){}";
-        let expected = "#version 123\n#line 1 \"test\"\n\n#line 0 \"foo.glsl\"\nint hoge = 0;\n\n#line 1 \"test\"\n\nmain(){}";
+        let expected = "#version 123\n#line 1 \"test\"\n\n#line 0 \"foo.glsl\"\n#pragma once\nint hoge = 0;\n\n#line 1 \"test\"\n\nmain(){}";
         let result = preprocess(original, "test").unwrap();
         assert_eq!(result, expected);
     }
@@ -392,6 +404,14 @@ mod test {
     fn preprocess_include_in_comment_block() {
         let original = "#version 123\n/*#pragma include \"foo.glsl\"*/\nmain(){}";
         let expected = "#version 123\n#line 1 \"test\"\n/*#pragma include \"foo.glsl\"*/\nmain(){}";
+        let result = preprocess(original, "test").unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn preprocess_include_pragma_once() {
+        let original = "#version 123\n#pragma include \"foo.glsl\"\n#pragma include \"foo.glsl\"\nmain(){}";
+        let expected = "#version 123\n#line 1 \"test\"\n\n#line 0 \"foo.glsl\"\n#pragma once\nint hoge = 0;\n\n#line 1 \"test\"\n\n\nmain(){}";
         let result = preprocess(original, "test").unwrap();
         assert_eq!(result, expected);
     }
