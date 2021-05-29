@@ -24,10 +24,11 @@
 ステージは `fragment`, `vertex`, `vertex+fragment`, `compute`の種類があります。
 ```yaml
 stages:
-  - cs: "./particle_pos.comp"
+  - cs: "particle_pos.comp"
     target: "particle_pos"
     resolution: [10000, 200, 2]
     dispatch_size: [100, 200, 1]
+
   - vs: "draw_particle.vert"
     count: 8000000
     mode: LINES
@@ -38,9 +39,11 @@ stages:
     target: "render"
     float: true
     mipmap: true
-  - fs: "./post_process.frag"
+
+  - fs: "post_process.frag"
+
 images:
-  - path: "./images/image.png"
+  - path: "images/image.png"
     name: "some_image"
 ```
 
@@ -184,11 +187,7 @@ void main() {
  - `cs: Path` コンピュートシェーダーのglslファイルへの相対パス。
  - `dispatch: [Int; 1-3]` dispatchの数
  - `resolution: [Int; 1-3]` targetの解像度
-
-### 任意項目
-
  - `target: String` targetの名前。
-   - default: おそらくクラッシュしますが、運がよかったら画面に描画されるかもしれません。
    - 追記: コンピュートステージでは`imageND`のターゲットが生成されます。 `samplerND`として使えますが, mipmap等は有効化できません。
 
 ## 画像

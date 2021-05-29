@@ -7,7 +7,6 @@ First put the executable in a place where it is allowed to create new files. It 
 
 Then run the tool in your project folder with the `-i` flag. This will instruct the tool to set up a simple example project.
 
-
 ## UI
 
 You can bind buttons and sliders to MIDI buttons and sliders by holding the `bind` button while moving the slider or hitting the button. The last note before the button is released will be bound to that button/slider.
@@ -20,10 +19,11 @@ Below is an example pipeline file.
 You can have multiple pipelines in the working directory and choose from the Control Panel.
 ```yaml
 stages:
-  - cs: "./particle_pos.comp"
+  - cs: "particle_pos.comp"
     target: "particle_pos"
     resolution: [10000, 200, 2]
     dispatch_size: [100, 200, 1]
+
   - vs: "draw_particle.vert"
     count: 8000000
     mode: LINES
@@ -34,9 +34,11 @@ stages:
     target: "render"
     float: true
     mipmap: true
-  - fs: "./post_process.frag"
+
+  - fs: "post_process.frag"
+
 images:
-  - path: "./images/image.png"
+  - path: "images/image.png"
     name: "some_image"
 ```
 
@@ -178,11 +180,7 @@ A compute shader stage must contain the following fields
  - `cs: Path` Specifies the file name of the compute shader file.
  - `dispatch: [Int; 1-3]` Sets the number of dispatches.
  - `resolution: [Int; 1-3]` Sets the size of the target texture.
-
-### Optional field
-
  - `target: String` Specifies the name of the render target.
-   - default: probably will crash but might write to the screen framebuffer
    - note, this creates an `imageND` which is different from a `samplerND`.
 
 ## Images
