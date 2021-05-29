@@ -67,7 +67,8 @@ pub struct Jockey {
     pub pipeline_index: usize,
     pub pipeline: Pipeline,
     pub pipeline_partial: Option<Pin<Box<dyn Future<Output = Result<Pipeline, String>>>>>,
-    pub start_time: Instant,
+    pub time: f32,
+    pub speed: f32,
 }
 
 impl std::fmt::Debug for Jockey {
@@ -100,7 +101,7 @@ impl Jockey {
 
         // Setup for imgui
         let ui_window_builder = glutin::WindowBuilder::new()
-            .with_dimensions(glutin::dpi::LogicalSize::new(640.0, 640.0))
+            .with_dimensions(glutin::dpi::LogicalSize::new(720.0, 640.0))
             .with_resizable(true)
             .with_title("Control Panel");
         let ui_context_builder = glutin::ContextBuilder::new().with_vsync(true);
@@ -158,6 +159,7 @@ impl Jockey {
         unsafe {
             gl::GenVertexArrays(1, &mut vao);
             gl::GenBuffers(1, &mut vbo);
+            gl_debug_check!();
         }
 
         let frame_perf = RunningAverage::new();
@@ -187,25 +189,25 @@ impl Jockey {
         let mut beat_delta = RunningAverage::new();
         beat_delta.buffer.fill(1.0);
 
-        let start_time = Instant::now();
+        let now = Instant::now();
         let mut this = Self {
             beat_delta,
             ctx,
             done: false,
             frame_perf,
-            last_beat: start_time,
-            last_build: start_time,
-            last_frame: start_time,
-            last_frame_ui: start_time,
+            last_beat: now,
+            last_build: now,
+            last_frame: now,
+            last_frame_ui: now,
             midi,
             audio,
             pipeline_files: vec![],
             pipeline,
             pipeline_index: 0,
             pipeline_partial: None,
-            start_time,
+            time: 0.0,
+            speed: 1.0,
         };
-        gl_debug_check!();
 
         this.ctx.context = unsafe { this.ctx.context.make_current().unwrap() };
         this.update_pipeline();
@@ -453,8 +455,9 @@ impl Jockey {
         let (width, height) = (screen_size.width as u32, screen_size.height as u32);
         let beat = self.last_beat.elapsed().as_secs_f32() / self.beat_delta.get();
         let now = Instant::now();
-        let time = now.duration_since(self.start_time).as_secs_f32();
+        let time = self.time;
         let delta = now.duration_since(self.last_frame).as_secs_f32();
+        self.time += delta * self.speed;
         self.last_frame = now;
 
         // update audio samples texture
@@ -697,7 +700,9 @@ impl Jockey {
         }
 
         if let Some(window) = imgui::Window::new(im_str!("Pipelines")).begin(&ui) {
-            if !self.pipeline_files.is_empty() {
+            if self.pipeline_files.is_empty() {
+                ui.text("No yaml file found");
+            } else {
                 for (k, file) in self.pipeline_files.iter().enumerate() {
                     let cst = CString::new(file.as_bytes()).unwrap();
                     let ims = unsafe { imgui::ImStr::from_cstr_unchecked(&cst) };
@@ -706,9 +711,28 @@ impl Jockey {
                         unsafe { PIPELINE_STALE.store(true, Ordering::Relaxed) }
                     }
                 }
-            } else {
-                ui.text("No yaml file found");
             }
+
+            window.end(&ui);
+        }
+
+        if let Some(window) = imgui::Window::new(im_str!("Timeline")).begin(&ui) {
+            if ui.button(im_str!("Play"), [64.0, 18.0]) {
+                self.speed = 1.0;
+            }
+
+            ui.same_line(0.0);
+            if ui.button(im_str!("Stop"), [64.0, 18.0]) {
+                self.speed = 0.0;
+            }
+
+            ui.same_line(0.0);
+            if ui.button(im_str!("Reset"), [64.0, 18.0]) {
+                self.time = 0.0;
+            }
+
+            imgui::Slider::new(im_str!("time")).range(0.0..=60.0).build(&ui, &mut self.time);
+            imgui::Slider::new(im_str!("speed")).range(-2.0..=2.0).build(&ui, &mut self.speed);
 
             window.end(&ui);
         }
