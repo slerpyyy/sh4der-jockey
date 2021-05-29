@@ -151,9 +151,6 @@ impl Jockey {
         let prog_addr = |s| context.get_proc_address(s) as _;
         gl::load_with(prog_addr);
 
-        println!("Main Window ID: {:?}", context.window().id());
-        println!("UI Window ID: {:?}", ui_context.window().id());
-
         // setup OpenGL
         let mut vao = 0;
         let mut vbo = 0;
@@ -311,6 +308,7 @@ impl Jockey {
         let screen_size = self.ctx.context.window().get_inner_size().unwrap();
         let screen_size = (screen_size.width as u32, screen_size.height as u32);
 
+        println!("Start building pipeline");
         self.pipeline_partial = Some(Box::pin(Pipeline::load(path.to_owned(), screen_size)));
     }
 
@@ -323,17 +321,13 @@ impl Jockey {
 
             if let Some(result) = futures::FutureExt::now_or_never(part) {
                 self.pipeline_partial = None;
-
-                let update = match result {
+                self.pipeline = match result {
                     Ok(old) => old,
                     Err(err) => {
                         eprintln!("Failed to build pipeline:\n{}", err);
                         return;
                     }
                 };
-
-                println!("\n{:?}\n", update);
-                self.pipeline = update;
 
                 let build_time = self.last_build.elapsed().as_secs_f64();
                 println!("Build pipeline over a span of {}s", build_time);
@@ -688,7 +682,7 @@ impl Jockey {
         }
 
         if let Some(window) = imgui::Window::new(im_str!("Pipelines")).begin(&ui) {
-            if self.pipeline_files.len() > 1 {
+            if !self.pipeline_files.is_empty() {
                 for (k, file) in self.pipeline_files.iter().enumerate() {
                     let cst = CString::new(file.as_bytes()).unwrap();
                     let ims = unsafe { imgui::ImStr::from_cstr_unchecked(&cst) };
@@ -697,6 +691,8 @@ impl Jockey {
                         unsafe { PIPELINE_STALE.store(true, Ordering::Relaxed) }
                     }
                 }
+            } else {
+                ui.text("No yaml file found");
             }
 
             window.end(&ui);

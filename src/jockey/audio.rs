@@ -69,7 +69,7 @@ impl Audio {
 
     pub fn connect(&mut self) {
         let host = cpal::default_host();
-        println!("{:?}", cpal::available_hosts());
+        println!("Available Hosts: {:?}", cpal::available_hosts());
         let devices = host.input_devices();
 
         let device = if let Ok(devices) = devices {
