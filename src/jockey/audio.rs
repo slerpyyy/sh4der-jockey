@@ -72,31 +72,31 @@ impl Audio {
     pub fn connect(&mut self) -> Result<(), String> {
         let host = cpal::default_host();
         println!("Available Hosts: {:?}", cpal::available_hosts());
-        let device = match host.default_input_device() {
-            Some(s) => s,
-            None => return Err("No input device is available".into()),
-        };
+        let device = host
+            .default_input_device()
+            .ok_or("No input device is available".to_string())?;
 
         println!(
             "Connected to audio input device: {:?}",
             device.name().unwrap_or("<no-name>".into())
         );
 
-        let mut supported_configs_range = device
+        let supported_configs_range = device
             .supported_input_configs()
-            .expect("error while querying configs");
+            .map_err(|e| e.to_string())?;
+
         let supported_config = supported_configs_range
+            .filter(|c| c.sample_format() == cpal::SampleFormat::F32)
             .next()
-            .expect("no supported config?!")
+            .ok_or("no supported config?!".to_string())?
             .with_max_sample_rate();
 
         println!("Supported Config: {:?}", supported_config);
 
-        let config = match device.default_input_config() {
-            Ok(s) => s,
-            Err(e) => return Err(e.to_string()),
-        }
-        .config();
+        let config = device
+            .default_input_config()
+            .map_err(|e| e.to_string())?
+            .config();
 
         let sample_format = supported_config.sample_format();
         println!("Creating with config: {:?}", config);
@@ -135,11 +135,12 @@ impl Audio {
                     // react to errors here.
                     println!("{:?}", err);
                 })
-                .expect("Failed to initialize audio input stream"),
-            _ => todo!(),
+                .map_err(|_| "Failed to initialize audio input stream".to_string())?,
+            s => return Err(format!("Unsupported sample format {:?}", s)),
         };
 
-        stream.play().expect("Failed to play input stream");
+        stream.play().map_err(|e| e.to_string())?;
+
         let sample_freq = config.sample_rate.0;
         self.sample_freq = sample_freq as _;
 
