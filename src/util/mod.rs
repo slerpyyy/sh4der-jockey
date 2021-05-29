@@ -309,7 +309,18 @@ pub fn preprocess(code: &str, file_name: &str) -> Result<String, String> {
 
     // handle includes recursively
     let mut once_ignore = HashSet::new();
-    let lines = recurse(&code, file_name, HashSet::new(), &mut once_ignore)?;
+    let mut lines = recurse(&code, file_name, HashSet::new(), &mut once_ignore)?;
+
+    // insert extension requirement
+    if cfg!(not(test)) {
+        let ext = "#extension GL_GOOGLE_include_directive : enable".into();
+        lines.insert(lines.len().min(1), ext);
+        let ext = "#extension GL_GOOGLE_cpp_style_line_directive : enable".into();
+        lines.insert(lines.len().min(1), ext);
+        let ext = "#extension GL_ARB_shading_language_include : enable".into();
+        lines.insert(lines.len().min(1), ext);
+    }
+
     Ok(lines.join("\n"))
 }
 

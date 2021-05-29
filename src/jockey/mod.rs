@@ -5,6 +5,7 @@ use imgui_winit_support::{HiDpiMode, WinitPlatform};
 use lazy_static::lazy_static;
 use std::{
     ffi::CString,
+    future::Future,
     pin::Pin,
     rc::Rc,
     sync::atomic::{AtomicBool, Ordering},
@@ -65,8 +66,7 @@ pub struct Jockey {
     pub pipeline_files: Vec<String>,
     pub pipeline_index: usize,
     pub pipeline: Pipeline,
-    pub pipeline_partial:
-        Option<Pin<Box<dyn std::future::Future<Output = Result<Pipeline, String>>>>>,
+    pub pipeline_partial: Option<Pin<Box<dyn Future<Output = Result<Pipeline, String>>>>>,
     pub start_time: Instant,
 }
 
@@ -344,6 +344,7 @@ impl Jockey {
         let platform = &mut self.ctx.platform;
         let events_loop = &mut self.ctx.events_loop;
         let imgui = &mut self.ctx.imgui;
+        let window = self.ctx.context.window();
         let ui_window = self.ctx.ui_context.window();
         let pipeline = &mut self.pipeline;
 
@@ -369,19 +370,33 @@ impl Jockey {
                         platform.handle_event(imgui.io_mut(), ui_window, &e);
                     }
                     match event {
+                        glutin::WindowEvent::CloseRequested => done = true,
                         glutin::WindowEvent::Resized(size) if window_id == main_id => {
                             let width = size.width as u32;
                             let height = size.height as u32;
                             pipeline.resize_buffers(width, height);
                         }
-                        glutin::WindowEvent::CloseRequested => done = true,
                         glutin::WindowEvent::KeyboardInput { input, .. } => {
-                            if Some(glutin::VirtualKeyCode::Return) == input.virtual_keycode {
-                                do_update_pipeline = true;
+                            let glutin::ModifiersState {
+                                shift,
+                                ctrl,
+                                alt,
+                                logo,
+                            } = input.modifiers;
+
+                            if Some(glutin::VirtualKeyCode::Return) == input.virtual_keycode
+                                && input.state == glutin::ElementState::Pressed
+                            {
+                                if alt && !(shift || ctrl || logo) {
+                                    do_update_pipeline = true;
+                                }
+
+                                if ctrl && !(shift || alt || logo) && window.id() == window_id {
+                                    let primary = Some(window.get_primary_monitor());
+                                    let next = window.get_fullscreen().xor(primary);
+                                    window.set_fullscreen(next);
+                                }
                             }
-                            //if Some(glutin::VirtualKeyCode::Escape) == input.virtual_keycode {
-                            //    done = true;
-                            //}
                         }
                         _ => (),
                     }

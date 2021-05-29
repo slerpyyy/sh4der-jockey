@@ -95,7 +95,8 @@ impl Audio {
         let config = match device.default_input_config() {
             Ok(s) => s,
             Err(e) => return Err(e.to_string()),
-        }.config();
+        }
+        .config();
 
         let sample_format = supported_config.sample_format();
         println!("Creating with config: {:?}", config);
