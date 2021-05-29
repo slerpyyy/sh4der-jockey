@@ -312,21 +312,6 @@ impl Jockey {
         let screen_size = (screen_size.width as u32, screen_size.height as u32);
 
         self.pipeline_partial = Some(Box::pin(Pipeline::load(path.to_owned(), screen_size)));
-
-        // build pipeline
-        //let update = match Pipeline::load(path, screen_size) {
-        //    Ok(old) => old,
-        //    Err(err) => {
-        //        eprintln!("Failed to load pipeline:\n{}", err);
-        //        Pipeline::new()
-        //    }
-        //};
-
-        //println!("\n{:#?}\n", update);
-        //self.pipeline = update;
-
-        //let time = start_time.elapsed().as_secs_f64();
-        //println!("Build pipeline in {}ms", 1000.0 * time);
     }
 
     fn update_pipeline_incremental(&mut self, timeout: Duration) {

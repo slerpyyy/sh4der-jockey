@@ -300,8 +300,19 @@ impl Stage {
 
                         let mut out = [1; 3];
                         for (k, dim) in dims.iter().enumerate() {
-                            match dim.as_u64() {
-                                Some(n) if n > 0 => out[k] = n as _,
+                            match dim.as_i64() {
+                                Some(n) if n > 0 => {
+                                    // OpenGL must allow 65535 in each dimension
+                                    // https://www.khronos.org/opengl/wiki/Compute_Shader#Limitations
+                                    if n > 65535 {
+                                        return Err(format!(
+                                            "Values of \"dispatch_size\" may not exceed 65535 in any dimension, got {:?}",
+                                            n
+                                        ))
+                                    }
+
+                                    out[k] = n as _
+                                },
                                 _ => return Err(format!(
                                     "Expected \"dispatch_size\" to be a list of positive numbers, got {:?}",
                                     dims
