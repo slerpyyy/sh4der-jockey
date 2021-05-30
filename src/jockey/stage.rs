@@ -103,6 +103,7 @@ impl Stage {
         };
 
         // read all shaders to strings
+        let mut lut = Vec::new();
         let shaders: [Option<(String, String)>; 3] = {
             let mut out = [None, None, None];
             for (k, &name) in ["vs", "fs", "cs"].iter().enumerate() {
@@ -128,10 +129,12 @@ impl Stage {
             // handle full screen fragment shader stages
             [None, Some(fs), None] => {
                 let vs = PASS_VERT;
-                let fs = preprocess(&fs.0, &fs.1)?;
+                let fs = preprocess(&fs.0, &fs.1, &mut lut)?;
 
-                let vs_id = compile_shader(&vs, gl::VERTEX_SHADER)?;
-                let fs_id = compile_shader(&fs, gl::FRAGMENT_SHADER)?;
+                let vs_id =
+                    compile_shader(&vs, gl::VERTEX_SHADER).map_err(|e| process_error(e, &lut))?;
+                let fs_id =
+                    compile_shader(&fs, gl::FRAGMENT_SHADER).map_err(|e| process_error(e, &lut))?;
 
                 let sh_ids = vec![vs_id, fs_id];
                 let prog_id = link_program(&sh_ids)?;
@@ -162,14 +165,16 @@ impl Stage {
 
             // handle vertex shader stages
             [Some(vs), fs_opt, None] => {
-                let vs = preprocess(&vs.0, &vs.1)?;
+                let vs = preprocess(&vs.0, &vs.1, &mut lut)?;
                 let fs = match fs_opt {
-                    Some(fs) => preprocess(&fs.0, &fs.1)?,
+                    Some(fs) => preprocess(&fs.0, &fs.1, &mut lut)?,
                     None => PASS_FRAG.into(),
                 };
 
-                let vs_id = compile_shader(&vs, gl::VERTEX_SHADER)?;
-                let fs_id = compile_shader(&fs, gl::FRAGMENT_SHADER)?;
+                let vs_id =
+                    compile_shader(&vs, gl::VERTEX_SHADER).map_err(|e| process_error(e, &lut))?;
+                let fs_id =
+                    compile_shader(&fs, gl::FRAGMENT_SHADER).map_err(|e| process_error(e, &lut))?;
 
                 let sh_ids = vec![vs_id, fs_id];
                 let prog_id = link_program(&sh_ids)?;
@@ -249,7 +254,12 @@ impl Stage {
 
             // handle compute shader stages
             [None, None, Some(cs)] => {
-                let cs = preprocess(&cs.0, &cs.1)?;
+                let cs = preprocess(&cs.0, &cs.1, &mut lut)?;
+
+                let cs_id =
+                    compile_shader(&cs, gl::COMPUTE_SHADER).map_err(|e| process_error(e, &lut))?;
+                let sh_ids = vec![cs_id];
+                let prog_id = link_program(&sh_ids)?;
 
                 // get target resolution
                 let dispatch = match object
@@ -300,10 +310,6 @@ impl Stage {
                         )
                     }
                 };
-
-                let cs_id = compile_shader(&cs, gl::COMPUTE_SHADER)?;
-                let sh_ids = vec![cs_id];
-                let prog_id = link_program(&sh_ids)?;
 
                 let res = if let Some(vec) = res {
                     vec

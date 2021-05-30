@@ -212,7 +212,20 @@ fn in_block(prefix: &str, start: &str, end: &str) -> bool {
     }
 }
 
-pub fn preprocess(code: &str, file_name: &str) -> Result<String, String> {
+pub fn process_error(mut err: String, lut: &[String]) -> String {
+    for (k, file) in lut.iter().enumerate() {
+        let key = format!("{}", k + 101);
+        err = err.replace(key.as_str(), file);
+    }
+
+    err
+}
+
+pub fn preprocess(
+    code: &str,
+    file_name: &str,
+    file_name_lut: &mut Vec<String>,
+) -> Result<String, String> {
     lazy_static! {
         // based on the "glsl-include" crate, which almost does what we want
         static ref INCLUDE_RE: Regex = Regex::new(
@@ -229,9 +242,24 @@ pub fn preprocess(code: &str, file_name: &str) -> Result<String, String> {
         src_name: &str,
         mut cycle_seen: HashSet<String>,
         once_ignore: &mut HashSet<String>,
+        lut: &mut Vec<String>,
     ) -> Result<Vec<String>, String> {
         let mut lines = Vec::<String>::new();
         let mut need_ln = true;
+
+        // register file name
+        let file_id = match lut.iter().position(|s| s == src_name) {
+            Some(id) => id,
+            None => {
+                let index = lut.len();
+                lut.push(src_name.into());
+                index
+            }
+        };
+
+        // offset file id
+        #[cfg(not(test))]
+        let file_id = file_id + 101;
 
         // respect pragma once
         let once_re: &Regex = &ONCE_RE;
@@ -283,7 +311,7 @@ pub fn preprocess(code: &str, file_name: &str) -> Result<String, String> {
 
                     // recursively process file
                     let mut file_lines =
-                        recurse(&file, file_name, cycle_seen.clone(), once_ignore)?;
+                        recurse(&file, file_name, cycle_seen.clone(), once_ignore, lut)?;
                     lines.append(&mut file_lines);
 
                     // put line directive above next line
@@ -296,7 +324,7 @@ pub fn preprocess(code: &str, file_name: &str) -> Result<String, String> {
 
             // add line directive
             if need_ln && !line.starts_with("#version") {
-                lines.push(format!("#line {} \"{}\"", k, src_name));
+                lines.push(format!("#line {} {}", k, file_id));
                 need_ln = false;
             }
 
@@ -309,18 +337,14 @@ pub fn preprocess(code: &str, file_name: &str) -> Result<String, String> {
 
     // handle includes recursively
     let mut once_ignore = HashSet::new();
-    let mut lines = recurse(&code, file_name, HashSet::new(), &mut once_ignore)?;
-
-    // insert extension requirement
-    if cfg!(not(test)) {
-        let ext = "#extension GL_GOOGLE_include_directive : enable".into();
-        lines.insert(lines.len().min(1), ext);
-        let ext = "#extension GL_GOOGLE_cpp_style_line_directive : enable".into();
-        lines.insert(lines.len().min(1), ext);
-        let ext = "#extension GL_ARB_shading_language_include : enable".into();
-        lines.insert(lines.len().min(1), ext);
-    }
-
+    let lines = recurse(
+        &code,
+        file_name,
+        HashSet::new(),
+        &mut once_ignore,
+        file_name_lut,
+    )?;
+    dbg!(&lines);
     Ok(lines.join("\n"))
 }
 
@@ -411,32 +435,36 @@ mod test {
     #[test]
     fn preprocess_line_number() {
         let original = "#version 123\nmain(){}";
-        let expected = "#version 123\n#line 1 \"test\"\nmain(){}";
-        let result = preprocess(original, "test").unwrap();
+        let expected = "#version 123\n#line 1 0\nmain(){}";
+        let mut lut = Vec::new();
+        let result = preprocess(original, "test", &mut lut).unwrap();
         assert_eq!(result, expected);
     }
 
     #[test]
     fn preprocess_include_simple() {
         let original = "#version 123\n#pragma include \"foo.glsl\"\nmain(){}";
-        let expected = "#version 123\n#line 0 \"foo.glsl\"\n#pragma once\nint hoge = 0;\n#line 2 \"test\"\nmain(){}";
-        let result = preprocess(original, "test").unwrap();
+        let expected = "#version 123\n#line 0 1\n#pragma once\nint hoge = 0;\n#line 2 0\nmain(){}";
+        let mut lut = Vec::new();
+        let result = preprocess(original, "test", &mut lut).unwrap();
         assert_eq!(result, expected);
     }
 
     #[test]
     fn preprocess_include_in_comment_single() {
         let original = "#version 123\n//#pragma include \"foo.glsl\"\nmain(){}";
-        let expected = "#version 123\n#line 1 \"test\"\n//#pragma include \"foo.glsl\"\nmain(){}";
-        let result = preprocess(original, "test").unwrap();
+        let expected = "#version 123\n#line 1 0\n//#pragma include \"foo.glsl\"\nmain(){}";
+        let mut lut = Vec::new();
+        let result = preprocess(original, "test", &mut lut).unwrap();
         assert_eq!(result, expected);
     }
 
     #[test]
     fn preprocess_include_in_comment_block() {
         let original = "#version 123\n/*#pragma include \"foo.glsl\"*/\nmain(){}";
-        let expected = "#version 123\n#line 1 \"test\"\n/*#pragma include \"foo.glsl\"*/\nmain(){}";
-        let result = preprocess(original, "test").unwrap();
+        let expected = "#version 123\n#line 1 0\n/*#pragma include \"foo.glsl\"*/\nmain(){}";
+        let mut lut = Vec::new();
+        let result = preprocess(original, "test", &mut lut).unwrap();
         assert_eq!(result, expected);
     }
 
@@ -444,8 +472,9 @@ mod test {
     fn preprocess_include_pragma_once() {
         let original =
             "#version 123\n#pragma include \"foo.glsl\"\n#pragma include \"foo.glsl\"\nmain(){}";
-        let expected = "#version 123\n#line 0 \"foo.glsl\"\n#pragma once\nint hoge = 0;\n#line 3 \"test\"\nmain(){}";
-        let result = preprocess(original, "test").unwrap();
+        let expected = "#version 123\n#line 0 1\n#pragma once\nint hoge = 0;\n#line 3 0\nmain(){}";
+        let mut lut = Vec::new();
+        let result = preprocess(original, "test", &mut lut).unwrap();
         assert_eq!(result, expected);
     }
 }
