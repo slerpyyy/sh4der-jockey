@@ -5,7 +5,7 @@ out vec4 color;
 #pragma include "common.glsl"
 
 void main() {
-    vec2 uv = gl_FragCoord.xy / R.xy;
+    vec2 uv = gl_FragCoord.xy / resolution.xy;
 
     vec4 acc = vec4(0);
     const int iter = 40;

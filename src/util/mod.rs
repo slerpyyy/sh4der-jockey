@@ -344,7 +344,6 @@ pub fn preprocess(
         &mut once_ignore,
         file_name_lut,
     )?;
-    dbg!(&lines);
     Ok(lines.join("\n"))
 }
 

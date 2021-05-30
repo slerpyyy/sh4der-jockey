@@ -1,13 +1,13 @@
 stages:
-  - vs: "./osci.vert"
+  - vs: "osci.vert"
     mode: "LINE_LOOP"
     count: 48000
-    target: "lines"
+    target: "osci"
 
-  - vs: "./fft.vert"
+  - vs: "fft.vert"
     mode: "LINE_LOOP"
     count: 1000
-    target: "fft"
+    target: "ring"
     thickness: 2
 
-  - fs: "./scene.frag"
+  - fs: "scene.frag"

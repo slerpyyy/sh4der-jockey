@@ -2,12 +2,10 @@
 
 out vec4 color;
 
-uniform vec3 R;
-uniform float time;
+uniform vec4 resolution;
 uniform sampler2D img_output;
 
 void main() {
-    vec2 p = gl_FragCoord.xy / R.xy;
-
-    color = texture2D(img_output, p);
+    vec2 uv = gl_FragCoord.xy / resolution.xy;
+    color = texture2D(img_output, uv);
 }

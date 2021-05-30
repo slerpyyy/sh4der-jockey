@@ -5,8 +5,8 @@ out vec4 color;
 #pragma include "common.glsl"
 
 void main() {
-    vec2 p = gl_FragCoord.xy / R.xy;
-    float t = R.z;
+    vec2 p = gl_FragCoord.xy / resolution.xy;
+    float t = time;
 
     for(int i=0; i<12; i++) {
         float cut = 0.5 + 0.2 * sin(t);

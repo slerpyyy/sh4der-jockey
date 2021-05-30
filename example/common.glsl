@@ -1,4 +1,7 @@
-uniform vec3 R;
+#pragma once
+
+uniform vec4 resolution;
+uniform float time;
 
 uniform sampler2D tex;
 
