@@ -1,12 +1,12 @@
 [package]
 name = "sh4der-jockey"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2018"
 build = "build.rs"
 
-#[profile.release]
-#lto = true
-#codegen-units = 1
+[profile.release]
+lto = true
+codegen-units = 1
 #panic = "abort"
 
 [dependencies]
