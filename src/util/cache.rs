@@ -47,6 +47,7 @@ impl Cache {
         Self::internal().get(path).map(|s| Rc::clone(&s.tex))
     }
 
+    #[deprecated]
     pub async fn load(path: String) -> Option<Rc<dyn Texture>> {
         let reader = image::io::Reader::open(&path).ok()?;
         async_std::task::yield_now().await;

@@ -200,15 +200,15 @@ impl Pipeline {
         };
 
         // parse images
-        for image in images {
-            let path = match image.get("path") {
+        for object in images {
+            let path = match object.get("path") {
                 Some(Value::String(s)) => s,
                 s => {
                     return Err(format!("Expected \"path\" to be a string, got {:?}", s));
                 }
             };
 
-            let name = match image.get("name") {
+            let name = match object.get("name") {
                 Some(Value::String(s)) => CString::new(s.as_str()).unwrap(),
                 s => return Err(format!("Expected \"name\" to be a string, got {:?}", s)),
             };
@@ -224,10 +224,27 @@ impl Pipeline {
             // fetch texture from global cache
             let tex = match Cache::fetch(path) {
                 Some(cached_tex) => cached_tex,
-                None => match Cache::load(path.clone()).await {
-                    Some(s) => s,
-                    None => return Err(format!("Failed to load image {:?} at {:?}", name, path)),
-                },
+                None => {
+                    let reader = image::io::Reader::open(&path)
+                        .map_err(|_| format!("Failed to open image {:?} at {:?}", name, path))?;
+                    async_std::task::yield_now().await;
+
+                    let dyn_image = reader
+                        .decode()
+                        .map_err(|_| format!("Failed to decode image {:?} at {:?}", name, path))?;
+                    async_std::task::yield_now().await;
+
+                    let image = dyn_image.flipv().to_rgba8();
+                    async_std::task::yield_now().await;
+
+                    let mut builder = TextureBuilder::parse(&object, false, false)?;
+                    builder.resolution = vec![image.width(), image.height()];
+                    let tex = builder.build_texture_with_data(image.as_raw().as_ptr() as _);
+                    async_std::task::yield_now().await;
+
+                    Cache::store(path.clone(), Rc::clone(&tex));
+                    tex
+                }
             };
 
             buffers.insert(name, tex);

@@ -617,6 +617,7 @@ pub fn make_noise() -> Texture3D {
     tex
 }
 
+#[deprecated]
 pub fn make_texture_from_image(dyn_image: DynamicImage) -> Texture2D {
     let image = dyn_image.flipv().to_rgba8();
     let tex = Texture2D::with_params(

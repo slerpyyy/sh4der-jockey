@@ -263,9 +263,7 @@ impl Stage {
                     return Err("Field \"target\" is mandatory for compute shaders".into());
                 }
 
-                let kind = StageKind::Comp {
-                    dispatch,
-                };
+                let kind = StageKind::Comp { dispatch };
 
                 Ok(Stage {
                     prog_id,
