@@ -4,6 +4,7 @@ use crate::*;
 use as_any::AsAny;
 use core::panic;
 use image::DynamicImage;
+use serde_yaml::Value;
 use std::{fmt::Debug, rc::Rc, u8};
 
 fn _assert_is_object_safe(_: &dyn Texture) {}
@@ -35,14 +36,23 @@ impl Texture for FrameBuffer {
 
 impl FrameBuffer {
     pub fn new(width: u32, height: u32) -> Self {
-        Self::with_params(width, height, false, true, true, true)
+        Self::with_more_params(
+            width,
+            height,
+            gl::NEAREST,
+            gl::NEAREST,
+            gl::CLAMP_TO_EDGE,
+            false,
+            false,
+        )
     }
 
-    pub fn with_params(
+    pub fn with_more_params(
         width: u32,
         height: u32,
-        repeat: bool,
-        linear: bool,
+        min_filter: GLenum,
+        mag_filter: GLenum,
+        wrap_mode: GLenum,
         mipmap: bool,
         float: bool,
     ) -> Self {
@@ -62,24 +72,12 @@ impl FrameBuffer {
             gl::BindFramebuffer(gl::FRAMEBUFFER, fb_id);
             gl_debug_check!();
 
-            let (mag, min) = match (linear, mipmap) {
-                (false, false) => (gl::NEAREST, gl::NEAREST),
-                (false, true) => (gl::NEAREST, gl::NEAREST_MIPMAP_NEAREST),
-                (true, false) => (gl::LINEAR, gl::LINEAR),
-                (true, true) => (gl::LINEAR, gl::LINEAR_MIPMAP_LINEAR),
-            };
-
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, min as _);
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, mag as _);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, min_filter as _);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, mag_filter as _);
             gl_debug_check!();
 
-            let wrap = match repeat {
-                true => gl::REPEAT,
-                false => gl::CLAMP_TO_EDGE,
-            };
-
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, wrap as _);
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, wrap as _);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, wrap_mode as _);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, wrap_mode as _);
             gl_debug_check!();
 
             let (internal_format, type_) = match float {
@@ -100,7 +98,10 @@ impl FrameBuffer {
             );
             gl_debug_check!();
 
-            gl::GenerateMipmap(gl::TEXTURE_2D);
+            if mipmap {
+                gl::GenerateMipmap(gl::TEXTURE_2D);
+            }
+
             gl::FramebufferTexture2D(
                 gl::FRAMEBUFFER,
                 gl::COLOR_ATTACHMENT0,
@@ -129,6 +130,241 @@ impl Drop for FrameBuffer {
         unsafe {
             gl::DeleteTextures(1, &self.tex_id);
             gl::DeleteFramebuffers(1, &self.fb_id);
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct TextureBuilder {
+    pub resolution: Vec<u32>,
+    pub min_filter: GLenum,
+    pub mag_filter: GLenum,
+    pub wrap_mode: GLenum,
+    pub channels: u8,
+    pub float: bool,
+    pub mipmap: bool,
+}
+
+impl TextureBuilder {
+    pub fn new() -> Self {
+        Self {
+            resolution: Vec::new(),
+            min_filter: gl::NEAREST,
+            mag_filter: gl::NEAREST,
+            wrap_mode: gl::CLAMP_TO_EDGE,
+            channels: 4,
+            float: false,
+            mipmap: false,
+        }
+    }
+
+    pub fn parse(object: &Value, support_res: bool, support_mipmap: bool) -> Result<Self, String> {
+        // get target resolution
+        let resolution = match object
+            .get("size")
+            .or_else(|| object.get("res"))
+            .or_else(|| object.get("resolution"))
+            .filter(|_| support_res)
+        {
+            Some(Value::Sequence(dims)) => {
+                if dims.is_empty() || dims.len() > 3 {
+                    return Err(format!(
+                        "Field \"resolution\" must be a list of 1 to 3 numbers, got {} elements",
+                        dims.len()
+                    ));
+                }
+
+                let mut out = Vec::with_capacity(3);
+                for dim in dims {
+                    match dim.as_u64() {
+                        None => {
+                            return Err(format!(
+                            "Expected \"resolution\" to be a list of positive numbers, got {:?}",
+                            dims
+                        ))
+                        }
+
+                        Some(0) => {
+                            return Err(format!(
+                                "Expected all numbers in \"resolution\" to be positive, got {:?}",
+                                dims
+                            ))
+                        }
+
+                        Some(n) => out.push(n as _),
+                    };
+                }
+
+                Some(out)
+            }
+            _ => None,
+        }
+        .unwrap_or_else(Vec::new);
+
+        // get mipmap flag
+        let mipmap = match object
+            .get("mipmap")
+            .map(Value::as_bool)
+            .filter(|_| support_mipmap)
+        {
+            Some(Some(flag)) => flag,
+            None => false,
+            Some(s) => return Err(format!("Expected \"mipmap\" to be a bool, got {:?}", s)),
+        };
+
+        // get texture filtering mode
+        let wrap_mode = match object
+            .get("wrap_mode")
+            .or_else(|| object.get("wrap"))
+            .map(Value::as_str)
+        {
+            Some(Some("clamp")) | None => gl::CLAMP_TO_EDGE,
+            Some(Some("repeat")) => gl::REPEAT,
+            Some(Some("mirror")) => gl::MIRRORED_REPEAT,
+            Some(s) => {
+                return Err(format!(
+                    "Expected \"wrap\" to be either \"repeat\", \"clamp\" or \"mirror\", got {:?}",
+                    s
+                ))
+            }
+        };
+
+        // get texture filtering mode
+        let mag_filter = match object.get("filter").map(Value::as_str) {
+            Some(Some("linear")) | None => gl::LINEAR,
+            Some(Some("nearest")) => gl::NEAREST,
+            Some(s) => {
+                return Err(format!(
+                    "Expected \"filter\" to be either \"linear\" or \"nearest\", got {:?}",
+                    s
+                ))
+            }
+        };
+
+        let min_filter = match (mag_filter, mipmap) {
+            (gl::LINEAR, true) => gl::LINEAR_MIPMAP_LINEAR,
+            (gl::NEAREST, true) => gl::NEAREST_MIPMAP_NEAREST,
+            (filter, false) => filter,
+            _ => unreachable!(),
+        };
+
+        // get float format flag
+        let float = match object.get("float").map(Value::as_bool) {
+            Some(Some(flag)) => flag,
+            None => false,
+            Some(s) => return Err(format!("Expected \"float\" to be a bool, got {:?}", s)),
+        };
+
+        Ok(Self {
+            resolution,
+            min_filter,
+            mag_filter,
+            wrap_mode,
+            channels: 4,
+            float,
+            mipmap,
+        })
+    }
+
+    pub fn build_framebuffer(&self, screen_size: (u32, u32)) -> Rc<FrameBuffer> {
+        let [width, height] = match self.resolution.as_slice() {
+            &[w, h] => [w, h],
+            &[] => [screen_size.0, screen_size.1],
+            _ => unreachable!(),
+        };
+
+        Rc::new(FrameBuffer::with_more_params(
+            width,
+            height,
+            self.min_filter,
+            self.mag_filter,
+            self.wrap_mode,
+            self.mipmap,
+            self.float,
+        ))
+    }
+
+    fn texture_format(&self) -> TextureFormat {
+        match (self.channels, self.float) {
+            (1, false) => TextureFormat::R8,
+            (2, false) => TextureFormat::RG8,
+            (3, false) => TextureFormat::RGB8,
+            (4, false) => TextureFormat::RGBA8,
+            (1, true) => TextureFormat::R32F,
+            (2, true) => TextureFormat::RG32F,
+            (3, true) => TextureFormat::RGB32F,
+            (4, true) => TextureFormat::RGBA32F,
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn build_texture(&self) -> Rc<dyn Texture> {
+        self.build_texture_with_data(std::ptr::null())
+    }
+
+    pub fn build_image(&self) -> Rc<dyn Texture> {
+        self.build_image_with_data(std::ptr::null())
+    }
+
+    pub fn build_texture_with_data(&self, data: *const c_void) -> Rc<dyn Texture> {
+        let format = self.texture_format();
+        match self.resolution.as_slice() {
+            &[w] => Rc::new(Texture1D::with_params(
+                [w],
+                self.min_filter,
+                self.mag_filter,
+                self.wrap_mode,
+                format,
+                data,
+            )),
+            &[w, h] => Rc::new(Texture2D::with_params(
+                [w, h],
+                self.min_filter,
+                self.mag_filter,
+                self.wrap_mode,
+                format,
+                data,
+            )),
+            &[w, h, d] => Rc::new(Texture3D::with_params(
+                [w, h, d],
+                self.min_filter,
+                self.mag_filter,
+                self.wrap_mode,
+                format,
+                data,
+            )),
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn build_image_with_data(&self, data: *const c_void) -> Rc<dyn Texture> {
+        let format = self.texture_format();
+        match self.resolution.as_slice() {
+            &[w] => Rc::new(Image1D::with_params(
+                [w],
+                self.min_filter,
+                self.mag_filter,
+                self.wrap_mode,
+                format,
+                data,
+            )),
+            &[w, h] => Rc::new(Image2D::with_params(
+                [w, h],
+                self.min_filter,
+                self.mag_filter,
+                self.wrap_mode,
+                format,
+                data,
+            )),
+            &[w, h, d] => Rc::new(Image3D::with_params(
+                [w, h, d],
+                self.min_filter,
+                self.mag_filter,
+                self.wrap_mode,
+                format,
+                data,
+            )),
+            _ => unreachable!(),
         }
     }
 }
@@ -330,6 +566,7 @@ impl_texture!(Texture1D, gl::TEXTURE_1D, 1, false);
 impl_texture!(Texture2D, gl::TEXTURE_2D, 2, false);
 impl_texture!(Texture3D, gl::TEXTURE_3D, 3, false);
 
+#[deprecated]
 pub fn make_image(resolution: &[u32]) -> Rc<dyn Texture> {
     match resolution {
         &[w] => Rc::new(Image1D::new([w])),
@@ -339,6 +576,7 @@ pub fn make_image(resolution: &[u32]) -> Rc<dyn Texture> {
     }
 }
 
+#[deprecated]
 pub fn make_texture(resolution: &[u32]) -> Rc<dyn Texture> {
     match resolution {
         &[w] => Rc::new(Texture1D::new([w])),

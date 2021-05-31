@@ -10,17 +10,13 @@ pub const PASS_FRAG: &str = include_str!("shaders/pass.frag");
 pub enum StageKind {
     Comp {
         dispatch: [GLuint; 3],
-        res: Vec<u32>,
     },
     Vert {
         count: GLsizei,
         mode: GLenum,
         thickness: f32,
-        res: Option<(u32, u32)>,
     },
-    Frag {
-        res: Option<(u32, u32)>,
-    },
+    Frag {},
 }
 
 /// The stage struct
@@ -39,10 +35,7 @@ pub struct Stage {
     pub sh_ids: Vec<GLuint>,
     pub deps: Vec<CString>,
     pub perf: RunningAverage<f32, 128>,
-    pub repeat: bool,
-    pub linear: bool,
-    pub mipmap: bool,
-    pub float: bool,
+    pub builder: TextureBuilder,
 }
 
 impl Stage {
@@ -60,46 +53,6 @@ impl Stage {
                 ))
             }
             None => None,
-        };
-
-        // get target resolution
-        let res = match object
-            .get("size")
-            .or_else(|| object.get("res"))
-            .or_else(|| object.get("resolution"))
-        {
-            Some(Value::Sequence(dims)) => {
-                if dims.is_empty() || dims.len() > 3 {
-                    return Err(format!(
-                        "Field \"resolution\" must be a list of 1 to 3 numbers, got {} elements",
-                        dims.len()
-                    ));
-                }
-
-                let mut out = Vec::with_capacity(3);
-                for dim in dims {
-                    match dim.as_u64() {
-                        None => {
-                            return Err(format!(
-                            "Expected \"resolution\" to be a list of positive numbers, got {:?}",
-                            dims
-                        ))
-                        }
-
-                        Some(0) => {
-                            return Err(format!(
-                                "Expected all numbers in \"resolution\" to be positive, got {:?}",
-                                dims
-                            ))
-                        }
-
-                        Some(n) => out.push(n as _),
-                    };
-                }
-
-                Some(out)
-            }
-            _ => None,
         };
 
         // read all shaders to strings
@@ -139,15 +92,13 @@ impl Stage {
                 let sh_ids = vec![vs_id, fs_id];
                 let prog_id = link_program(&sh_ids)?;
 
-                let res = match res.as_ref().map(|v| v.as_slice()) {
-                    Some(&[width, height]) => Some((width, height)),
-                    None => None,
-                    Some(_) => return Err("Expected \"resolution\" to be 2D".into()),
-                };
+                let builder = TextureBuilder::parse(&object, true, true)?;
 
-                let [repeat, linear, mipmap, float] = parse_texture_options(&object)?;
+                if !matches!(builder.resolution.as_slice(), &[] | &[_, _]) {
+                    return Err("Expected \"resolution\" to be 2D".into());
+                }
 
-                let kind = StageKind::Frag { res };
+                let kind = StageKind::Frag {};
 
                 Ok(Stage {
                     prog_id,
@@ -156,10 +107,7 @@ impl Stage {
                     sh_ids,
                     deps,
                     perf,
-                    repeat,
-                    linear,
-                    mipmap,
-                    float,
+                    builder,
                 })
             }
 
@@ -223,16 +171,13 @@ impl Stage {
                     }
                 };
 
-                let res = match res.as_ref().map(|v| v.as_slice()) {
-                    Some(&[width, height]) => Some((width, height)),
-                    None => None,
-                    Some(_) => return Err("Expected \"resolution\" to be 2D".into()),
-                };
+                let builder = TextureBuilder::parse(&object, true, true)?;
 
-                let [repeat, linear, mipmap, float] = parse_texture_options(&object)?;
+                if !matches!(builder.resolution.as_slice(), &[] | &[_, _]) {
+                    return Err("Expected \"resolution\" to be 2D".into());
+                }
 
                 let kind = StageKind::Vert {
-                    res,
                     count,
                     mode,
                     thickness,
@@ -245,10 +190,7 @@ impl Stage {
                     sh_ids,
                     deps,
                     perf,
-                    repeat,
-                    linear,
-                    mipmap,
-                    float,
+                    builder,
                 })
             }
 
@@ -311,17 +253,19 @@ impl Stage {
                     }
                 };
 
-                let res = if let Some(vec) = res {
-                    vec
-                } else {
+                let builder = TextureBuilder::parse(&object, true, false)?;
+
+                if builder.resolution.as_slice().is_empty() {
                     return Err("Field \"resolution\" is mandatory for compute shaders".into());
-                };
+                }
 
                 if target.is_none() {
                     return Err("Field \"target\" is mandatory for compute shaders".into());
                 }
 
-                let kind = StageKind::Comp { dispatch, res };
+                let kind = StageKind::Comp {
+                    dispatch,
+                };
 
                 Ok(Stage {
                     prog_id,
@@ -330,10 +274,7 @@ impl Stage {
                     sh_ids,
                     deps,
                     perf,
-                    repeat: false,
-                    linear: false,
-                    mipmap: false,
-                    float: false,
+                    builder,
                 })
             }
 
@@ -343,20 +284,10 @@ impl Stage {
     }
 
     pub fn resolution(&self) -> Option<[u32; 3]> {
-        match self.kind {
-            StageKind::Comp { ref res, .. } => {
-                let mut out = [0; 3];
-                out[..res.len()].clone_from_slice(res.as_slice());
-                Some(out)
-            }
-            StageKind::Frag {
-                res: Some((width, height)),
-                ..
-            }
-            | StageKind::Vert {
-                res: Some((width, height)),
-                ..
-            } => Some([width, height, 0]),
+        match self.builder.resolution.as_slice() {
+            &[w] => Some([w, 0, 0]),
+            &[w, h] => Some([w, h, 0]),
+            &[w, h, d] => Some([w, h, d]),
             _ => None,
         }
     }

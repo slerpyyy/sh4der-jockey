@@ -39,7 +39,6 @@ impl Pipeline {
             prog_id,
             target: None,
             kind: StageKind::Vert {
-                res: None,
                 count: 98,
                 mode: gl::LINES,
                 thickness: 5.0,
@@ -47,10 +46,7 @@ impl Pipeline {
             sh_ids,
             deps: Vec::new(),
             perf: RunningAverage::new(),
-            repeat: false,
-            linear: false,
-            mipmap: false,
-            float: false,
+            builder: TextureBuilder::new(),
         }];
 
         Self {
@@ -280,18 +276,10 @@ impl Pipeline {
 
             // create textures
             let texture: Rc<dyn Texture> = match stage.kind {
-                StageKind::Frag { res } | StageKind::Vert { res, .. } => {
-                    let (width, height) = res.unwrap_or(screen_size);
-                    Rc::new(FrameBuffer::with_params(
-                        width as _,
-                        height as _,
-                        stage.repeat,
-                        stage.linear,
-                        stage.mipmap,
-                        stage.float,
-                    ))
+                StageKind::Frag { .. } | StageKind::Vert { .. } => {
+                    stage.builder.build_framebuffer(screen_size)
                 }
-                StageKind::Comp { ref res, .. } => make_image(res.as_slice()),
+                StageKind::Comp { .. } => stage.builder.build_image(),
             };
 
             // insert texture into hashmap
@@ -323,25 +311,21 @@ impl Pipeline {
 
     pub fn resize_buffers(&mut self, width: u32, height: u32) {
         for stage in self.stages.iter() {
-            match &stage.target {
-                Some(s) => {
-                    let tex = match stage.kind {
-                        StageKind::Frag { res: None, .. } | StageKind::Vert { res: None, .. } => {
-                            FrameBuffer::with_params(
-                                width,
-                                height,
-                                stage.repeat,
-                                stage.linear,
-                                stage.mipmap,
-                                stage.float,
-                            )
-                        }
-                        _ => continue,
-                    };
-                    self.buffers.insert(s.clone(), Rc::new(tex));
-                }
-                None => continue,
+            if !stage.builder.resolution.is_empty() {
+                continue;
             }
+
+            if !matches!(stage.kind, StageKind::Frag { .. } | StageKind::Vert { .. }) {
+                panic!("なに the fuck?")
+            }
+
+            let name = match &stage.target {
+                Some(s) => s.clone(),
+                _ => continue,
+            };
+
+            let tex = stage.builder.build_framebuffer((width, height));
+            self.buffers.insert(name, tex);
         }
     }
 }
