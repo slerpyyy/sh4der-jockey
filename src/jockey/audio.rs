@@ -69,6 +69,23 @@ impl Audio {
         this
     }
 
+    pub fn resize(&mut self, new_size: usize) {
+        self.size = new_size;
+        let spec_size = new_size / 2;
+
+        let mut planner = FftPlanner::<f32>::new();
+        self.fft = planner.plan_fft_forward(new_size);
+
+        self.l_signal = vec![0.0; new_size];
+        self.r_signal = vec![0.0; new_size];
+        self.l_fft = vec![Complex::new(0.0, 0.0); new_size];
+        self.r_fft = vec![Complex::new(0.0, 0.0); new_size];
+        self.l_raw_spectrum = vec![0.0; spec_size];
+        self.r_raw_spectrum = vec![0.0; spec_size];
+        self.l_samples = Arc::new(Mutex::new(RingBuffer::new(new_size)));
+        self.r_samples = Arc::new(Mutex::new(RingBuffer::new(new_size)));
+    }
+
     pub fn connect(&mut self) -> Result<(), String> {
         let host = cpal::default_host();
         println!("Available Hosts: {:?}", cpal::available_hosts());

@@ -266,6 +266,21 @@ impl TextureBuilder {
         })
     }
 
+    pub fn set_resolution(&mut self, resolution: Vec<u32>) -> &mut Self {
+        self.resolution = resolution;
+        self
+    }
+
+    pub fn set_channels(&mut self, channels: u8) -> &mut Self {
+        self.channels = channels;
+        self
+    }
+
+    pub fn set_float(&mut self, is_float: bool) -> &mut Self {
+        self.float = is_float;
+        self
+    }
+
     pub fn build_framebuffer(&self, screen_size: (u32, u32)) -> Rc<FrameBuffer> {
         let [width, height] = match self.resolution.as_slice() {
             &[w, h] => [w, h],

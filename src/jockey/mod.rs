@@ -334,8 +334,8 @@ impl Jockey {
 
                 let build_time = self.last_build.elapsed().as_secs_f64();
                 println!("Build pipeline over a span of {}s", build_time);
-                if self.pipeline.audio_window != self.audio.size {
-                    self.audio = Audio::new(self.pipeline.audio_window);
+                if self.pipeline.audio_samples != self.audio.size {
+                    self.audio.resize(self.pipeline.audio_samples);
                 }
             }
         }
@@ -356,9 +356,6 @@ impl Jockey {
 
         &mut self.midi.check_connections();
         &mut self.midi.handle_input();
-
-        &mut self.audio.update_samples();
-        &mut self.audio.update_fft();
 
         let mut do_update_pipeline = unsafe { PIPELINE_STALE.swap(false, Ordering::Relaxed) }
             && self.last_build.elapsed().as_millis() > 300;
@@ -465,6 +462,9 @@ impl Jockey {
         self.last_frame = now;
 
         // update audio samples texture
+
+        self.audio.update_samples();
+        self.audio.update_fft();
         let sample_name: &CString = &SAMPLES_NAME;
         if let Some(samples_tex) = self.pipeline.buffers.get_mut(sample_name) {
             let interlaced_samples = interlace(&self.audio.l_signal, &self.audio.r_signal);
