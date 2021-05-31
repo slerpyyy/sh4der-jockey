@@ -1,4 +1,4 @@
-use super::{make_texture_from_image, Texture};
+use super::Texture;
 use std::{collections::HashMap, rc::Rc};
 
 static mut CACHE_INTERNAL: Option<HashMap<String, CacheEntry>> = None;
@@ -45,17 +45,5 @@ impl Cache {
 
     pub fn fetch(path: &str) -> Option<Rc<dyn Texture>> {
         Self::internal().get(path).map(|s| Rc::clone(&s.tex))
-    }
-
-    #[deprecated]
-    pub async fn load(path: String) -> Option<Rc<dyn Texture>> {
-        let reader = image::io::Reader::open(&path).ok()?;
-        async_std::task::yield_now().await;
-        let image = reader.decode().ok()?;
-        async_std::task::yield_now().await;
-        let tex: Rc<dyn Texture> = Rc::new(make_texture_from_image(image));
-        async_std::task::yield_now().await;
-        Cache::store(path, Rc::clone(&tex));
-        Some(tex)
     }
 }

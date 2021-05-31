@@ -61,17 +61,6 @@ impl Pipeline {
         Pipeline::from_file_with_cache(path, screen_size, &empty_cache).await
     }
 
-    /*
-    #[allow(dead_code)]
-    pub fn update(
-        path: impl AsRef<Path>,
-        screen_size: (u32, u32),
-        old: &Self,
-    ) -> Result<Self, String> {
-        Pipeline::from_file_with_cache(path, screen_size, &old.buffers)
-    }
-    */
-
     async fn from_file_with_cache(
         path: impl AsRef<Path>,
         screen_size: (u32, u32),
@@ -151,14 +140,17 @@ impl Pipeline {
                     )
                 }
             };
+
         samples_opts
             .set_resolution(vec![audio_samples as _; 1])
             .set_channels(2)
             .set_float(true);
+
         raw_spectrum_opts
             .set_resolution(vec![(audio_samples / 2) as _; 1])
             .set_channels(2)
             .set_float(true);
+
         spectrum_opts
             .set_resolution(vec![100 as _; 1])
             .set_channels(2)

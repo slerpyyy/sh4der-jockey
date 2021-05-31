@@ -16,8 +16,10 @@ pub struct Midi {
     pub buttons: [(f32, Instant, Instant, u32); MIDI_N],
     pub button_bindings: HashMap<[u8; 2], usize>,
     pub slider_bindings: HashMap<[u8; 2], usize>,
+    config_file: std::path::PathBuf,
 }
-#[derive(Debug)]
+
+#[derive(Debug, Clone, Copy)]
 pub enum MessageKind {
     NoteOn { channel: u8, key: u8, velocity: u8 },
     NoteOff { channel: u8, key: u8, velocity: u8 },
@@ -33,8 +35,17 @@ impl Midi {
         let last_slider = [0, 0];
         let sliders = [0.0; MIDI_N];
         let buttons = [(0f32, Instant::now(), Instant::now(), 0); MIDI_N];
-        let button_bindings = HashMap::new();
-        let slider_bindings = HashMap::new();
+        let mut button_bindings = HashMap::new();
+        let mut slider_bindings = HashMap::new();
+
+        let mut config_file = std::env::current_exe().unwrap();
+        config_file.set_file_name("midi-config.yaml");
+
+        if let Ok(file) = std::fs::File::open(&config_file) {
+            let tuple: (_, _) = serde_yaml::from_reader(file).unwrap();
+            button_bindings = tuple.0;
+            slider_bindings = tuple.1;
+        }
 
         let mut this = Self {
             conns,
@@ -45,6 +56,7 @@ impl Midi {
             buttons,
             button_bindings,
             slider_bindings,
+            config_file,
         };
 
         this.connect();
@@ -208,5 +220,13 @@ impl Midi {
         if id < MIDI_N {
             self.button_bindings.insert(self.last_button, id);
         }
+    }
+}
+
+impl Drop for Midi {
+    fn drop(&mut self) {
+        let file = std::fs::File::create(&self.config_file).unwrap();
+        let tuple = (&self.button_bindings, &self.slider_bindings);
+        serde_yaml::to_writer(file, &tuple).unwrap();
     }
 }
