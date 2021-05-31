@@ -12,6 +12,7 @@ use std::{collections::HashMap, ffi::CString, path::Path, rc::Rc};
 pub struct Pipeline {
     pub stages: Vec<Stage>,
     pub buffers: HashMap<CString, Rc<dyn Texture>>,
+    pub audio_window: usize,
 }
 
 impl Pipeline {
@@ -20,6 +21,7 @@ impl Pipeline {
         Self {
             stages: Vec::new(),
             buffers: HashMap::new(),
+            audio_window: AUDIO_SAMPLES,
         }
     }
 
@@ -54,6 +56,7 @@ impl Pipeline {
         Self {
             stages,
             buffers: HashMap::new(),
+            audio_window: AUDIO_SAMPLES,
         }
     }
 
@@ -103,52 +106,84 @@ impl Pipeline {
         Cache::init();
 
         // get fft texture size
-        let fft_size = match object.get("fft_size") {
-            None => AUDIO_SAMPLES as _,
-            Some(Value::Number(n)) => match n.as_u64() {
-                Some(n) if n.is_power_of_two() => n,
-                _ => {
-                    return Err(format!(
-                        "Expected \"fft_size\" to be a power of 2, got: {:?}",
-                        n
-                    ))
-                }
-            },
-            s => return Err(format!("Expected \"fft_size\" to be number, got: {:?}", s)),
-        };
+        let (samples_opts, raw_fft_opts, nice_fft_opts, fft_size) = match object.get("audio") {
+            None => ([false; 4], [false; 4], [false; 4], AUDIO_SAMPLES),
+            Some(obj) => {
+                let fft_size = match obj.get("fft_size") {
+                    None => AUDIO_SAMPLES as _,
+                    Some(Value::Number(n)) => match n.as_u64() {
+                        Some(n) => n,
+                        _ => {
+                            return Err(format!(
+                                "Expected \"fft_size\" to be a number, got: {:?}",
+                                n
+                            ))
+                        }
+                    },
+                    s => return Err(format!("Expected \"fft_size\" to be number, got: {:?}", s)),
+                };
 
+                let samples_opts = match obj.get("samples") {
+                    Some(s) => stage::parse_texture_options(s)?,
+                    None => [false; 4],
+                };
+                let fft_opts = match obj.get("raw_spectrum") {
+                    Some(s) => stage::parse_texture_options(s)?,
+                    None => [false; 4],
+                };
+                let nice_fft_opts = match obj.get("spectrum") {
+                    Some(s) => stage::parse_texture_options(s)?,
+                    None => [false; 4],
+                };
+
+                (samples_opts, fft_opts, nice_fft_opts, fft_size as _)
+            }
+        };
+        let parse_opts = |[repeat, linear, _, _]: [bool; 4]| {
+            (
+                if linear { gl::LINEAR } else { gl::NEAREST },
+                if repeat {
+                    gl::REPEAT
+                } else {
+                    gl::CLAMP_TO_EDGE
+                },
+            )
+        };
+        let (samples_filter, samples_wrapmode) = parse_opts(samples_opts);
         // add audio samples to buffers
         buffers.insert(
             CString::new("samples").unwrap(),
             Rc::new(Texture1D::with_params(
                 [fft_size as _],
-                gl::NEAREST,
-                gl::NEAREST,
-                gl::CLAMP_TO_EDGE,
+                samples_filter,
+                samples_filter,
+                samples_wrapmode,
                 TextureFormat::RG32F,
                 std::ptr::null(),
             )),
         );
 
+        let (raw_fft_filter, raw_fft_wrapmode) = parse_opts(raw_fft_opts);
         buffers.insert(
             CString::new("raw_spectrum").unwrap(),
             Rc::new(Texture1D::with_params(
                 [(fft_size / 2) as _],
-                gl::NEAREST,
-                gl::NEAREST,
-                gl::CLAMP_TO_EDGE,
+                raw_fft_filter,
+                raw_fft_filter,
+                raw_fft_wrapmode,
                 TextureFormat::RG32F,
                 std::ptr::null(),
             )),
         );
 
+        let (nice_fft_filter, nice_fft_wrapmode) = parse_opts(nice_fft_opts);
         buffers.insert(
             CString::new("spectrum").unwrap(),
             Rc::new(Texture1D::with_params(
                 [100],
-                gl::NEAREST,
-                gl::NEAREST,
-                gl::CLAMP_TO_EDGE,
+                nice_fft_filter,
+                nice_fft_filter,
+                nice_fft_wrapmode,
                 TextureFormat::RG32F,
                 std::ptr::null(),
             )),
@@ -279,7 +314,11 @@ impl Pipeline {
             yield_now().await;
         }
 
-        Ok(Self { stages, buffers })
+        Ok(Self {
+            stages,
+            buffers,
+            audio_window: fft_size as _,
+        })
     }
 
     pub fn resize_buffers(&mut self, width: u32, height: u32) {

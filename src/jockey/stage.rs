@@ -145,7 +145,7 @@ impl Stage {
                     Some(_) => return Err("Expected \"resolution\" to be 2D".into()),
                 };
 
-                let [repeat, linear, mipmap, float] = parse_texture_options(object)?;
+                let [repeat, linear, mipmap, float] = parse_texture_options(&object)?;
 
                 let kind = StageKind::Frag { res };
 
@@ -229,7 +229,7 @@ impl Stage {
                     Some(_) => return Err("Expected \"resolution\" to be 2D".into()),
                 };
 
-                let [repeat, linear, mipmap, float] = parse_texture_options(object)?;
+                let [repeat, linear, mipmap, float] = parse_texture_options(&object)?;
 
                 let kind = StageKind::Vert {
                     res,
@@ -375,7 +375,7 @@ impl Drop for Stage {
     }
 }
 
-fn parse_texture_options(object: Value) -> Result<[bool; 4], String> {
+pub fn parse_texture_options(object: &Value) -> Result<[bool; 4], String> {
     // get texture filtering mode
     let repeat = match object.get("wrap").map(Value::as_str) {
         Some(Some("clamp")) | None => false,

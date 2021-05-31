@@ -34,8 +34,8 @@ pub struct Audio {
 }
 
 impl Audio {
-    pub fn new() -> Self {
-        let size = AUDIO_SAMPLES;
+    pub fn new(window_size: usize) -> Self {
+        let size = window_size;
         let spec_size = size / 2;
         let bands = 100;
 

@@ -94,8 +94,6 @@ impl Jockey {
     /// This will spin up a Winit window, initialize Imgui,
     /// create a OpenGL context and more!
     pub fn init() -> Self {
-        let audio = Audio::new();
-
         let title = Self::title();
         let events_loop = glutin::EventsLoop::new();
         let request = glutin::GlRequest::Latest;
@@ -191,6 +189,7 @@ impl Jockey {
         beat_delta.buffer.fill(1.0);
 
         let now = Instant::now();
+        let audio = Audio::new(AUDIO_SAMPLES);
         let mut this = Self {
             beat_delta,
             ctx,
@@ -335,6 +334,9 @@ impl Jockey {
 
                 let build_time = self.last_build.elapsed().as_secs_f64();
                 println!("Build pipeline over a span of {}s", build_time);
+                if self.pipeline.audio_window != self.audio.size {
+                    self.audio = Audio::new(self.pipeline.audio_window);
+                }
             }
         }
     }
