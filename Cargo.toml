@@ -6,12 +6,12 @@ build = "build.rs"
 
 [profile.release]
 lto = true
-codegen-units = 1
+#codegen-units = 1
 #panic = "abort"
 
 [dependencies]
 as-any = "0.2.0"
-async-std = "1.9.0"
+async-std = { version = "1.9.0", default-features = false, features = ["std"] }
 cpal = "0.13.3"
 futures = { version = "0.3.15", default-features = false }
 getopts = "0.2.21"
@@ -33,4 +33,4 @@ take_mut = "0.2.2"
 
 [build-dependencies]
 anyhow = "1.0.40"
-vergen = "5.1.2"
+vergen = { version = "5.1.2", default-features = false, features = ["build", "git"] }
