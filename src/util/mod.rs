@@ -47,26 +47,24 @@ macro_rules! gl_debug_check {
     };
 }
 
-const FULLSCREEN_RECT: [GLfloat; 12] = [
-    -1.0, -1.0, -1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, -1.0, -1.0, -1.0,
-];
+const FULLSCREEN_TRI: [GLfloat; 6] = [-1.0, -1.0, 3.0, -1.0, -1.0, 3.0];
 
-pub fn draw_fullscreen_rect(vao: GLuint) {
+pub fn draw_fullscreen_tri(vao: GLuint) {
     unsafe {
         gl::BindVertexArray(vao);
         gl::BindBuffer(gl::ARRAY_BUFFER, vao);
         gl_debug_check!();
 
-        let data_size = FULLSCREEN_RECT.len() * std::mem::size_of::<GLfloat>();
+        let data_size = FULLSCREEN_TRI.len() * std::mem::size_of::<GLfloat>();
         gl::BufferData(
             gl::ARRAY_BUFFER,
             data_size as _,
-            std::mem::transmute(&FULLSCREEN_RECT[0]),
+            std::mem::transmute(&FULLSCREEN_TRI[0]),
             gl::STATIC_DRAW,
         );
         gl_debug_check!();
 
-        let vert_count = FULLSCREEN_RECT.len() as GLsizei / 2;
+        let vert_count = FULLSCREEN_TRI.len() as GLsizei / 2;
         gl::DrawArrays(gl::TRIANGLES, 0, vert_count);
         gl_debug_check!();
     }

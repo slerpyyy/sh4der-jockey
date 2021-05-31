@@ -645,7 +645,7 @@ impl Jockey {
                         draw_anything(self.ctx.vao, count, mode);
                         gl_debug_check!();
                     } else {
-                        draw_fullscreen_rect(self.ctx.vao);
+                        draw_fullscreen_tri(self.ctx.vao);
                         gl_debug_check!();
                     }
 
