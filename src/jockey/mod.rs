@@ -575,11 +575,20 @@ impl Jockey {
                 for (k, name) in stage.deps.iter().enumerate() {
                     let tex = self.pipeline.buffers.get(name).unwrap();
                     let loc = gl::GetUniformLocation(stage.prog_id, name.as_ptr());
-
                     gl::ActiveTexture(gl::TEXTURE0 + k as GLenum);
                     tex.activate();
 
                     gl::Uniform1i(loc, k as _);
+                    let res_name = CString::new(format!("{}_res", name.to_str().unwrap())).unwrap();
+                    let res_loc = gl::GetUniformLocation(stage.prog_id, res_name.as_ptr());
+                    let res = tex.resolution();
+                    gl::Uniform4f(
+                        res_loc,
+                        res[0] as _,
+                        res[1] as _,
+                        res[0] as f32 / res[1] as f32,
+                        res[1] as f32 / res[0] as f32,
+                    );
                     gl_debug_check!();
                 }
             }

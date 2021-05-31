@@ -418,7 +418,7 @@ macro_rules! impl_texture {
         impl Texture for $name {
             fn resolution(&self) -> [u32; 3] {
                 let mut out = [0; 3];
-                out.copy_from_slice(&self.res);
+                out[..self.res.len()].copy_from_slice(&self.res);
                 out
             }
 
