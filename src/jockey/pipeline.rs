@@ -281,7 +281,7 @@ impl Pipeline {
             // create textures
             let texture: Rc<dyn Texture> = match stage.kind {
                 StageKind::Frag { .. } | StageKind::Vert { .. } => {
-                    stage.builder.build_framebuffer(screen_size)
+                    stage.builder.build_double_framebuffer(screen_size)
                 }
                 StageKind::Comp { .. } => stage.builder.build_image(),
             };
@@ -323,12 +323,19 @@ impl Pipeline {
                 panic!("なに the fuck?")
             }
 
+            // get name of stage render target
             let name = match &stage.target {
                 Some(s) => s.clone(),
                 _ => continue,
             };
 
-            let tex = stage.builder.build_framebuffer((width, height));
+            // only construct double framebuffers if necessary
+            let tex: Rc<dyn Texture> = if stage.deps.contains(&name) {
+                stage.builder.build_double_framebuffer((width, height))
+            } else {
+                stage.builder.build_framebuffer((width, height))
+            };
+
             self.buffers.insert(name, tex);
         }
     }

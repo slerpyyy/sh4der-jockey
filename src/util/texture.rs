@@ -12,6 +12,9 @@ fn _assert_is_object_safe(_: &dyn Texture) {}
 pub trait Texture: Debug + AsAny {
     fn bind(&self);
     fn resolution(&self) -> [u32; 3];
+    fn texture_id(&self) -> GLuint;
+    fn framebuffer_id(&self) -> Option<GLuint>;
+    fn swap(&mut self) {}
 }
 
 #[derive(Debug)]
@@ -31,6 +34,14 @@ impl Texture for FrameBuffer {
             gl::BindTexture(gl::TEXTURE_2D, self.tex_id);
             gl_debug_check!();
         }
+    }
+
+    fn texture_id(&self) -> GLuint {
+        self.tex_id
+    }
+
+    fn framebuffer_id(&self) -> Option<GLuint> {
+        Some(self.fb_id)
     }
 }
 
@@ -130,6 +141,67 @@ impl Drop for FrameBuffer {
         unsafe {
             gl::DeleteTextures(1, &self.tex_id);
             gl::DeleteFramebuffers(1, &self.fb_id);
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct DoubleFrameBuffer {
+    front: FrameBuffer,
+    back: FrameBuffer,
+}
+
+impl Texture for DoubleFrameBuffer {
+    fn bind(&self) {
+        self.front.bind()
+    }
+
+    fn resolution(&self) -> [u32; 3] {
+        self.front.resolution()
+    }
+
+    fn texture_id(&self) -> GLuint {
+        self.back.texture_id()
+    }
+
+    fn framebuffer_id(&self) -> Option<GLuint> {
+        self.back.framebuffer_id()
+    }
+
+    fn swap(&mut self) {
+        std::mem::swap(&mut self.front, &mut self.back)
+    }
+}
+
+impl DoubleFrameBuffer {
+    pub fn new(width: u32, height: u32) -> Self {
+        Self::with_params(
+            width,
+            height,
+            gl::NEAREST,
+            gl::NEAREST,
+            gl::CLAMP_TO_EDGE,
+            false,
+            false,
+        )
+    }
+
+    pub fn with_params(
+        width: u32,
+        height: u32,
+        min_filter: GLenum,
+        mag_filter: GLenum,
+        wrap_mode: GLenum,
+        mipmap: bool,
+        float: bool,
+    ) -> Self {
+        Self {
+            front: FrameBuffer::with_params(
+                width, height, min_filter, mag_filter, wrap_mode, mipmap, float,
+            ),
+            back: FrameBuffer::with_params(
+                width, height, min_filter, mag_filter, wrap_mode, mipmap, float,
+            ),
         }
     }
 }
@@ -299,6 +371,24 @@ impl TextureBuilder {
         ))
     }
 
+    pub fn build_double_framebuffer(&self, screen_size: (u32, u32)) -> Rc<DoubleFrameBuffer> {
+        let [width, height] = match self.resolution.as_slice() {
+            &[w, h] => [w, h],
+            &[] => [screen_size.0, screen_size.1],
+            _ => unreachable!(),
+        };
+
+        Rc::new(DoubleFrameBuffer::with_params(
+            width,
+            height,
+            self.min_filter,
+            self.mag_filter,
+            self.wrap_mode,
+            self.mipmap,
+            self.float,
+        ))
+    }
+
     fn texture_format(&self) -> TextureFormat {
         match (self.channels, self.float) {
             (1, false) => TextureFormat::R8,
@@ -440,6 +530,14 @@ macro_rules! impl_texture {
                         gl_debug_check!();
                     }
                 }
+            }
+
+            fn texture_id(&self) -> GLuint {
+                self.id
+            }
+
+            fn framebuffer_id(&self) -> Option<GLuint> {
+                None
             }
         }
 

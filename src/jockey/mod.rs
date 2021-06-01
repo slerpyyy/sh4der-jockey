@@ -551,12 +551,7 @@ impl Jockey {
                         target_res[0] as f32 / target_res[1] as f32, // x/y
                         target_res[1] as f32 / target_res[0] as f32, // x/y
                     );
-                    gl::Uniform3f(
-                        r_loc,
-                        target_res[0] as _,
-                        target_res[1] as _,
-                        time,
-                    );
+                    gl::Uniform3f(r_loc, target_res[0] as _, target_res[1] as _, time);
                     gl::Uniform3f(
                         volume_loc,
                         self.audio.volume[0], // average L/R
@@ -636,12 +631,11 @@ impl Jockey {
                     // get render target id
                     let (target_tex, target_fb) = if let Some(name) = &stage.target {
                         let tex = &self.pipeline.buffers[name];
-
-                        if let Some(s) = tex.as_any().downcast_ref::<FrameBuffer>() {
-                            (s.tex_id, s.fb_id)
-                        } else {
-                            panic!("No framebuffer for render target!")
-                        }
+                        let tex_id = tex.texture_id();
+                        let fb_id = tex
+                            .framebuffer_id()
+                            .expect("Render target should be a framebuffer");
+                        (tex_id, fb_id)
                     } else {
                         (0, 0) // The screen is always id=0
                     };
@@ -698,8 +692,14 @@ impl Jockey {
                     if target_tex != 0 {
                         gl::BindTexture(gl::TEXTURE_2D, target_tex);
                         gl::GenerateMipmap(gl::TEXTURE_2D);
+                        gl_debug_check!();
                     }
-                    gl_debug_check!();
+
+                    // swap buffers
+                    if let Some(name) = &stage.target {
+                        let tex = self.pipeline.buffers.get_mut(name).unwrap();
+                        Rc::get_mut(tex).unwrap().swap();
+                    }
                 },
             }
 
