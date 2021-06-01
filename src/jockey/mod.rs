@@ -4,8 +4,10 @@ use imgui::im_str;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 use lazy_static::lazy_static;
 use std::{
+    collections::hash_map::DefaultHasher,
     ffi::CString,
     future::Future,
+    hash::{Hash, Hasher},
     pin::Pin,
     rc::Rc,
     sync::atomic::{AtomicBool, Ordering},
@@ -346,17 +348,18 @@ impl Jockey {
             s.make_current().unwrap()
         });
 
-        let mut done = false;
         let platform = &mut self.ctx.platform;
         let events_loop = &mut self.ctx.events_loop;
         let imgui = &mut self.ctx.imgui;
         let window = self.ctx.context.window();
         let ui_window = self.ctx.ui_context.window();
         let pipeline = &mut self.pipeline;
+        let mut done = false;
 
         &mut self.midi.check_connections();
         &mut self.midi.handle_input();
 
+        let mut take_screenshot = false;
         let mut do_update_pipeline = unsafe { PIPELINE_STALE.swap(false, Ordering::Relaxed) }
             && self.last_build.elapsed().as_millis() > 300;
 
@@ -400,6 +403,14 @@ impl Jockey {
                                     window.set_fullscreen(next);
                                 }
                             }
+
+                            if Some(glutin::VirtualKeyCode::S) == input.virtual_keycode
+                                && input.state == glutin::ElementState::Pressed
+                            {
+                                if shift || ctrl {
+                                    take_screenshot = true;
+                                }
+                            }
                         }
                         _ => (),
                     }
@@ -409,7 +420,10 @@ impl Jockey {
         });
 
         self.done = done;
-        gl_debug_check!();
+
+        if take_screenshot {
+            self.save_frame();
+        }
 
         // live shader reloading hype
         if do_update_pipeline {
@@ -921,7 +935,13 @@ impl Jockey {
         }
 
         image::imageops::flip_vertical_in_place(&mut img);
-        let file_name = format!("frame-{:?}.png", Instant::now());
+
+        let mut hasher = DefaultHasher::new();
+        Instant::now().hash(&mut hasher);
+        img.hash(&mut hasher);
+        let hash = hasher.finish();
+
+        let file_name = format!("frame-{}.png", hash);
         img.save(file_name).unwrap();
     }
 }

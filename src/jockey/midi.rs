@@ -42,12 +42,14 @@ impl Midi {
         config_file.set_file_name("midi-config.yaml");
 
         if let Ok(file) = std::fs::File::open(&config_file) {
-             match serde_yaml::from_reader(file) {
+            match serde_yaml::from_reader(file) {
                 Ok((b, s)) => {
                     button_bindings = b;
                     slider_bindings = s;
-                },
-                _ => eprintln!("Failed to parse midi config file. Please do not edit the config file."),
+                }
+                _ => eprintln!(
+                    "Failed to parse midi config file. Please do not edit the config file."
+                ),
             };
         }
 
