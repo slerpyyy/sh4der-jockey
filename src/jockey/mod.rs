@@ -548,14 +548,13 @@ impl Jockey {
                         res_loc,
                         target_res[0] as f32,
                         target_res[1] as f32,
-                        target_res[2] as f32,
                         target_res[0] as f32 / target_res[1] as f32, // x/y
+                        target_res[1] as f32 / target_res[0] as f32, // x/y
                     );
-                    gl::Uniform4f(
+                    gl::Uniform3f(
                         r_loc,
                         target_res[0] as _,
                         target_res[1] as _,
-                        target_res[2] as _,
                         time,
                     );
                     gl::Uniform3f(

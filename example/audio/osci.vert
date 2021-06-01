@@ -28,7 +28,7 @@ void main() {
     vec3 p = vec3(samp.r, samp.g, 0.);
     p.xy *= .5;
     p.xy *= r2d(-PI * .25);
-    p.x /= resolution.w;
+    p.x *= resolution.w;
 
     gl_Position = vec4(p, 1);
     gl_PointSize = 4.0;
