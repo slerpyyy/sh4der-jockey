@@ -72,6 +72,7 @@ pub struct Jockey {
     pub time: f32,
     pub speed: f32,
     pub time_range: (f32, f32),
+    pub frame: u32,
 }
 
 impl std::fmt::Debug for Jockey {
@@ -210,6 +211,7 @@ impl Jockey {
             time: 0.0,
             speed: 1.0,
             time_range: (0.0, 60.0),
+            frame: 0,
         };
 
         this.ctx.context = unsafe { this.ctx.context.make_current().unwrap() };
@@ -451,6 +453,7 @@ impl Jockey {
             static ref RESOLUTION_NAME: CString = CString::new("resolution").unwrap();
             static ref PASS_INDEX_NAME: CString = CString::new("passIndex").unwrap();
             static ref TIME_NAME: CString = CString::new("time").unwrap();
+            static ref FRAME_NAME: CString = CString::new("frame").unwrap();
             static ref DELTA_NAME: CString = CString::new("delta").unwrap();
             static ref BEAT_NAME: CString = CString::new("beat").unwrap();
             static ref SLIDERS_NAME: CString = CString::new("sliders").unwrap();
@@ -472,8 +475,10 @@ impl Jockey {
         let now = Instant::now();
         let time = self.time;
         let delta = now.duration_since(self.last_frame).as_secs_f32();
+        let frame = self.frame;
         self.time += delta * self.speed;
         self.last_frame = now;
+        self.frame = self.frame.wrapping_add(1);
 
         // update audio samples texture
 
@@ -518,8 +523,8 @@ impl Jockey {
 
             // get size of the render target
             let target_res = match stage.resolution() {
-                Some([w, h, 0]) => (w, h),
-                _ => (width, height),
+                Some(s) => s,
+                _ => [width, height, 0],
             };
 
             unsafe {
@@ -534,26 +539,34 @@ impl Jockey {
                     let res_loc = gl::GetUniformLocation(stage.prog_id, RESOLUTION_NAME.as_ptr());
                     let pass_loc = gl::GetUniformLocation(stage.prog_id, PASS_INDEX_NAME.as_ptr());
                     let time_loc = gl::GetUniformLocation(stage.prog_id, TIME_NAME.as_ptr());
+                    let frame_loc = gl::GetUniformLocation(stage.prog_id, FRAME_NAME.as_ptr());
                     let delta_loc = gl::GetUniformLocation(stage.prog_id, DELTA_NAME.as_ptr());
                     let beat_loc = gl::GetUniformLocation(stage.prog_id, BEAT_NAME.as_ptr());
                     let volume_loc = gl::GetUniformLocation(stage.prog_id, VOLUME_NAME.as_ptr());
 
                     gl::Uniform4f(
                         res_loc,
-                        target_res.0 as f32,
-                        target_res.1 as f32,
-                        target_res.0 as f32 / target_res.1 as f32, // x/y
-                        target_res.1 as f32 / target_res.0 as f32, // y/x
+                        target_res[0] as f32,
+                        target_res[1] as f32,
+                        target_res[2] as f32,
+                        target_res[0] as f32 / target_res[1] as f32, // x/y
                     );
-                    gl::Uniform3f(r_loc, target_res.0 as _, target_res.1 as _, time);
+                    gl::Uniform4f(
+                        r_loc,
+                        target_res[0] as _,
+                        target_res[1] as _,
+                        target_res[2] as _,
+                        time,
+                    );
                     gl::Uniform3f(
                         volume_loc,
                         self.audio.volume[0], // average L/R
                         self.audio.volume[1], // L
                         self.audio.volume[2], // R
                     );
-                    gl::Uniform1i(k_loc, pass_num as _);
+                    gl::Uniform2i(k_loc, pass_num as _, frame as _);
                     gl::Uniform1i(pass_loc, pass_num as _);
+                    gl::Uniform1i(frame_loc, frame as _);
                     gl::Uniform1f(time_loc, time);
                     gl::Uniform1f(beat_loc, beat);
                     gl::Uniform1f(delta_loc, delta);
@@ -591,17 +604,19 @@ impl Jockey {
                     let loc = gl::GetUniformLocation(stage.prog_id, name.as_ptr());
                     gl::ActiveTexture(gl::TEXTURE0 + k as GLenum);
                     tex.bind();
-
                     gl::Uniform1i(loc, k as _);
+                    gl_debug_check!();
+
                     let res_name = CString::new(format!("{}_res", name.to_str().unwrap())).unwrap();
                     let res_loc = gl::GetUniformLocation(stage.prog_id, res_name.as_ptr());
                     let res = tex.resolution();
+
                     gl::Uniform4f(
                         res_loc,
                         res[0] as _,
                         res[1] as _,
+                        res[2] as _,
                         res[0] as f32 / res[1] as f32,
-                        res[1] as f32 / res[0] as f32,
                     );
                     gl_debug_check!();
                 }
@@ -614,6 +629,8 @@ impl Jockey {
                     gl_debug_check!();
                 },
                 _ => unsafe {
+                    debug_assert_eq!(target_res[2], 0);
+
                     // get render target id
                     let (target_tex, target_fb) = if let Some(name) = &stage.target {
                         let tex = &self.pipeline.buffers[name];
@@ -629,7 +646,7 @@ impl Jockey {
 
                     // Specify render target
                     gl::BindFramebuffer(gl::FRAMEBUFFER, target_fb);
-                    gl::Viewport(0, 0, target_res.0 as _, target_res.1 as _);
+                    gl::Viewport(0, 0, target_res[0] as _, target_res[1] as _);
                     gl_debug_check!();
 
                     // Specify fragment shader color output
