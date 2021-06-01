@@ -42,9 +42,13 @@ impl Midi {
         config_file.set_file_name("midi-config.yaml");
 
         if let Ok(file) = std::fs::File::open(&config_file) {
-            let tuple: (_, _) = serde_yaml::from_reader(file).unwrap();
-            button_bindings = tuple.0;
-            slider_bindings = tuple.1;
+             match serde_yaml::from_reader(file) {
+                Ok((b, s)) => {
+                    button_bindings = b;
+                    slider_bindings = s;
+                },
+                _ => eprintln!("Failed to parse midi config file. Please do not edit the config file."),
+            };
         }
 
         let mut this = Self {
@@ -225,8 +229,11 @@ impl Midi {
 
 impl Drop for Midi {
     fn drop(&mut self) {
-        let file = std::fs::File::create(&self.config_file).unwrap();
-        let tuple = (&self.button_bindings, &self.slider_bindings);
-        serde_yaml::to_writer(file, &tuple).unwrap();
+        if let Ok(file) = std::fs::File::create(&self.config_file) {
+            let tuple = (&self.button_bindings, &self.slider_bindings);
+            serde_yaml::to_writer(file, &tuple).unwrap();
+        } else {
+            eprint!("Failed to save midi configs... somehow...")
+        }
     }
 }

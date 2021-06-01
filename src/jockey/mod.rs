@@ -576,7 +576,7 @@ impl Jockey {
                     let tex = self.pipeline.buffers.get(name).unwrap();
                     let loc = gl::GetUniformLocation(stage.prog_id, name.as_ptr());
                     gl::ActiveTexture(gl::TEXTURE0 + k as GLenum);
-                    tex.activate();
+                    tex.bind();
 
                     gl::Uniform1i(loc, k as _);
                     let res_name = CString::new(format!("{}_res", name.to_str().unwrap())).unwrap();
@@ -921,6 +921,7 @@ impl Jockey {
         }
 
         image::imageops::flip_vertical_in_place(&mut img);
-        img.save("frame.png").unwrap();
+        let file_name = format!("frame-{:?}.png", Instant::now());
+        img.save(file_name).unwrap();
     }
 }
