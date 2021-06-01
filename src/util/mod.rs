@@ -47,6 +47,24 @@ macro_rules! gl_debug_check {
     };
 }
 
+#[macro_export]
+macro_rules! gl_ignore {
+    () => {
+        // this unsafe in unnecessary if the macro is used in an unsafe block
+        #[allow(unused_unsafe)]
+        while (unsafe { gl::GetError() }) != gl::NO_ERROR {}
+    };
+}
+
+#[macro_export]
+macro_rules! gl_debug_ignore {
+    () => {
+        if cfg!(debug_assertions) {
+            gl_ignore!();
+        }
+    };
+}
+
 const FULLSCREEN_TRI: [GLfloat; 6] = [-1.0, -1.0, 3.0, -1.0, -1.0, 3.0];
 
 pub fn draw_fullscreen_tri(vao: GLuint) {

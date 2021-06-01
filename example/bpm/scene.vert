@@ -60,7 +60,7 @@ void main() {
     p.xz *= rot(time);
     p.yz *= rot(0.3);
     p.z += 2;
-    p.x *= resolution.w;
+    p.x /= resolution.w;
     p /= p.z + 1;
 
     gl_Position = vec4(p, 1);

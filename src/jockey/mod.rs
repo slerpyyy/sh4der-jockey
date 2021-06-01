@@ -453,7 +453,7 @@ impl Jockey {
             static ref RESOLUTION_NAME: CString = CString::new("resolution").unwrap();
             static ref PASS_INDEX_NAME: CString = CString::new("passIndex").unwrap();
             static ref TIME_NAME: CString = CString::new("time").unwrap();
-            static ref FRAME_NAME: CString = CString::new("frame").unwrap();
+            static ref FRAME_NAME: CString = CString::new("frameCount").unwrap();
             static ref DELTA_NAME: CString = CString::new("delta").unwrap();
             static ref BEAT_NAME: CString = CString::new("beat").unwrap();
             static ref SLIDERS_NAME: CString = CString::new("sliders").unwrap();
@@ -570,7 +570,7 @@ impl Jockey {
                     gl::Uniform1f(time_loc, time);
                     gl::Uniform1f(beat_loc, beat);
                     gl::Uniform1f(delta_loc, delta);
-                    gl_debug_check!();
+                    gl_debug_ignore!();
                 }
 
                 {
@@ -588,14 +588,14 @@ impl Jockey {
 
                     gl::Uniform1fv(s_loc, self.midi.sliders.len() as _, &self.midi.sliders as _);
                     gl::Uniform4fv(b_loc, self.midi.buttons.len() as _, &buttons as _);
-                    gl_debug_check!();
+                    gl_debug_ignore!();
                 }
 
                 // Add vertex count uniform
                 if let StageKind::Vert { count, .. } = stage.kind {
                     let loc = gl::GetUniformLocation(stage.prog_id, VERTEX_COUNT_NAME.as_ptr());
                     gl::Uniform1i(loc, count as _);
-                    gl_debug_check!();
+                    gl_debug_ignore!();
                 }
 
                 // Add and bind uniform texture dependencies
@@ -604,12 +604,15 @@ impl Jockey {
                     let loc = gl::GetUniformLocation(stage.prog_id, name.as_ptr());
                     gl::ActiveTexture(gl::TEXTURE0 + k as GLenum);
                     tex.bind();
-                    gl::Uniform1i(loc, k as _);
                     gl_debug_check!();
+
+                    gl::Uniform1i(loc, k as _);
+                    gl_debug_ignore!();
 
                     let res_name = CString::new(format!("{}_res", name.to_str().unwrap())).unwrap();
                     let res_loc = gl::GetUniformLocation(stage.prog_id, res_name.as_ptr());
                     let res = tex.resolution();
+                    gl_debug_check!();
 
                     gl::Uniform4f(
                         res_loc,
@@ -618,7 +621,7 @@ impl Jockey {
                         res[2] as _,
                         res[0] as f32 / res[1] as f32,
                     );
-                    gl_debug_check!();
+                    gl_debug_ignore!();
                 }
             }
 

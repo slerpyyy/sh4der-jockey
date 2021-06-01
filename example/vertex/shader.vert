@@ -27,7 +27,7 @@ void main() {
   v_color = vec4(1.0 / abs(p.z + 1.0));
 
   p.z += 5;
-  p.x *= resolution.w;
+  p.x /= resolution.w;
 
   gl_Position = vec4(p, p.z);
   gl_PointSize = 1.0;
