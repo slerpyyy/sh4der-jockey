@@ -560,6 +560,8 @@ macro_rules! impl_texture {
                         data,
                     );
                     gl_debug_check!();
+                    gl::GenerateMipmap($enum_type);
+                    gl_debug_check!();
                 }
             }
         }
