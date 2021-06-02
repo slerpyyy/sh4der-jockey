@@ -259,6 +259,7 @@ impl Pipeline {
         }
 
         // create render targets for stages
+        let mut res_map = HashMap::new();
         for stage in stages.iter() {
             let target = match &stage.target {
                 Some(s) => s,
@@ -266,10 +267,9 @@ impl Pipeline {
             };
 
             // check if target exists already
-            if let Some(tex) = buffers.get(target) {
-                let res = stage.resolution();
-                let (w, h) = screen_size;
-                if tex.resolution() != res.unwrap_or([w, h, 0]) {
+            let stage_res = stage.resolution();
+            if let Some(buffer_res) = res_map.insert(target.as_c_str(), stage_res) {
+                if buffer_res != stage_res {
                     return Err(format!(
                         "Texture {:?} already has a different resolution",
                         target
