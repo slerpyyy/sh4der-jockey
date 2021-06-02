@@ -268,7 +268,8 @@ impl Pipeline {
             // check if target exists already
             if let Some(tex) = buffers.get(target) {
                 let res = stage.resolution();
-                if Some(tex.resolution()) != res || res.is_none() {
+                let (w, h) = screen_size;
+                if tex.resolution() != res.unwrap_or([w, h, 0]) {
                     return Err(format!(
                         "Texture {:?} already has a different resolution",
                         target
