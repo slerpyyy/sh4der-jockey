@@ -4,41 +4,11 @@
 ![code-quality](https://img.shields.io/badge/code%20quality-jank-red)
 ![works-on](https://img.shields.io/badge/works%20on-my%20mashine%E2%84%A2-orange)
 
-## Wishlist
+## Documentation
 
-A non-exhaustive list of things we want our tool to be able to do, vaguely ordered by priority, from high to low:
+The documentation on how to use this tool can be found in the [docs](docs/) folder or using the links below:
 
-- [x] fullscreen fragment shaders
-- [x] live shader reloading
-- [x] dynamic / configurable render pipeline
-- [ ] shader preprocessor / common file
-- [ ] input system
-    - [x] MIDI control
-    - [x] tap-to-sync / BPM calculator
-    - [ ] OSC? not really useful for me but maybe someone else
-    - [ ] fix MIDI reconnect stutter
-- [ ] audio reactive / FFT
-- [x] mip maps
-- [ ] code view / screen capture
-    - [ ] NDI input? Direct Screen Capture?
-- [ ] vertex shaders
-    - [ ] loading models and textures
-- [ ] geometry shaders
-- [ ] compute shaders
-    - [x] a compute shader runs
-    - [ ] multiple render targets
-    - [ ] work group size config
-- [ ] hardware instancing
-- [ ] curve editor
-- [ ] color palette
-- [x] performance profiler
-- [ ] 3D noise texture
-- [x] resizable window
-- [ ] cubemaps
-- [ ] text rendering
-- [ ] custom textures/LUTs
-    - [ ] videos
-- [ ] recording mode
+[Read in English](docs/readme_en.md) | [日本語で読む](docs/readme_jp.md)
 
 ## Setup
 
@@ -53,3 +23,6 @@ cargo run
 # install so you can run it from anywhere
 cargo install --path .
 ```
+
+| ⚠️ | Please note that the tool may drop config files in the folder where the executable is located. |
+|-|-|
