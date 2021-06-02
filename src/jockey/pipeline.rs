@@ -281,7 +281,12 @@ impl Pipeline {
             // create textures
             let texture: Rc<dyn Texture> = match stage.kind {
                 StageKind::Frag { .. } | StageKind::Vert { .. } => {
-                    stage.builder.build_double_framebuffer(screen_size)
+                    let loc = unsafe { gl::GetUniformLocation(stage.prog_id, target.as_ptr()) };
+
+                    match loc {
+                        -1 => stage.builder.build_framebuffer(screen_size),
+                        _ => stage.builder.build_double_framebuffer(screen_size)
+                    }
                 }
                 StageKind::Comp { .. } => stage.builder.build_image(),
             };
