@@ -82,8 +82,8 @@ impl Audio {
         self.r_fft = vec![Complex::new(0.0, 0.0); new_size];
         self.l_raw_spectrum = vec![0.0; spec_size];
         self.r_raw_spectrum = vec![0.0; spec_size];
-        self.l_samples = Arc::new(Mutex::new(RingBuffer::new(new_size)));
-        self.r_samples = Arc::new(Mutex::new(RingBuffer::new(new_size)));
+        *self.l_samples.lock().unwrap() = RingBuffer::new(new_size);
+        *self.r_samples.lock().unwrap() = RingBuffer::new(new_size);
     }
 
     pub fn connect(&mut self) -> Result<(), String> {
