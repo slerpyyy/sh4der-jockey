@@ -338,8 +338,9 @@ impl Jockey {
 
                 let build_time = self.last_build.elapsed().as_secs_f64();
                 println!("Build pipeline over a span of {}s", build_time);
+
                 if self.pipeline.audio_samples != self.audio.size {
-                    self.audio = Audio::new(self.pipeline.audio_samples);
+                    self.audio.resize(self.pipeline.audio_samples);
                 }
             }
         }

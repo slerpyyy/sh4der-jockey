@@ -69,7 +69,6 @@ impl Audio {
         this
     }
 
-    #[allow(dead_code)]
     pub fn resize(&mut self, new_size: usize) {
         self.size = new_size;
         let spec_size = new_size / 2;
