@@ -69,6 +69,7 @@ impl Audio {
         this
     }
 
+    #[allow(dead_code)]
     pub fn resize(&mut self, new_size: usize) {
         self.size = new_size;
         let spec_size = new_size / 2;
@@ -182,7 +183,7 @@ impl Audio {
             let r_samples_p = self.r_samples.clone();
             let r_samples = r_samples_p.lock().unwrap();
             r_samples.copy_to_slice(&mut self.r_signal);
-            self.volume[2] = (self.l_signal.iter().map(|&x| x.powi(2)).sum::<f32>()
+            self.volume[2] = (self.r_signal.iter().map(|&x| x.powi(2)).sum::<f32>()
                 / l_samples.size as f32)
                 .sqrt();
             self.volume[0] = (self.volume[1] + self.volume[2]) / 2f32;
