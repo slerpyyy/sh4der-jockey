@@ -268,16 +268,28 @@ impl Pipeline {
 
             // check if target exists already
             let stage_res = stage.resolution();
-            if let Some(buffer_res) = res_map.insert(target.as_c_str(), stage_res) {
-                if buffer_res != stage_res {
+            if buffers.contains_key(target) {
+                if let Some(&buffer_res) = res_map.get(target.as_c_str()) {
+                    // compare against previous stages
+                    if buffer_res != stage_res {
+                        return Err(format!(
+                            "Texture {:?} already has a different resolution",
+                            target
+                        ));
+                    }
+
+                    // don't create the same target twice
+                    continue;
+                } else {
                     return Err(format!(
-                        "Texture {:?} already has a different resolution",
+                        "Target {:?} is already loaded as an image or build-in texture",
                         target
                     ));
                 }
-
-                continue;
             }
+
+            // record specified stage resolution
+            res_map.insert(target.as_c_str(), stage_res);
 
             // create textures
             let texture: Rc<dyn Texture> = match stage.kind {

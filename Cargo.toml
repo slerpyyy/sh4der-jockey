@@ -4,8 +4,8 @@ version = "0.1.1"
 edition = "2018"
 build = "build.rs"
 
-[profile.release]
-lto = true
+#[profile.release]
+#lto = true
 #codegen-units = 1
 #panic = "abort"
 
