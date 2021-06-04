@@ -10,7 +10,7 @@
 
 ## UI
 
-ボタンやスライダーに対してMIDIを割り当てることが可能です。`bind`を長押ししながらMIDIコントローラーを操作して、最後に受信したMIDI信号とBindされます。
+ボタンやスライダーに対してMIDIを割り当てることが可能です。`bind`を長押ししながらMIDIコントローラーを操作して、最後に受信したMIDIキーと結び付けられます。
 
 ## パイプライン
 
@@ -45,6 +45,13 @@ stages:
 images:
   - path: "images/image.png"
     name: "some_image"
+
+audio:
+  audio_samples: 8192
+  spectrum:
+    mipmap: true
+    filter: linear
+    wrap_mode: repeat
 ```
 
 ## Fragment シェーダー
@@ -200,7 +207,34 @@ images:
      name: "uniform_of_second_image"
 ```
 
+```glsl
+uniform sampler2D {name_of_image};
+// vec4(x,y,z, x/y)
+uniform vec4 {name_of_image}_res;
+```
+
 現状静止画しかサポートしていません. `png` と `jpeg`は検証しましたが他の画像でも動くかもしれません.
+
+## オーディオ設定
+
+```yaml
+audio:
+  audio_samples: int
+  spectrum:
+    mipmap: bool
+    filter: (linear | nearest)
+    wrap_mode: (clamp | repeat)
+  raw_spectrum:
+    mipmap: bool
+    filter: (linear | nearest)
+    wrap_mode: (clamp | repeat)
+  samples:
+    mipmap: bool
+    filter: (linear | nearest)
+    wrap_mode: (clamp | repeat)
+```
+
+すべてのオーディオテキスチャはFloatです。
 
 ## 共通uniform
 
@@ -255,4 +289,15 @@ uniform vec3 volume;
 // A 32x32x32 の乱数テキスチャ.
 // パイプラインが読み込まれるたびに再計算されるのでコンパイルなどを走らせるとテキスチャの中身が変わります。
 uniform sampler3D noise;
+
+// プログラム開始からのフレーム数
+uniform int frameCount;
 ```
+
+## Hotkeys
+
+|key combination| feature | notes |
+| :---- | :---- | :---- |
+| ctrl + enter | パイプラインのビルド | |
+| alt + enter | borderless windowed モード切り替え | |
+| shift + ctrl + s | スクリーンショットを撮る | スクリーンショットはバイナリの保存してあるディレクトリ以下に配置されます |

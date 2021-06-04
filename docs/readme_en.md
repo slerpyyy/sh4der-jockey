@@ -40,6 +40,13 @@ stages:
 images:
   - path: "images/image.png"
     name: "some_image"
+
+audio:
+  audio_samples: 8192
+  spectrum:
+    mipmap: true
+    filter: linear
+    wrap_mode: repeat
 ```
 
 ## Fragment Shaders
@@ -193,7 +200,34 @@ images:
      name: "uniform_of_second_image"
 ```
 
+```glsl
+uniform sampler2D {name_of_image};
+// vec4(x,y,z, x/y)
+uniform vec4 {name_of_image}_res;
+```
+
 Currently supports only static images. `png` and `jpeg` have been tested.
+
+## Audio Config
+
+```yaml
+audio:
+  audio_samples: n
+  spectrum:
+    mipmap: bool
+    filter: (linear | nearest)
+    wrap_mode: (clamp | repeat)
+  raw_spectrum:
+    mipmap: bool
+    filter: (linear | nearest)
+    wrap_mode: (clamp | repeat)
+  samples:
+    mipmap: bool
+    filter: (linear | nearest)
+    wrap_mode: (clamp | repeat)
+```
+
+All audio textures are float textures.
 
 ## Common Uniforms
 
@@ -248,4 +282,15 @@ uniform vec3 volume;
 // A 32x32x32 random noise texture.
 // Note this texture is recalculated per pipeline load, so the pattern changes every time you recompile or reload a pipeline.
 uniform sampler3D noise;
+
+// current frame since program start
+uniform int frameCount;
 ```
+
+## Hotkeys
+
+|key combination| feature | notes |
+| :---- | :---- | :---- |
+| ctrl + enter | rebuild current pipeline | |
+| alt + enter | Toggle borderless fullscreen | |
+| shift + ctrl + s | take screenshot | screenshots are saved in the executable directory |
