@@ -396,11 +396,11 @@ impl Jockey {
                             if Some(glutin::VirtualKeyCode::Return) == input.virtual_keycode
                                 && input.state == glutin::ElementState::Pressed
                             {
-                                if alt && !(shift || ctrl || logo) {
+                                if ctrl && !(shift || alt || logo) {
                                     do_update_pipeline = true;
                                 }
 
-                                if ctrl && !(shift || alt || logo) && window.id() == window_id {
+                                if alt && !(shift || ctrl || logo) && window.id() == window_id {
                                     let primary = Some(window.get_primary_monitor());
                                     let next = window.get_fullscreen().xor(primary);
                                     window.set_fullscreen(next);
