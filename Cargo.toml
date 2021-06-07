@@ -16,11 +16,11 @@ cpal = "0.13.3"
 futures = { version = "0.3.15", default-features = false }
 getopts = "0.2.21"
 gl = "0.14.0"
-glutin = "0.21.0"
+glutin = "0.26"
 image = "0.23"
-imgui = { git = "https://github.com/luke-titley/imgui-docking-rs", branch = "release/docking/0.5.0" }
+imgui = { git = "https://github.com/sp4ghet/imgui-rs", branch = "master" }
+imgui-winit-support = {git = "https://github.com/sp4ghet/imgui-rs", branch = "master" }
 imgui-opengl-renderer = { git = "https://github.com/sp4ghet/rust-imgui-opengl-renderer", branch = "master" }
-imgui-winit-support = { git = "https://github.com/luke-titley/imgui-docking-rs", branch = "release/docking/0.5.0",  default-features = false, features = ["winit-19"] }
 lazy_static = "1.4.0"
 midir = "0.7.0"
 notify = "5.0.0-pre.7"

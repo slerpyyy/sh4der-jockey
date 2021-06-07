@@ -1,5 +1,6 @@
 use crate::util::*;
 use gl::types::*;
+use glutin::platform::{run_return::EventLoopExtRunReturn, windows::WindowBuilderExtWindows};
 use imgui::im_str;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 use lazy_static::lazy_static;
@@ -11,6 +12,7 @@ use std::{
     pin::Pin,
     rc::Rc,
     sync::atomic::{AtomicBool, Ordering},
+    sync::mpsc::{channel, Receiver},
     time::{Duration, Instant},
 };
 
@@ -45,7 +47,7 @@ pub struct MegaContext {
     pub watcher: notify::RecommendedWatcher,
     pub context: glutin::WindowedContext<glutin::PossiblyCurrent>,
     pub ui_context: glutin::WindowedContext<glutin::PossiblyCurrent>,
-    pub events_loop: glutin::EventsLoop,
+    pub events_loop: glutin::event_loop::EventLoop<()>,
     pub platform: WinitPlatform,
 }
 
@@ -97,14 +99,17 @@ impl Jockey {
     /// This will spin up a Winit window, initialize Imgui,
     /// create a OpenGL context and more!
     pub fn init() -> Self {
+        let audio = Audio::new(AUDIO_SAMPLES);
+
         let title = Self::title();
-        let events_loop = glutin::EventsLoop::new();
+        let events_loop = glutin::event_loop::EventLoop::new();
         let request = glutin::GlRequest::Latest;
 
         // Setup for imgui
-        let ui_window_builder = glutin::WindowBuilder::new()
-            .with_dimensions(glutin::dpi::LogicalSize::new(720.0, 640.0))
+        let ui_window_builder = glutin::window::WindowBuilder::new()
+            .with_inner_size(glutin::dpi::LogicalSize::new(720.0, 640.0))
             .with_resizable(true)
+            .with_drag_and_drop(false)
             .with_title("Control Panel");
         let ui_context_builder = glutin::ContextBuilder::new().with_vsync(true);
         let ui_built_context = ui_context_builder
@@ -137,9 +142,10 @@ impl Jockey {
         let context_builder = glutin::ContextBuilder::new()
             .with_vsync(true)
             .with_gl(request);
-        let window_builder = glutin::WindowBuilder::new()
-            .with_dimensions(glutin::dpi::LogicalSize::new(1280.0, 720.0))
+        let window_builder = glutin::window::WindowBuilder::new()
+            .with_inner_size(glutin::dpi::LogicalSize::new(1280.0, 720.0))
             .with_resizable(true)
+            .with_drag_and_drop(false)
             .with_title(title.to_owned());
         let built_context = context_builder
             .build_windowed(window_builder, &events_loop)
@@ -192,7 +198,6 @@ impl Jockey {
         beat_delta.buffer.fill(1.0);
 
         let now = Instant::now();
-        let audio = Audio::new(AUDIO_SAMPLES);
         let mut this = Self {
             beat_delta,
             ctx,
@@ -312,7 +317,7 @@ impl Jockey {
             }
         };
 
-        let screen_size = self.ctx.context.window().get_inner_size().unwrap();
+        let screen_size = self.ctx.context.window().inner_size();
         let screen_size = (screen_size.width as u32, screen_size.height as u32);
 
         println!("Start building pipeline");
@@ -369,9 +374,9 @@ impl Jockey {
         let main_id = self.ctx.context.window().id();
         let ui_id = ui_window.id();
 
-        events_loop.poll_events(|e| {
+        events_loop.run_return(|e, _window_target, cf| {
             match e {
-                glutin::Event::WindowEvent {
+                glutin::event::Event::WindowEvent {
                     window_id,
                     ref event,
                 } => {
@@ -379,36 +384,37 @@ impl Jockey {
                         platform.handle_event(imgui.io_mut(), ui_window, &e);
                     }
                     match event {
-                        glutin::WindowEvent::CloseRequested => done = true,
-                        glutin::WindowEvent::Resized(size) if window_id == main_id => {
+                        glutin::event::WindowEvent::CloseRequested => done = true,
+                        glutin::event::WindowEvent::Resized(size) if window_id == main_id => {
                             let width = size.width as u32;
                             let height = size.height as u32;
                             pipeline.resize_buffers(width, height);
                         }
-                        glutin::WindowEvent::KeyboardInput { input, .. } => {
-                            let glutin::ModifiersState {
-                                shift,
-                                ctrl,
-                                alt,
-                                logo,
-                            } = input.modifiers;
+                        glutin::event::WindowEvent::KeyboardInput { input, .. } => {
+                            let shift = input.modifiers.shift();
+                            let ctrl = input.modifiers.ctrl();
+                            let alt = input.modifiers.alt();
+                            let logo = input.modifiers.logo();
 
-                            if Some(glutin::VirtualKeyCode::Return) == input.virtual_keycode
-                                && input.state == glutin::ElementState::Pressed
+                            if Some(glutin::event::VirtualKeyCode::Return) == input.virtual_keycode
+                                && input.state == glutin::event::ElementState::Pressed
                             {
                                 if ctrl && !(shift || alt || logo) {
                                     do_update_pipeline = true;
                                 }
 
                                 if alt && !(shift || ctrl || logo) && window.id() == window_id {
-                                    let primary = Some(window.get_primary_monitor());
-                                    let next = window.get_fullscreen().xor(primary);
-                                    window.set_fullscreen(next);
+                                    let monitor =
+                                        window.current_monitor().or(window.primary_monitor());
+                                    let handle =
+                                        Some(glutin::window::Fullscreen::Borderless(monitor));
+
+                                    window.set_fullscreen(handle);
                                 }
                             }
 
-                            if Some(glutin::VirtualKeyCode::S) == input.virtual_keycode
-                                && input.state == glutin::ElementState::Pressed
+                            if Some(glutin::event::VirtualKeyCode::S) == input.virtual_keycode
+                                && input.state == glutin::event::ElementState::Pressed
                             {
                                 if shift || ctrl {
                                     take_screenshot = true;
@@ -420,6 +426,7 @@ impl Jockey {
                 }
                 _ => (),
             };
+            *cf = glutin::event_loop::ControlFlow::Exit;
         });
 
         self.done = done;
@@ -470,7 +477,7 @@ impl Jockey {
         }
 
         // compute uniforms
-        let screen_size = self.ctx.context.window().get_inner_size().unwrap();
+        let screen_size = self.ctx.context.window().inner_size();
         let (width, height) = (screen_size.width as u32, screen_size.height as u32);
         let beat = self.last_beat.elapsed().as_secs_f32() / self.beat_delta.get();
         let now = Instant::now();
@@ -754,7 +761,7 @@ impl Jockey {
                     for (k, file) in self.pipeline_files.iter().enumerate() {
                         let cst = CString::new(file.as_bytes()).unwrap();
                         let ims = unsafe { imgui::ImStr::from_cstr_unchecked(&cst) };
-                        if ui.button(ims, [256.0, 18.0]) {
+                        if ui.button_with_size(ims, [256.0, 18.0]) {
                             self.pipeline_index = k;
                             unsafe { PIPELINE_STALE.store(true, Ordering::Relaxed) }
                         }
@@ -762,21 +769,21 @@ impl Jockey {
                 }
             }
 
-            window.end(&ui);
+            window.end();
         }
 
         if let Some(window) = imgui::Window::new(im_str!("Timeline")).begin(&ui) {
-            if ui.button(im_str!("Play"), [64.0, 18.0]) {
+            if ui.button_with_size(im_str!("Play"), [64.0, 18.0]) {
                 self.speed = 1.0;
             }
 
-            ui.same_line(0.0);
-            if ui.button(im_str!("Stop"), [64.0, 18.0]) {
+            ui.same_line();
+            if ui.button_with_size(im_str!("Stop"), [64.0, 18.0]) {
                 self.speed = 0.0;
             }
 
-            ui.same_line(0.0);
-            if ui.button(im_str!("Reset"), [64.0, 18.0]) {
+            ui.same_line();
+            if ui.button_with_size(im_str!("Reset"), [64.0, 18.0]) {
                 self.time = 0.0;
             }
 
@@ -791,11 +798,11 @@ impl Jockey {
             ui.set_next_item_width(64.0);
             ui.input_float(im_str!("start"), start).build();
 
-            ui.same_line(0.0);
+            ui.same_line();
             ui.set_next_item_width(64.0);
             ui.input_float(im_str!("end"), end).build();
 
-            window.end(&ui);
+            window.end();
         }
 
         if let Some(window) = imgui::Window::new(im_str!("Buttons")).begin(&ui) {
@@ -804,12 +811,12 @@ impl Jockey {
                 if ui.small_button(im_str!("bind")) {
                     self.midi.auto_bind_button(k);
                 }
-                token.pop(&ui);
-                ui.same_line(0.0);
+                token.pop();
+                ui.same_line();
                 let name = format!("button{}", k);
                 let cst = CString::new(name).unwrap();
                 let ims = unsafe { imgui::ImStr::from_cstr_unchecked(&cst) };
-                let button = ui.button(ims, [64.0, 18.0]);
+                let button = ui.button_with_size(ims, [64.0, 18.0]);
 
                 // button is false while it's held down.
                 // we consider button to be pressed when the mouse is over button
@@ -830,11 +837,11 @@ impl Jockey {
                 }
 
                 if k & 3 != 3 {
-                    ui.same_line(0.0);
+                    ui.same_line();
                 }
             }
 
-            window.end(&ui);
+            window.end();
         }
 
         if let Some(window) = imgui::Window::new(im_str!("Sliders")).begin(&ui) {
@@ -843,8 +850,8 @@ impl Jockey {
                 if ui.small_button(im_str!("bind")) {
                     self.midi.auto_bind_slider(k);
                 }
-                token.pop(&ui);
-                ui.same_line(0.0);
+                token.pop();
+                ui.same_line();
                 let name = format!("slider{}", k);
                 let cst = CString::new(name).unwrap();
                 let ims = unsafe { imgui::ImStr::from_cstr_unchecked(&cst) };
@@ -852,7 +859,7 @@ impl Jockey {
                 imgui::Slider::new(ims).range(0.0..=1.0).build(&ui, slider);
             }
 
-            window.end(&ui);
+            window.end();
         }
 
         if let Some(window) = imgui::Window::new(im_str!("Audio")).begin(&ui) {
@@ -869,21 +876,21 @@ impl Jockey {
             ui.plot_lines(im_str!("nice R FFT"), self.audio.r_spectrum.as_slice())
                 .build();
 
-            window.end(&ui);
+            window.end();
         }
 
         if let Some(window) = imgui::Window::new(im_str!("Beat Sync")).begin(&ui) {
-            if ui.button(im_str!("Tab here"), [128.0, 32.0]) {
+            if ui.button_with_size(im_str!("Tab here"), [128.0, 32.0]) {
                 let delta = self.last_beat.elapsed().as_secs_f32();
                 self.beat_delta.push(delta);
                 self.last_beat = Instant::now();
             }
-            ui.same_line(0.0);
+            ui.same_line();
             ui.text(format! {
                 "BPM: {}\nCycle: {}", 60.0 / self.beat_delta.get(), self.beat_delta.index
             });
 
-            window.end(&ui);
+            window.end();
         }
 
         if let Some(window) = imgui::Window::new(im_str!("Performance")).begin(&ui) {
@@ -916,7 +923,7 @@ impl Jockey {
                 100.0 * stage_sum_ms / frame_ms
             ));
 
-            window.end(&ui);
+            window.end();
         }
 
         // update ui
@@ -935,7 +942,7 @@ impl Jockey {
             s.make_current().unwrap()
         });
 
-        let screen_size = self.ctx.context.window().get_inner_size().unwrap();
+        let screen_size = self.ctx.context.window().inner_size();
         let (width, height) = (screen_size.width as u32, screen_size.height as u32);
 
         let mut img = image::ImageBuffer::<image::Rgb<u8>, Vec<u8>>::new(width, height);
