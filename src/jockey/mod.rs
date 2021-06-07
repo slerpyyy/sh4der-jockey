@@ -1,6 +1,6 @@
 use crate::util::*;
 use gl::types::*;
-use glutin::platform::{run_return::EventLoopExtRunReturn, windows::WindowBuilderExtWindows};
+use glutin::platform::run_return::EventLoopExtRunReturn;
 use imgui::im_str;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 use lazy_static::lazy_static;
@@ -12,7 +12,6 @@ use std::{
     pin::Pin,
     rc::Rc,
     sync::atomic::{AtomicBool, Ordering},
-    sync::mpsc::{channel, Receiver},
     time::{Duration, Instant},
 };
 
@@ -112,7 +111,11 @@ impl Jockey {
             .with_title("Control Panel");
 
         #[cfg(target_os = "windows")]
-        let ui_window_builder = ui_window_builder.with_drag_and_drop(false);
+        let ui_window_builder =
+            glutin::platform::windows::WindowBuilderExtWindows::with_drag_and_drop(
+                ui_window_builder,
+                false,
+            );
 
         let ui_context_builder = glutin::ContextBuilder::new().with_vsync(true);
         let ui_built_context = ui_context_builder
@@ -152,7 +155,10 @@ impl Jockey {
             .with_title(title.to_owned());
 
         #[cfg(target_os = "windows")]
-        let window_builder = window_builder.with_drag_and_drop(false);
+        let window_builder = glutin::platform::windows::WindowBuilderExtWindows::with_drag_and_drop(
+            window_builder,
+            false,
+        );
 
         let built_context = context_builder
             .build_windowed(window_builder, &events_loop)
