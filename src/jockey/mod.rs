@@ -109,8 +109,11 @@ impl Jockey {
         let ui_window_builder = glutin::window::WindowBuilder::new()
             .with_inner_size(glutin::dpi::LogicalSize::new(720.0, 640.0))
             .with_resizable(true)
-            .with_drag_and_drop(false)
             .with_title("Control Panel");
+
+        #[cfg(target_os = "windows")]
+        let ui_window_builder = ui_window_builder.with_drag_and_drop(false);
+
         let ui_context_builder = glutin::ContextBuilder::new().with_vsync(true);
         let ui_built_context = ui_context_builder
             .build_windowed(ui_window_builder, &events_loop)
@@ -142,11 +145,15 @@ impl Jockey {
         let context_builder = glutin::ContextBuilder::new()
             .with_vsync(true)
             .with_gl(request);
+
         let window_builder = glutin::window::WindowBuilder::new()
             .with_inner_size(glutin::dpi::LogicalSize::new(1280.0, 720.0))
             .with_resizable(true)
-            .with_drag_and_drop(false)
             .with_title(title.to_owned());
+
+        #[cfg(target_os = "windows")]
+        let window_builder = window_builder.with_drag_and_drop(false);
+
         let built_context = context_builder
             .build_windowed(window_builder, &events_loop)
             .expect("Failed to create windowed context");
