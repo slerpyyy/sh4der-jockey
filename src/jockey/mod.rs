@@ -16,11 +16,13 @@ use std::{
 };
 
 mod audio;
+mod beatsync;
 mod midi;
 mod pipeline;
 mod stage;
 
 pub use audio::*;
+pub use beatsync::*;
 pub use midi::*;
 pub use pipeline::*;
 pub use stage::*;
@@ -56,11 +58,10 @@ pub struct MegaContext {
 /// required to keep the window alive. The main point of this struct is to
 /// hide all the nasty details and keep the main function clean.
 pub struct Jockey {
-    pub beat_delta: RunningAverage<f32, 8>,
     pub ctx: MegaContext,
     pub done: bool,
     pub frame_perf: RunningAverage<f32, 128>,
-    pub last_beat: Instant,
+    pub beat_sync: BeatSync,
     pub last_build: Instant,
     pub last_frame: Instant,
     pub last_frame_ui: Instant,
@@ -205,18 +206,14 @@ impl Jockey {
         };
 
         let pipeline = Pipeline::splash_screen();
-
         let midi = Midi::new();
-        let mut beat_delta = RunningAverage::new();
-        beat_delta.buffer.fill(1.0);
 
         let now = Instant::now();
         let mut this = Self {
-            beat_delta,
             ctx,
             done: false,
             frame_perf,
-            last_beat: now,
+            beat_sync: BeatSync::new(),
             last_build: now,
             last_frame: now,
             last_frame_ui: now,
@@ -403,6 +400,7 @@ impl Jockey {
                             let height = size.height as u32;
                             pipeline.resize_buffers(width, height);
                         }
+                        #[allow(deprecated)]
                         glutin::event::WindowEvent::KeyboardInput { input, .. } => {
                             let shift = input.modifiers.shift();
                             let ctrl = input.modifiers.ctrl();
@@ -492,7 +490,7 @@ impl Jockey {
         // compute uniforms
         let screen_size = self.ctx.context.window().inner_size();
         let (width, height) = (screen_size.width as u32, screen_size.height as u32);
-        let beat = self.last_beat.elapsed().as_secs_f32() / self.beat_delta.get();
+        let beat = self.beat_sync.beat();
         let now = Instant::now();
         let time = self.time;
         let delta = now.duration_since(self.last_frame).as_secs_f32();
@@ -894,14 +892,17 @@ impl Jockey {
 
         if let Some(window) = imgui::Window::new(im_str!("Beat Sync")).begin(&ui) {
             if ui.button_with_size(im_str!("Tab here"), [128.0, 32.0]) {
-                let delta = self.last_beat.elapsed().as_secs_f32();
-                self.beat_delta.push(delta);
-                self.last_beat = Instant::now();
+                self.beat_sync.trigger();
             }
             ui.same_line();
-            ui.text(format! {
-                "BPM: {}\nCycle: {}", 60.0 / self.beat_delta.get(), self.beat_delta.index
-            });
+            ui.text(format!(
+                "BPM: {}\ncount: {}",
+                self.beat_sync.bpm(),
+                self.beat_sync.count
+            ));
+
+            let mut value = (self.beat_sync.beat() * std::f32::consts::PI).sin();
+            imgui::Slider::new(im_str!("pendulum")).range(-1.0..=1.0).build(&ui, &mut value);
 
             window.end();
         }
