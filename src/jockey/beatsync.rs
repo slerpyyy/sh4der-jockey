@@ -62,20 +62,15 @@ mod test {
     #[test]
     fn three_beats() {
         let mut sync = BeatSync::new();
-
-        std::thread::sleep(Duration::from_millis(250));
         sync.trigger();
-        assert!(sync.rate().sub(4.0).abs() < 0.1, "{}", sync.rate());
-        assert!(sync.beat().sub(1.0).abs() < 0.1, "{}", sync.beat());
 
-        std::thread::sleep(Duration::from_millis(250));
+        std::thread::sleep(Duration::from_millis(330));
         sync.trigger();
-        assert!(sync.rate().sub(4.0).abs() < 0.1, "{}", sync.rate());
-        assert!(sync.beat().sub(2.0).abs() < 0.1, "{}", sync.beat());
 
-        std::thread::sleep(Duration::from_millis(250));
+        std::thread::sleep(Duration::from_millis(330));
         sync.trigger();
-        assert!(sync.rate().sub(4.0).abs() < 0.1, "{}", sync.rate());
-        assert!(sync.beat().sub(3.0).abs() < 0.1, "{}", sync.beat());
+
+        assert!(sync.beat().sub(2.0).abs() < 0.2, "{}", sync.beat());
+        assert!(sync.rate().sub(3.0).abs() < 0.2, "{}", sync.rate());
     }
 }

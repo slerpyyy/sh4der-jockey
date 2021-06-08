@@ -901,8 +901,7 @@ impl Jockey {
                 self.beat_sync.count
             ));
 
-            let mut value = (self.beat_sync.beat() * std::f32::consts::PI).sin();
-            imgui::Slider::new(im_str!("pendulum")).range(-1.0..=1.0).build(&ui, &mut value);
+            imgui::ProgressBar::new(self.beat_sync.beat().fract()).build(&ui);
 
             window.end();
         }

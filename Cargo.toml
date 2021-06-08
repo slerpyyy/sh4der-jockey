@@ -19,7 +19,7 @@ gl = "0.14.0"
 glutin = "0.26"
 image = "0.23"
 imgui = { git = "https://github.com/sp4ghet/imgui-rs", branch = "master" }
-imgui-winit-support = {git = "https://github.com/sp4ghet/imgui-rs", branch = "master" }
+imgui-winit-support = { git = "https://github.com/sp4ghet/imgui-rs", branch = "master" }
 imgui-opengl-renderer = { git = "https://github.com/sp4ghet/rust-imgui-opengl-renderer", branch = "master" }
 lazy_static = "1.4.0"
 midir = "0.7.0"
