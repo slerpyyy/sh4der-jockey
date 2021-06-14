@@ -294,12 +294,7 @@ impl Pipeline {
             // create textures
             let texture: Rc<dyn Texture> = match stage.kind {
                 StageKind::Frag { .. } | StageKind::Vert { .. } => {
-                    let loc = unsafe { gl::GetUniformLocation(stage.prog_id, target.as_ptr()) };
-
-                    match loc {
-                        -1 => stage.builder.build_framebuffer(screen_size),
-                        _ => stage.builder.build_double_framebuffer(screen_size),
-                    }
+                    stage.builder.build_double_framebuffer(screen_size)
                 }
                 StageKind::Comp { .. } => stage.builder.build_image(),
             };
@@ -347,14 +342,10 @@ impl Pipeline {
                 _ => continue,
             };
 
-            // only construct double framebuffers if necessary
-            let tex: Rc<dyn Texture> = if stage.deps.contains(&name) {
-                stage.builder.build_double_framebuffer((width, height))
-            } else {
-                stage.builder.build_framebuffer((width, height))
-            };
-
-            self.buffers.insert(name, tex);
+            self.buffers.insert(
+                name,
+                stage.builder.build_double_framebuffer((width, height)),
+            );
         }
     }
 }
