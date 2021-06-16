@@ -65,30 +65,32 @@ macro_rules! gl_debug_ignore {
     };
 }
 
-const FULLSCREEN_TRI: [GLfloat; 6] = [-1.0, -1.0, 3.0, -1.0, -1.0, 3.0];
+const FULLSCREEN_RECT: [GLfloat; 12] = [
+    -1.0, -1.0, -1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, -1.0, -1.0, -1.0,
+];
 
-pub fn draw_fullscreen_tri(vao: GLuint) {
+pub fn draw_fullscreen(vao: GLuint) {
     unsafe {
         gl::BindVertexArray(vao);
         gl::BindBuffer(gl::ARRAY_BUFFER, vao);
         gl_debug_check!();
 
-        let data_size = FULLSCREEN_TRI.len() * std::mem::size_of::<GLfloat>();
+        let data_size = FULLSCREEN_RECT.len() * std::mem::size_of::<GLfloat>();
         gl::BufferData(
             gl::ARRAY_BUFFER,
             data_size as _,
-            std::mem::transmute(&FULLSCREEN_TRI[0]),
+            std::mem::transmute(&FULLSCREEN_RECT[0]),
             gl::STATIC_DRAW,
         );
         gl_debug_check!();
 
-        let vert_count = FULLSCREEN_TRI.len() as GLsizei / 2;
+        let vert_count = FULLSCREEN_RECT.len() as GLsizei / 2;
         gl::DrawArrays(gl::TRIANGLES, 0, vert_count);
         gl_debug_check!();
     }
 }
 
-pub fn draw_anything(vao: GLuint, count: GLsizei, mode: GLenum) {
+pub fn draw_vertices(vao: GLuint, count: GLsizei, mode: GLenum) {
     unsafe {
         gl::BindVertexArray(vao);
         gl::BindBuffer(gl::ARRAY_BUFFER, vao);
@@ -228,9 +230,14 @@ fn in_block(prefix: &str, start: &str, end: &str) -> bool {
     }
 }
 
+/// Generates a sequence of numbers that are unlikely to appear in shader code
+fn file_index_jank(n: usize) -> usize {
+    ((7 * n + 100) | 1) & 0xff
+}
+
 pub fn process_error(mut err: String, lut: &[String]) -> String {
     for (k, file) in lut.iter().enumerate() {
-        let key = format!("{}", k + 101);
+        let key = format!("{}", file_index_jank(k));
         err = err.replace(key.as_str(), file);
     }
 
@@ -275,7 +282,7 @@ pub fn preprocess(
 
         // offset file id
         #[cfg(not(test))]
-        let file_id = file_id + 101;
+        let file_id = file_index_jank(file_id);
 
         // respect pragma once
         let once_re: &Regex = &ONCE_RE;
@@ -340,7 +347,7 @@ pub fn preprocess(
 
             // add line directive
             if need_ln && !line.starts_with("#version") {
-                lines.push(format!("#line {} {}", k, file_id));
+                lines.push(format!("#line {} {}", k + 1, file_id));
                 need_ln = false;
             }
 
@@ -450,7 +457,7 @@ mod test {
     #[test]
     fn preprocess_line_number() {
         let original = "#version 123\nmain(){}";
-        let expected = "#version 123\n#line 1 0\nmain(){}";
+        let expected = "#version 123\n#line 2 0\nmain(){}";
         let mut lut = Vec::new();
         let result = preprocess(original, "test", &mut lut).unwrap();
         assert_eq!(result, expected);
@@ -459,7 +466,7 @@ mod test {
     #[test]
     fn preprocess_include_simple() {
         let original = "#version 123\n#pragma include \"foo.glsl\"\nmain(){}";
-        let expected = "#version 123\n#line 0 1\n#pragma once\nint hoge = 0;\n#line 2 0\nmain(){}";
+        let expected = "#version 123\n#line 1 1\n#pragma once\nint hoge = 0;\n#line 3 0\nmain(){}";
         let mut lut = Vec::new();
         let result = preprocess(original, "test", &mut lut).unwrap();
         assert_eq!(result, expected);
@@ -468,7 +475,7 @@ mod test {
     #[test]
     fn preprocess_include_in_comment_single() {
         let original = "#version 123\n//#pragma include \"foo.glsl\"\nmain(){}";
-        let expected = "#version 123\n#line 1 0\n//#pragma include \"foo.glsl\"\nmain(){}";
+        let expected = "#version 123\n#line 2 0\n//#pragma include \"foo.glsl\"\nmain(){}";
         let mut lut = Vec::new();
         let result = preprocess(original, "test", &mut lut).unwrap();
         assert_eq!(result, expected);
@@ -477,7 +484,7 @@ mod test {
     #[test]
     fn preprocess_include_in_comment_block() {
         let original = "#version 123\n/*#pragma include \"foo.glsl\"*/\nmain(){}";
-        let expected = "#version 123\n#line 1 0\n/*#pragma include \"foo.glsl\"*/\nmain(){}";
+        let expected = "#version 123\n#line 2 0\n/*#pragma include \"foo.glsl\"*/\nmain(){}";
         let mut lut = Vec::new();
         let result = preprocess(original, "test", &mut lut).unwrap();
         assert_eq!(result, expected);
@@ -487,7 +494,7 @@ mod test {
     fn preprocess_include_pragma_once() {
         let original =
             "#version 123\n#pragma include \"foo.glsl\"\n#pragma include \"foo.glsl\"\nmain(){}";
-        let expected = "#version 123\n#line 0 1\n#pragma once\nint hoge = 0;\n#line 3 0\nmain(){}";
+        let expected = "#version 123\n#line 1 1\n#pragma once\nint hoge = 0;\n#line 4 0\nmain(){}";
         let mut lut = Vec::new();
         let result = preprocess(original, "test", &mut lut).unwrap();
         assert_eq!(result, expected);

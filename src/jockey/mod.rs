@@ -583,7 +583,7 @@ impl Jockey {
                     gl::Uniform1f(time_loc, time);
                     gl::Uniform1f(beat_loc, beat);
                     gl::Uniform1f(delta_loc, delta);
-                    gl_debug_ignore!();
+                    gl_debug_check!();
                 }
 
                 {
@@ -601,14 +601,14 @@ impl Jockey {
 
                     gl::Uniform1fv(s_loc, self.midi.sliders.len() as _, &self.midi.sliders as _);
                     gl::Uniform4fv(b_loc, self.midi.buttons.len() as _, &buttons as _);
-                    gl_debug_ignore!();
+                    gl_debug_check!();
                 }
 
                 // Add vertex count uniform
                 if let StageKind::Vert { count, .. } = stage.kind {
                     let loc = gl::GetUniformLocation(stage.prog_id, VERTEX_COUNT_NAME.as_ptr());
                     gl::Uniform1i(loc, count as _);
-                    gl_debug_ignore!();
+                    gl_debug_check!();
                 }
 
                 // Add and bind uniform texture dependencies
@@ -616,11 +616,13 @@ impl Jockey {
                     let tex = self.pipeline.buffers.get(name).unwrap();
                     let loc = gl::GetUniformLocation(stage.prog_id, name.as_ptr());
                     gl::ActiveTexture(gl::TEXTURE0 + k as GLenum);
+                    gl_debug_check!();
+
                     tex.bind();
                     gl_debug_check!();
 
                     gl::Uniform1i(loc, k as _);
-                    gl_debug_ignore!();
+                    gl_debug_check!();
 
                     let res_name = CString::new(format!("{}_res", name.to_str().unwrap())).unwrap();
                     let res_loc = gl::GetUniformLocation(stage.prog_id, res_name.as_ptr());
@@ -634,7 +636,7 @@ impl Jockey {
                         res[2] as _,
                         res[0] as f32 / res[1] as f32,
                     );
-                    gl_debug_ignore!();
+                    gl_debug_check!();
                 }
             }
 
@@ -699,10 +701,10 @@ impl Jockey {
                         gl::LineWidth(thickness);
                         gl_debug_check!();
 
-                        draw_anything(self.ctx.vao, count, mode);
+                        draw_vertices(self.ctx.vao, count, mode);
                         gl_debug_check!();
                     } else {
-                        draw_fullscreen_tri(self.ctx.vao);
+                        draw_fullscreen(self.ctx.vao);
                         gl_debug_check!();
                     }
 
