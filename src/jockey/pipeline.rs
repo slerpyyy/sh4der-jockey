@@ -209,7 +209,7 @@ impl Pipeline {
 
         buffers.insert(
             CString::new("smooth_spectrum").unwrap(),
-            spectrum_opts.build_texture(),
+            smooth_spectrum_opts.build_texture(),
         );
 
         {

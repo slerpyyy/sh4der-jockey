@@ -475,7 +475,7 @@ impl Jockey {
             static ref PASS_INDEX_NAME: CString = CString::new("passIndex").unwrap();
             static ref TIME_NAME: CString = CString::new("time").unwrap();
             static ref FRAME_NAME: CString = CString::new("frameCount").unwrap();
-            static ref DELTA_NAME: CString = CString::new("delta").unwrap();
+            static ref DELTA_NAME: CString = CString::new("deltaTime").unwrap();
             static ref BEAT_NAME: CString = CString::new("beat").unwrap();
             static ref SLIDERS_NAME: CString = CString::new("sliders").unwrap();
             static ref BUTTONS_NAME: CString = CString::new("buttons").unwrap();
@@ -486,6 +486,12 @@ impl Jockey {
             static ref RAW_SPECTRUM_NAME: CString = CString::new("raw_spectrum").unwrap();
             static ref SPECTRUM_NAME: CString = CString::new("spectrum").unwrap();
             static ref SMOOTH_SPECTRUM_NAME: CString = CString::new("smooth_spectrum").unwrap();
+            static ref BASS_NAME: CString = CString::new("bass").unwrap();
+            static ref MID_NAME: CString = CString::new("mid").unwrap();
+            static ref HIGH_NAME: CString = CString::new("high").unwrap();
+            static ref SMOOTH_BASS_NAME: CString = CString::new("smooth_bass").unwrap();
+            static ref SMOOTH_MID_NAME: CString = CString::new("smooth_mid").unwrap();
+            static ref SMOOTH_HIGH_NAME: CString = CString::new("smooth_high").unwrap();
             static ref NOISE_NAME: CString = CString::new("noise").unwrap();
             static ref VOLUME_NAME: CString = CString::new("volume").unwrap();
         }
@@ -576,6 +582,15 @@ impl Jockey {
                     let delta_loc = gl::GetUniformLocation(stage.prog_id, DELTA_NAME.as_ptr());
                     let beat_loc = gl::GetUniformLocation(stage.prog_id, BEAT_NAME.as_ptr());
                     let volume_loc = gl::GetUniformLocation(stage.prog_id, VOLUME_NAME.as_ptr());
+                    let bass_loc = gl::GetUniformLocation(stage.prog_id, BASS_NAME.as_ptr());
+                    let mid_loc = gl::GetUniformLocation(stage.prog_id, MID_NAME.as_ptr());
+                    let high_loc = gl::GetUniformLocation(stage.prog_id, HIGH_NAME.as_ptr());
+                    let smooth_bass_loc =
+                        gl::GetUniformLocation(stage.prog_id, SMOOTH_BASS_NAME.as_ptr());
+                    let smooth_mid_loc =
+                        gl::GetUniformLocation(stage.prog_id, SMOOTH_MID_NAME.as_ptr());
+                    let smooth_high_loc =
+                        gl::GetUniformLocation(stage.prog_id, SMOOTH_HIGH_NAME.as_ptr());
 
                     gl::Uniform4f(
                         res_loc,
@@ -590,6 +605,42 @@ impl Jockey {
                         self.audio.volume[0], // average L/R
                         self.audio.volume[1], // L
                         self.audio.volume[2], // R
+                    );
+                    gl::Uniform3f(
+                        bass_loc,
+                        self.audio.bass[0],
+                        self.audio.bass[1],
+                        self.audio.bass[2],
+                    );
+                    gl::Uniform3f(
+                        mid_loc,
+                        self.audio.mid[0],
+                        self.audio.mid[1],
+                        self.audio.mid[2],
+                    );
+                    gl::Uniform3f(
+                        high_loc,
+                        self.audio.high[0],
+                        self.audio.high[1],
+                        self.audio.high[2],
+                    );
+                    gl::Uniform3f(
+                        smooth_bass_loc,
+                        self.audio.bass_smooth[0],
+                        self.audio.bass_smooth[1],
+                        self.audio.bass_smooth[2],
+                    );
+                    gl::Uniform3f(
+                        smooth_mid_loc,
+                        self.audio.mid_smooth[0],
+                        self.audio.mid_smooth[1],
+                        self.audio.mid_smooth[2],
+                    );
+                    gl::Uniform3f(
+                        smooth_high_loc,
+                        self.audio.high_smooth[0],
+                        self.audio.high_smooth[1],
+                        self.audio.high_smooth[2],
                     );
                     gl::Uniform2i(k_loc, pass_num as _, frame as _);
                     gl::Uniform1i(pass_loc, pass_num as _);
