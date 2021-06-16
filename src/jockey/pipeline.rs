@@ -13,6 +13,7 @@ pub struct Pipeline {
     pub stages: Vec<Stage>,
     pub buffers: HashMap<CString, Rc<dyn Texture>>,
     pub audio_samples: usize,
+    pub fft_smoothing: f32,
 }
 
 impl Pipeline {
@@ -22,6 +23,7 @@ impl Pipeline {
             stages: Vec::new(),
             buffers: HashMap::new(),
             audio_samples: AUDIO_SAMPLES,
+            fft_smoothing: FFT_SMOOTHING,
         }
     }
 
@@ -53,6 +55,7 @@ impl Pipeline {
             stages,
             buffers: HashMap::new(),
             audio_samples: AUDIO_SAMPLES,
+            fft_smoothing: FFT_SMOOTHING,
         }
     }
 
@@ -91,55 +94,82 @@ impl Pipeline {
         Cache::init();
 
         // get fft texture size
-        let (mut samples_opts, mut raw_spectrum_opts, mut spectrum_opts, audio_samples) =
-            match object.get("audio") {
-                None => (
-                    TextureBuilder::new(),
-                    TextureBuilder::new(),
-                    TextureBuilder::new(),
-                    AUDIO_SAMPLES,
-                ),
-                Some(obj) => {
-                    let audio_samples = match obj.get("audio_samples") {
-                        None => AUDIO_SAMPLES as _,
-                        Some(Value::Number(n)) => match n.as_u64() {
-                            Some(n) => n,
-                            _ => {
-                                return Err(format!(
-                                    "Expected \"audio_samples\" to be a number, got: {:?}",
-                                    n
-                                ))
-                            }
-                        },
-                        s => {
+        let (
+            mut samples_opts,
+            mut raw_spectrum_opts,
+            mut spectrum_opts,
+            mut smooth_spectrum_opts,
+            audio_samples,
+            fft_smoothing,
+        ) = match object.get("audio") {
+            None => (
+                TextureBuilder::new(),
+                TextureBuilder::new(),
+                TextureBuilder::new(),
+                TextureBuilder::new(),
+                AUDIO_SAMPLES,
+                FFT_SMOOTHING,
+            ),
+            Some(object) => {
+                let audio_samples = match object.get("audio_samples") {
+                    None => AUDIO_SAMPLES,
+                    Some(Value::Number(n)) => match n.as_u64() {
+                        Some(n) => n as _,
+                        _ => {
                             return Err(format!(
-                                "Expected \"audio_samples\" to be number, got: {:?}",
+                                "Expected \"audio_samples\" to be a number, got: {:?}",
+                                n
+                            ))
+                        }
+                    },
+                    s => {
+                        return Err(format!(
+                            "Expected \"audio_samples\" to be number, got: {:?}",
+                            s
+                        ))
+                    }
+                };
+
+                let fft_smoothing = match object.get("smoothing") {
+                    None => FFT_SMOOTHING,
+                    Some(s) => match s.as_f64() {
+                        Some(s) => s as _,
+                        _ => {
+                            return Err(format!(
+                                "Expected \"smoothing\" to be a float, got {:?}",
                                 s
                             ))
                         }
-                    };
+                    },
+                };
 
-                    let samples_opts = match obj.get("samples") {
-                        Some(s) => TextureBuilder::parse(s, false, true)?,
-                        None => TextureBuilder::new(),
-                    };
-                    let raw_spectrum_opts = match obj.get("raw_spectrum") {
-                        Some(s) => TextureBuilder::parse(s, false, true)?,
-                        None => TextureBuilder::new(),
-                    };
-                    let spectrum_opts = match obj.get("spectrum") {
-                        Some(s) => TextureBuilder::parse(s, false, true)?,
-                        None => TextureBuilder::new(),
-                    };
+                let samples_opts = match object.get("samples") {
+                    Some(s) => TextureBuilder::parse(s, false, true)?,
+                    None => TextureBuilder::new(),
+                };
+                let raw_spectrum_opts = match object.get("raw_spectrum") {
+                    Some(s) => TextureBuilder::parse(s, false, true)?,
+                    None => TextureBuilder::new(),
+                };
+                let spectrum_opts = match object.get("spectrum") {
+                    Some(s) => TextureBuilder::parse(s, false, true)?,
+                    None => TextureBuilder::new(),
+                };
+                let smooth_spectrum_opts = match object.get("smooth_spectrum") {
+                    Some(s) => TextureBuilder::parse(s, false, true)?,
+                    None => TextureBuilder::new(),
+                };
 
-                    (
-                        samples_opts,
-                        raw_spectrum_opts,
-                        spectrum_opts,
-                        audio_samples as _,
-                    )
-                }
-            };
+                (
+                    samples_opts,
+                    raw_spectrum_opts,
+                    spectrum_opts,
+                    smooth_spectrum_opts,
+                    audio_samples,
+                    fft_smoothing,
+                )
+            }
+        };
 
         samples_opts
             .set_resolution(vec![audio_samples as _; 1])
@@ -152,6 +182,11 @@ impl Pipeline {
             .set_float(true);
 
         spectrum_opts
+            .set_resolution(vec![100 as _; 1])
+            .set_channels(2)
+            .set_float(true);
+
+        smooth_spectrum_opts
             .set_resolution(vec![100 as _; 1])
             .set_channels(2)
             .set_float(true);
@@ -169,6 +204,11 @@ impl Pipeline {
 
         buffers.insert(
             CString::new("spectrum").unwrap(),
+            spectrum_opts.build_texture(),
+        );
+
+        buffers.insert(
+            CString::new("smooth_spectrum").unwrap(),
             spectrum_opts.build_texture(),
         );
 
@@ -322,7 +362,8 @@ impl Pipeline {
         Ok(Self {
             stages,
             buffers,
-            audio_samples: audio_samples as _,
+            audio_samples,
+            fft_smoothing,
         })
     }
 

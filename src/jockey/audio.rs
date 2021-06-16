@@ -6,6 +6,7 @@ use std::cmp::Ordering;
 use std::sync::{Arc, Mutex};
 
 pub const AUDIO_SAMPLES: usize = 8192;
+pub const FFT_SMOOTHING: f32 = 0.5;
 
 pub enum Channels {
     None,
@@ -20,6 +21,8 @@ pub struct Audio {
     pub r_raw_spectrum: Vec<f32>,
     pub l_spectrum: Vec<f32>,
     pub r_spectrum: Vec<f32>,
+    pub l_smooth_spectrum: Vec<f32>,
+    pub r_smooth_spectrum: Vec<f32>,
     pub size: usize,
     pub nice_size: usize,
     pub volume: [f32; 3],
@@ -30,6 +33,7 @@ pub struct Audio {
     stream: Option<cpal::Stream>,
     channels: Channels,
     sample_freq: usize,
+    pub smoothing: f32,
     fft: Arc<dyn Fft<f32>>,
 }
 
@@ -54,11 +58,14 @@ impl Audio {
             r_raw_spectrum: vec![0.0; spec_size],
             l_spectrum: vec![0.0; bands],
             r_spectrum: vec![0.0; bands],
+            l_smooth_spectrum: vec![0.0; bands],
+            r_smooth_spectrum: vec![0.0; bands],
             l_samples: Arc::new(Mutex::new(RingBuffer::new(size))),
             r_samples: Arc::new(Mutex::new(RingBuffer::new(size))),
             stream: None,
             channels: Channels::None,
             fft,
+            smoothing: 0.5,
             sample_freq: 0,
         };
 
@@ -233,6 +240,7 @@ impl Audio {
         self.r_raw_spectrum.copy_from_slice(&right_spectrum[..len]);
 
         self.update_nice_fft();
+        self.update_smooth_fft();
     }
 
     fn update_nice_fft(&mut self) {
@@ -295,6 +303,26 @@ impl Audio {
             self.l_spectrum[i] /= max_left;
             self.r_spectrum[i] /= max_right;
         }
+    }
+
+    fn update_smooth_fft(&mut self) {
+        let w_acc = self.smoothing;
+        let w_val = 1.0 - w_acc;
+
+        let f = |(acc, val): (&mut f32, &f32)| {
+            let mix = *acc * w_acc + val * w_val;
+            *acc = mix.clamp(-1.0, 1.0);
+        };
+
+        self.l_smooth_spectrum
+            .iter_mut()
+            .zip(&self.l_spectrum)
+            .for_each(f);
+
+        self.r_smooth_spectrum
+            .iter_mut()
+            .zip(&self.r_spectrum)
+            .for_each(f);
     }
 
     #[allow(dead_code)]

@@ -5,7 +5,7 @@ use imgui::im_str;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 use lazy_static::lazy_static;
 use std::{
-    collections::hash_map::DefaultHasher,
+    collections::{hash_map::DefaultHasher, HashMap},
     ffi::CString,
     future::Future,
     hash::{Hash, Hasher},
@@ -354,6 +354,8 @@ impl Jockey {
                 let build_time = self.last_build.elapsed().as_secs_f64();
                 println!("Build pipeline over a span of {}s", build_time);
 
+                // copy audio configs
+                self.audio.smoothing = self.pipeline.fft_smoothing;
                 if self.pipeline.audio_samples != self.audio.size {
                     self.audio.resize(self.pipeline.audio_samples);
                 }
@@ -483,6 +485,7 @@ impl Jockey {
             static ref SAMPLES_NAME: CString = CString::new("samples").unwrap();
             static ref RAW_SPECTRUM_NAME: CString = CString::new("raw_spectrum").unwrap();
             static ref SPECTRUM_NAME: CString = CString::new("spectrum").unwrap();
+            static ref SMOOTH_SPECTRUM_NAME: CString = CString::new("smooth_spectrum").unwrap();
             static ref NOISE_NAME: CString = CString::new("noise").unwrap();
             static ref VOLUME_NAME: CString = CString::new("volume").unwrap();
         }
@@ -499,41 +502,52 @@ impl Jockey {
         self.last_frame = now;
         self.frame = self.frame.wrapping_add(1);
 
-        // update audio samples texture
+        {
+            // update audio samples texture
+            self.audio.update_samples();
+            self.audio.update_fft();
 
-        self.audio.update_samples();
-        self.audio.update_fft();
-        let sample_name: &CString = &SAMPLES_NAME;
-        if let Some(samples_tex) = self.pipeline.buffers.get_mut(sample_name) {
-            let interlaced_samples = interlace(&self.audio.l_signal, &self.audio.r_signal);
-            Rc::get_mut(samples_tex)
-                .unwrap()
-                .as_any_mut()
-                .downcast_mut::<Texture1D>()
-                .unwrap()
-                .write(interlaced_samples.as_ptr() as _);
-        }
+            fn audio_tex_update(
+                buffers: &mut HashMap<CString, Rc<dyn Texture>>,
+                name: &CString,
+                left: &[f32],
+                right: &[f32],
+            ) {
+                if let Some(tex) = buffers.get_mut(name) {
+                    let data = interlace(left, right);
+                    Rc::get_mut(tex)
+                        .unwrap()
+                        .as_any_mut()
+                        .downcast_mut::<Texture1D>()
+                        .unwrap()
+                        .write(data.as_ptr() as _);
+                }
+            }
 
-        let raw_spectrum_name: &CString = &RAW_SPECTRUM_NAME;
-        if let Some(raw_spectrum_tex) = self.pipeline.buffers.get_mut(raw_spectrum_name) {
-            let raw_spectrum = interlace(&self.audio.l_raw_spectrum, &self.audio.r_raw_spectrum);
-            Rc::get_mut(raw_spectrum_tex)
-                .unwrap()
-                .as_any_mut()
-                .downcast_mut::<Texture1D>()
-                .unwrap()
-                .write(raw_spectrum.as_ptr() as _);
-        }
-
-        let spectrum_name: &CString = &SPECTRUM_NAME;
-        if let Some(spectrum_tex) = self.pipeline.buffers.get_mut(spectrum_name) {
-            let spectrum = interlace(&self.audio.l_spectrum, &self.audio.r_spectrum);
-            Rc::get_mut(spectrum_tex)
-                .unwrap()
-                .as_any_mut()
-                .downcast_mut::<Texture1D>()
-                .unwrap()
-                .write(spectrum.as_ptr() as _);
+            audio_tex_update(
+                &mut self.pipeline.buffers,
+                &SAMPLES_NAME,
+                &self.audio.l_signal,
+                &self.audio.r_signal,
+            );
+            audio_tex_update(
+                &mut self.pipeline.buffers,
+                &RAW_SPECTRUM_NAME,
+                &self.audio.l_raw_spectrum,
+                &self.audio.r_raw_spectrum,
+            );
+            audio_tex_update(
+                &mut self.pipeline.buffers,
+                &SPECTRUM_NAME,
+                &self.audio.l_spectrum,
+                &self.audio.r_spectrum,
+            );
+            audio_tex_update(
+                &mut self.pipeline.buffers,
+                &SMOOTH_SPECTRUM_NAME,
+                &self.audio.l_smooth_spectrum,
+                &self.audio.r_smooth_spectrum,
+            );
         }
 
         // render all shader stages
