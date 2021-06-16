@@ -102,11 +102,15 @@ impl Pipeline {
             mut raw_spectrum_opts,
             mut spectrum_opts,
             mut smooth_spectrum_opts,
+            mut spectrum_integrated_opts,
+            mut spectrum_smooth_integrated_opts,
             audio_samples,
             smoothing_attack,
             smoothing_decay,
         ) = match object.get("audio") {
             None => (
+                TextureBuilder::new(),
+                TextureBuilder::new(),
                 TextureBuilder::new(),
                 TextureBuilder::new(),
                 TextureBuilder::new(),
@@ -176,12 +180,22 @@ impl Pipeline {
                     Some(s) => TextureBuilder::parse(s, false, true)?,
                     None => TextureBuilder::new(),
                 };
+                let spectrum_integrated_opts = match object.get("spectrum_smooth") {
+                    Some(s) => TextureBuilder::parse(s, false, true)?,
+                    None => TextureBuilder::new(),
+                };
+                let spectrum_smooth_integrated_opts = match object.get("spectrum_smooth") {
+                    Some(s) => TextureBuilder::parse(s, false, true)?,
+                    None => TextureBuilder::new(),
+                };
 
                 (
                     samples_opts,
                     raw_spectrum_opts,
                     spectrum_opts,
                     smooth_spectrum_opts,
+                    spectrum_integrated_opts,
+                    spectrum_smooth_integrated_opts,
                     audio_samples,
                     attack,
                     decay,
@@ -209,6 +223,15 @@ impl Pipeline {
             .set_channels(2)
             .set_float(true);
 
+        spectrum_integrated_opts
+            .set_resolution(vec![100 as _; 1])
+            .set_channels(2)
+            .set_float(true);
+        spectrum_smooth_integrated_opts
+            .set_resolution(vec![100 as _; 1])
+            .set_channels(2)
+            .set_float(true);
+
         // add audio samples to buffers
         buffers.insert(
             CString::new("samples").unwrap(),
@@ -228,6 +251,16 @@ impl Pipeline {
         buffers.insert(
             CString::new("spectrum_smooth").unwrap(),
             smooth_spectrum_opts.build_texture(),
+        );
+
+        buffers.insert(
+            CString::new("spectrum_smooth_integrated").unwrap(),
+            spectrum_integrated_opts.build_texture(),
+        );
+
+        buffers.insert(
+            CString::new("spectrum_smooth_integrated").unwrap(),
+            spectrum_smooth_integrated_opts.build_texture(),
         );
 
         {

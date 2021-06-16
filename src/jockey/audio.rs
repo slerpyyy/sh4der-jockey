@@ -21,17 +21,28 @@ pub struct Audio {
     pub r_raw_spectrum: Vec<f32>,
     pub l_spectrum: Vec<f32>,
     pub r_spectrum: Vec<f32>,
-    pub l_smooth_spectrum: Vec<f32>,
-    pub r_smooth_spectrum: Vec<f32>,
+    pub l_spectrum_integrated: Vec<f32>,
+    pub r_spectrum_integrated: Vec<f32>,
+    pub l_spectrum_smooth: Vec<f32>,
+    pub r_spectrum_smooth: Vec<f32>,
+    pub l_spectrum_smooth_integrated: Vec<f32>,
+    pub r_spectrum_smooth_integrated: Vec<f32>,
     pub size: usize,
     pub nice_size: usize,
     pub volume: [f32; 3],
+    pub volume_integrated: [f32; 3],
     pub bass: [f32; 3],
     pub mid: [f32; 3],
     pub high: [f32; 3],
+    pub bass_integrated: [f32; 3],
+    pub mid_integrated: [f32; 3],
+    pub high_integrated: [f32; 3],
     pub bass_smooth: [f32; 3],
     pub mid_smooth: [f32; 3],
     pub high_smooth: [f32; 3],
+    pub bass_smooth_integrated: [f32; 3],
+    pub mid_smooth_integrated: [f32; 3],
+    pub high_smooth_integrated: [f32; 3],
     l_fft: Vec<Complex<f32>>,
     r_fft: Vec<Complex<f32>>,
     l_samples: Arc<Mutex<RingBuffer<f32>>>,
@@ -61,18 +72,29 @@ impl Audio {
             l_fft: vec![Complex::new(0.0, 0.0); size],
             r_fft: vec![Complex::new(0.0, 0.0); size],
             volume: [0f32; 3],
+            volume_integrated: [0f32; 3],
             bass: [0f32; 3],
+            bass_integrated: [0f32; 3],
             mid: [0f32; 3],
+            mid_integrated: [0f32; 3],
             high: [0f32; 3],
+            high_integrated: [0f32; 3],
             bass_smooth: [0f32; 3],
             mid_smooth: [0f32; 3],
             high_smooth: [0f32; 3],
+            bass_smooth_integrated: [0f32; 3],
+            mid_smooth_integrated: [0f32; 3],
+            high_smooth_integrated: [0f32; 3],
             l_raw_spectrum: vec![0.0; spec_size],
             r_raw_spectrum: vec![0.0; spec_size],
             l_spectrum: vec![0.0; bands],
             r_spectrum: vec![0.0; bands],
-            l_smooth_spectrum: vec![0.0; bands],
-            r_smooth_spectrum: vec![0.0; bands],
+            l_spectrum_integrated: vec![0.0; bands],
+            r_spectrum_integrated: vec![0.0; bands],
+            l_spectrum_smooth: vec![0.0; bands],
+            r_spectrum_smooth: vec![0.0; bands],
+            l_spectrum_smooth_integrated: vec![0.0; bands],
+            r_spectrum_smooth_integrated: vec![0.0; bands],
             l_samples: Arc::new(Mutex::new(RingBuffer::new(size))),
             r_samples: Arc::new(Mutex::new(RingBuffer::new(size))),
             stream: None,
@@ -210,6 +232,11 @@ impl Audio {
         } else {
             self.volume[0] = self.volume[1];
         };
+
+        self.volume_integrated
+            .iter_mut()
+            .zip(self.volume.iter())
+            .for_each(Self::take_sum);
     }
 
     pub fn update_fft(&mut self) {
@@ -247,6 +274,7 @@ impl Audio {
 
         self.update_nice_fft();
         self.update_smooth_fft();
+        self.update_bass_mid_high();
     }
 
     fn update_nice_fft(&mut self) {
@@ -311,21 +339,15 @@ impl Audio {
             self.r_spectrum[i] /= if max_right == 0_f32 { 1_f32 } else { max_right };
         }
 
-        for i in 0..bins {
-            if i < bins / 3 {
-                self.bass[1] = self.bass[1].max(self.l_spectrum[i]);
-                self.bass[2] = self.bass[2].max(self.r_spectrum[i]);
-            } else if i < 2 * bins / 3 {
-                self.mid[1] = self.mid[1].max(self.l_spectrum[i]);
-                self.mid[2] = self.mid[2].max(self.r_spectrum[i]);
-            } else {
-                self.high[1] = self.high[1].max(self.l_spectrum[i]);
-                self.high[2] = self.high[2].max(self.r_spectrum[i]);
-            }
-        }
-        self.bass[0] = (self.bass[1] + self.bass[2]) / 2_f32;
-        self.mid[0] = (self.mid[1] + self.mid[2]) / 2_f32;
-        self.high[0] = (self.high[1] + self.high[2]) / 2_f32;
+        self.l_spectrum_integrated
+            .iter_mut()
+            .zip(&self.l_spectrum)
+            .for_each(Self::take_sum);
+
+        self.r_spectrum_integrated
+            .iter_mut()
+            .zip(&self.r_spectrum)
+            .for_each(Self::take_sum);
     }
 
     fn update_smooth_fft(&mut self) {
@@ -343,36 +365,94 @@ impl Audio {
             *acc = mix;
         };
 
-        self.l_smooth_spectrum
+        self.l_spectrum_smooth
             .iter_mut()
             .zip(&self.l_spectrum)
             .for_each(f);
 
-        self.r_smooth_spectrum
+        self.r_spectrum_smooth
             .iter_mut()
             .zip(&self.r_spectrum)
             .for_each(f);
 
-        let bins = self.l_smooth_spectrum.len();
+        self.l_spectrum_smooth_integrated
+            .iter_mut()
+            .zip(&self.l_spectrum_smooth)
+            .for_each(Self::take_sum);
+
+        self.r_spectrum_smooth_integrated
+            .iter_mut()
+            .zip(&self.r_spectrum_smooth)
+            .for_each(Self::take_sum);
+    }
+
+    fn update_bass_mid_high(&mut self) {
+        let bins = self.l_spectrum_smooth.len();
 
         self.bass_smooth = [0_f32; 3];
         self.mid_smooth = [0_f32; 3];
         self.high_smooth = [0_f32; 3];
         for i in 0..bins {
             if i < bins / 4 {
-                self.bass_smooth[1] = self.bass_smooth[1].max(self.l_smooth_spectrum[i]);
-                self.bass_smooth[2] = self.bass_smooth[2].max(self.r_smooth_spectrum[i]);
-            } else if i < 4 * bins / 5 {
-                self.mid_smooth[1] = self.mid_smooth[1].max(self.l_smooth_spectrum[i]);
-                self.mid_smooth[2] = self.mid_smooth[2].max(self.r_smooth_spectrum[i]);
+                self.bass_smooth[1] = self.bass_smooth[1].max(self.l_spectrum_smooth[i]);
+                self.bass_smooth[2] = self.bass_smooth[2].max(self.r_spectrum_smooth[i]);
+            } else if i < 2 * bins / 3 {
+                self.mid_smooth[1] = self.mid_smooth[1].max(self.l_spectrum_smooth[i]);
+                self.mid_smooth[2] = self.mid_smooth[2].max(self.r_spectrum_smooth[i]);
             } else {
-                self.high_smooth[1] = self.high_smooth[1].max(self.l_smooth_spectrum[i]);
-                self.high_smooth[2] = self.high_smooth[2].max(self.r_smooth_spectrum[i]);
+                self.high_smooth[1] = self.high_smooth[1].max(self.l_spectrum_smooth[i]);
+                self.high_smooth[2] = self.high_smooth[2].max(self.r_spectrum_smooth[i]);
             }
         }
         self.bass_smooth[0] = (self.bass_smooth[1] + self.bass_smooth[2]) / 2_f32;
         self.mid_smooth[0] = (self.mid_smooth[1] + self.mid_smooth[2]) / 2_f32;
         self.high_smooth[0] = (self.high_smooth[1] + self.high_smooth[2]) / 2_f32;
+
+        for i in 0..bins {
+            if i < bins / 4 {
+                self.bass[1] = self.bass[1].max(self.l_spectrum[i]);
+                self.bass[2] = self.bass[2].max(self.r_spectrum[i]);
+            } else if i < 2 * bins / 3 {
+                self.mid[1] = self.mid[1].max(self.l_spectrum[i]);
+                self.mid[2] = self.mid[2].max(self.r_spectrum[i]);
+            } else {
+                self.high[1] = self.high[1].max(self.l_spectrum[i]);
+                self.high[2] = self.high[2].max(self.r_spectrum[i]);
+            }
+        }
+        self.bass[0] = (self.bass[1] + self.bass[2]) / 2_f32;
+        self.mid[0] = (self.mid[1] + self.mid[2]) / 2_f32;
+        self.high[0] = (self.high[1] + self.high[2]) / 2_f32;
+
+        self.bass_smooth_integrated
+            .iter_mut()
+            .zip(self.bass_smooth.iter())
+            .for_each(Self::take_sum);
+        self.mid_smooth_integrated
+            .iter_mut()
+            .zip(self.mid_smooth.iter())
+            .for_each(Self::take_sum);
+        self.high_smooth_integrated
+            .iter_mut()
+            .zip(self.high_smooth.iter())
+            .for_each(Self::take_sum);
+
+        self.bass_integrated
+            .iter_mut()
+            .zip(self.bass.iter())
+            .for_each(Self::take_sum);
+        self.mid_integrated
+            .iter_mut()
+            .zip(self.mid.iter())
+            .for_each(Self::take_sum);
+        self.high_integrated
+            .iter_mut()
+            .zip(self.high.iter())
+            .for_each(Self::take_sum);
+    }
+
+    fn take_sum((acc, val): (&mut f32, &f32)) {
+        *acc += val;
     }
 
     #[allow(dead_code)]
