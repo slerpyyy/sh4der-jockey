@@ -1,3 +1,4 @@
+use super::uniforms::*;
 use crate::{jockey::*, util::Cache};
 use async_std::task::yield_now;
 use serde_yaml::Value;
@@ -180,11 +181,12 @@ impl Pipeline {
                     Some(s) => TextureBuilder::parse(s, false, true)?,
                     None => TextureBuilder::new(),
                 };
-                let spectrum_integrated_opts = match object.get("spectrum_smooth") {
+                let spectrum_integrated_opts = match object.get("spectrum_integrated") {
                     Some(s) => TextureBuilder::parse(s, false, true)?,
                     None => TextureBuilder::new(),
                 };
-                let spectrum_smooth_integrated_opts = match object.get("spectrum_smooth") {
+                let spectrum_smooth_integrated_opts = match object.get("spectrum_smooth_integrated")
+                {
                     Some(s) => TextureBuilder::parse(s, false, true)?,
                     None => TextureBuilder::new(),
                 };
@@ -227,45 +229,37 @@ impl Pipeline {
             .set_resolution(vec![100 as _; 1])
             .set_channels(2)
             .set_float(true);
+
         spectrum_smooth_integrated_opts
             .set_resolution(vec![100 as _; 1])
             .set_channels(2)
             .set_float(true);
 
         // add audio samples to buffers
-        buffers.insert(
-            CString::new("samples").unwrap(),
-            samples_opts.build_texture(),
-        );
+        buffers.insert(SAMPLES_NAME.clone(), samples_opts.build_texture());
+
+        buffers.insert(SPECTRUM_RAW_NAME.clone(), raw_spectrum_opts.build_texture());
+
+        buffers.insert(SPECTRUM_NAME.clone(), spectrum_opts.build_texture());
 
         buffers.insert(
-            CString::new("spectrum_raw").unwrap(),
-            raw_spectrum_opts.build_texture(),
-        );
-
-        buffers.insert(
-            CString::new("spectrum").unwrap(),
-            spectrum_opts.build_texture(),
-        );
-
-        buffers.insert(
-            CString::new("spectrum_smooth").unwrap(),
+            SPECTRUM_SMOOTH_NAME.clone(),
             smooth_spectrum_opts.build_texture(),
         );
 
         buffers.insert(
-            CString::new("spectrum_smooth_integrated").unwrap(),
+            SPECTRUM_INTEGRATED_NAME.clone(),
             spectrum_integrated_opts.build_texture(),
         );
 
         buffers.insert(
-            CString::new("spectrum_smooth_integrated").unwrap(),
+            SPECTRUM_SMOOTH_INTEGRATED_NAME.clone(),
             spectrum_smooth_integrated_opts.build_texture(),
         );
 
         {
             // add noise texture
-            let noise_name = CString::new("noise").unwrap();
+            let noise_name = NOISE_NAME.clone();
             let noise = match cache.get(&noise_name) {
                 Some(old) => Rc::clone(old),
                 None => Rc::new(make_noise()),

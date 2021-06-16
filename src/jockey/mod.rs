@@ -20,12 +20,14 @@ mod beatsync;
 mod midi;
 mod pipeline;
 mod stage;
+mod uniforms;
 
 pub use audio::*;
 pub use beatsync::*;
 pub use midi::*;
 pub use pipeline::*;
 pub use stage::*;
+pub use uniforms::*;
 
 lazy_static! {
     static ref JOCKEY_TITLE: String = {
@@ -469,52 +471,6 @@ impl Jockey {
         // build pipeline a little
         self.update_pipeline_incremental(Duration::from_micros(50));
 
-        lazy_static! {
-            // slerpy's golf coding stuff
-            static ref R_NAME: CString = CString::new("R").unwrap();
-            static ref K_NAME: CString = CString::new("K").unwrap();
-
-            // miscellaneous
-            static ref RESOLUTION_NAME: CString = CString::new("resolution").unwrap();
-            static ref PASS_INDEX_NAME: CString = CString::new("pass_index").unwrap();
-            static ref OUT_COLOR_NAME: CString = CString::new("out_color").unwrap();
-            static ref POSITION_NAME: CString = CString::new("position").unwrap();
-            static ref VERTEX_COUNT_NAME: CString = CString::new("vertex_count").unwrap();
-            static ref NOISE_NAME: CString = CString::new("noise").unwrap();
-
-            // time tracking
-            static ref TIME_NAME: CString = CString::new("time").unwrap();
-            static ref DELTA_NAME: CString = CString::new("time_delta").unwrap();
-            static ref FRAME_NAME: CString = CString::new("frame_count").unwrap();
-
-            // direct user input
-            static ref BEAT_NAME: CString = CString::new("beat").unwrap();
-            static ref SLIDERS_NAME: CString = CString::new("sliders").unwrap();
-            static ref BUTTONS_NAME: CString = CString::new("buttons").unwrap();
-
-            // audio input
-            static ref VOLUME_NAME: CString = CString::new("volume").unwrap();
-            static ref VOLUME_INTEGRATED_NAME: CString = CString::new("volume_integrated").unwrap();
-            static ref SAMPLES_NAME: CString = CString::new("samples").unwrap();
-            static ref RAW_SPECTRUM_NAME: CString = CString::new("spectrum_raw").unwrap();
-            static ref SPECTRUM_NAME: CString = CString::new("spectrum").unwrap();
-            static ref SPECTRUM_INTEGRATED_NAME: CString = CString::new("spectrum_integrated").unwrap();
-            static ref SMOOTH_SPECTRUM_NAME: CString = CString::new("spectrum_smooth").unwrap();
-            static ref SPECTRUM_SMOOTH_INTEGRATED_NAME: CString = CString::new("spectrum_smooth_integrated").unwrap();
-            static ref BASS_NAME: CString = CString::new("bass").unwrap();
-            static ref MID_NAME: CString = CString::new("mid").unwrap();
-            static ref HIGH_NAME: CString = CString::new("high").unwrap();
-            static ref SMOOTH_BASS_NAME: CString = CString::new("bass_smooth").unwrap();
-            static ref SMOOTH_MID_NAME: CString = CString::new("mid_smooth").unwrap();
-            static ref SMOOTH_HIGH_NAME: CString = CString::new("high_smooth").unwrap();
-            static ref BASS_INTEGRATED_NAME: CString = CString::new("bass_integrated").unwrap();
-            static ref MID_INTEGRATED_NAME: CString = CString::new("mid_integrated").unwrap();
-            static ref HIGH_INTEGRATED_NAME: CString = CString::new("high_integrated").unwrap();
-            static ref SMOOTH_BASS_INTEGRATED_NAME: CString = CString::new("bass_smooth_integrated").unwrap();
-            static ref SMOOTH_MID_INTEGRATED_NAME: CString = CString::new("mid_smooth_integrated").unwrap();
-            static ref SMOOTH_HIGH_INTEGRATED_NAME: CString = CString::new("high_smooth_integrated").unwrap();
-        }
-
         // compute uniforms
         let screen_size = self.ctx.context.window().inner_size();
         let (width, height) = (screen_size.width as u32, screen_size.height as u32);
@@ -557,7 +513,7 @@ impl Jockey {
             );
             audio_tex_update(
                 &mut self.pipeline.buffers,
-                &RAW_SPECTRUM_NAME,
+                &SPECTRUM_RAW_NAME,
                 &self.audio.l_raw_spectrum,
                 &self.audio.r_raw_spectrum,
             );
@@ -569,7 +525,7 @@ impl Jockey {
             );
             audio_tex_update(
                 &mut self.pipeline.buffers,
-                &SMOOTH_SPECTRUM_NAME,
+                &SPECTRUM_SMOOTH_NAME,
                 &self.audio.l_spectrum_smooth,
                 &self.audio.r_spectrum_smooth,
             );
@@ -610,8 +566,9 @@ impl Jockey {
                     let res_loc = gl::GetUniformLocation(stage.prog_id, RESOLUTION_NAME.as_ptr());
                     let pass_loc = gl::GetUniformLocation(stage.prog_id, PASS_INDEX_NAME.as_ptr());
                     let time_loc = gl::GetUniformLocation(stage.prog_id, TIME_NAME.as_ptr());
-                    let frame_loc = gl::GetUniformLocation(stage.prog_id, FRAME_NAME.as_ptr());
-                    let delta_loc = gl::GetUniformLocation(stage.prog_id, DELTA_NAME.as_ptr());
+                    let frame_loc =
+                        gl::GetUniformLocation(stage.prog_id, FRAME_COUNT_NAME.as_ptr());
+                    let delta_loc = gl::GetUniformLocation(stage.prog_id, TIME_DELTA_NAME.as_ptr());
                     let beat_loc = gl::GetUniformLocation(stage.prog_id, BEAT_NAME.as_ptr());
                     let volume_loc = gl::GetUniformLocation(stage.prog_id, VOLUME_NAME.as_ptr());
                     let volume_integrated_loc =
@@ -620,11 +577,11 @@ impl Jockey {
                     let mid_loc = gl::GetUniformLocation(stage.prog_id, MID_NAME.as_ptr());
                     let high_loc = gl::GetUniformLocation(stage.prog_id, HIGH_NAME.as_ptr());
                     let smooth_bass_loc =
-                        gl::GetUniformLocation(stage.prog_id, SMOOTH_BASS_NAME.as_ptr());
+                        gl::GetUniformLocation(stage.prog_id, BASS_SMOOTH_NAME.as_ptr());
                     let smooth_mid_loc =
-                        gl::GetUniformLocation(stage.prog_id, SMOOTH_MID_NAME.as_ptr());
+                        gl::GetUniformLocation(stage.prog_id, MID_SMOOTH_NAME.as_ptr());
                     let smooth_high_loc =
-                        gl::GetUniformLocation(stage.prog_id, SMOOTH_HIGH_NAME.as_ptr());
+                        gl::GetUniformLocation(stage.prog_id, HIGH_SMOOTH_NAME.as_ptr());
 
                     let bass_integrated_loc =
                         gl::GetUniformLocation(stage.prog_id, BASS_INTEGRATED_NAME.as_ptr());
@@ -633,11 +590,11 @@ impl Jockey {
                     let high_integrated_loc =
                         gl::GetUniformLocation(stage.prog_id, HIGH_INTEGRATED_NAME.as_ptr());
                     let smooth_bass_integrated_loc =
-                        gl::GetUniformLocation(stage.prog_id, SMOOTH_BASS_INTEGRATED_NAME.as_ptr());
+                        gl::GetUniformLocation(stage.prog_id, BASS_SMOOTH_INTEGRATED_NAME.as_ptr());
                     let smooth_mid_integrated_loc =
-                        gl::GetUniformLocation(stage.prog_id, SMOOTH_MID_INTEGRATED_NAME.as_ptr());
+                        gl::GetUniformLocation(stage.prog_id, MID_SMOOTH_INTEGRATED_NAME.as_ptr());
                     let smooth_high_integrated_loc =
-                        gl::GetUniformLocation(stage.prog_id, SMOOTH_HIGH_INTEGRATED_NAME.as_ptr());
+                        gl::GetUniformLocation(stage.prog_id, HIGH_SMOOTH_INTEGRATED_NAME.as_ptr());
 
                     gl::Uniform4f(
                         res_loc,
