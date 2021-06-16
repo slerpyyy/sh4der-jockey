@@ -355,7 +355,8 @@ impl Jockey {
                 println!("Build pipeline over a span of {}s", build_time);
 
                 // copy audio configs
-                self.audio.smoothing = self.pipeline.fft_smoothing;
+                self.audio.attack = self.pipeline.smoothing_attack;
+                self.audio.decay = self.pipeline.smoothing_decay;
                 if self.pipeline.audio_samples != self.audio.size {
                     self.audio.resize(self.pipeline.audio_samples);
                 }

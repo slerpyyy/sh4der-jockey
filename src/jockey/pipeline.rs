@@ -13,7 +13,8 @@ pub struct Pipeline {
     pub stages: Vec<Stage>,
     pub buffers: HashMap<CString, Rc<dyn Texture>>,
     pub audio_samples: usize,
-    pub fft_smoothing: f32,
+    pub smoothing_attack: f32,
+    pub smoothing_decay: f32,
 }
 
 impl Pipeline {
@@ -23,7 +24,8 @@ impl Pipeline {
             stages: Vec::new(),
             buffers: HashMap::new(),
             audio_samples: AUDIO_SAMPLES,
-            fft_smoothing: FFT_SMOOTHING,
+            smoothing_attack: FFT_ATTACK,
+            smoothing_decay: FFT_DECAY,
         }
     }
 
@@ -55,7 +57,8 @@ impl Pipeline {
             stages,
             buffers: HashMap::new(),
             audio_samples: AUDIO_SAMPLES,
-            fft_smoothing: FFT_SMOOTHING,
+            smoothing_attack: FFT_ATTACK,
+            smoothing_decay: FFT_DECAY,
         }
     }
 
@@ -100,7 +103,8 @@ impl Pipeline {
             mut spectrum_opts,
             mut smooth_spectrum_opts,
             audio_samples,
-            fft_smoothing,
+            smoothing_attack,
+            smoothing_decay,
         ) = match object.get("audio") {
             None => (
                 TextureBuilder::new(),
@@ -108,7 +112,8 @@ impl Pipeline {
                 TextureBuilder::new(),
                 TextureBuilder::new(),
                 AUDIO_SAMPLES,
-                FFT_SMOOTHING,
+                FFT_ATTACK,
+                FFT_DECAY,
             ),
             Some(object) => {
                 let audio_samples = match object.get("audio_samples") {
@@ -130,8 +135,20 @@ impl Pipeline {
                     }
                 };
 
-                let fft_smoothing = match object.get("smoothing") {
-                    None => FFT_SMOOTHING,
+                let attack = match object.get("attack") {
+                    None => FFT_ATTACK,
+                    Some(s) => match s.as_f64() {
+                        Some(s) => s as _,
+                        _ => {
+                            return Err(format!(
+                                "Expected \"smoothing\" to be a float, got {:?}",
+                                s
+                            ))
+                        }
+                    },
+                };
+                let decay = match object.get("decay") {
+                    None => FFT_DECAY,
                     Some(s) => match s.as_f64() {
                         Some(s) => s as _,
                         _ => {
@@ -166,7 +183,8 @@ impl Pipeline {
                     spectrum_opts,
                     smooth_spectrum_opts,
                     audio_samples,
-                    fft_smoothing,
+                    attack,
+                    decay,
                 )
             }
         };
@@ -363,7 +381,8 @@ impl Pipeline {
             stages,
             buffers,
             audio_samples,
-            fft_smoothing,
+            smoothing_attack,
+            smoothing_decay,
         })
     }
 

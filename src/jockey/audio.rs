@@ -5,7 +5,8 @@ use rustfft::{Fft, FftPlanner};
 use std::sync::{Arc, Mutex};
 
 pub const AUDIO_SAMPLES: usize = 8192;
-pub const FFT_SMOOTHING: f32 = 0.5;
+pub const FFT_ATTACK: f32 = 0.5;
+pub const FFT_DECAY: f32 = 0.5;
 
 pub enum Channels {
     None,
@@ -38,7 +39,8 @@ pub struct Audio {
     stream: Option<cpal::Stream>,
     channels: Channels,
     sample_freq: usize,
-    pub smoothing: f32,
+    pub attack: f32,
+    pub decay: f32,
     fft: Arc<dyn Fft<f32>>,
 }
 
@@ -76,7 +78,8 @@ impl Audio {
             stream: None,
             channels: Channels::None,
             fft,
-            smoothing: 0.5,
+            attack: 0.5,
+            decay: 0.5,
             sample_freq: 0,
         };
 
@@ -326,11 +329,17 @@ impl Audio {
     }
 
     fn update_smooth_fft(&mut self) {
-        let w_acc = self.smoothing;
-        let w_val = 1.0 - w_acc;
+        let w_att_acc = self.attack;
+        let w_att_val = 1.0 - w_att_acc;
+        let w_dec_acc = self.decay;
+        let w_dec_val = 1.0 - self.decay;
 
         let f = |(acc, val): (&mut f32, &f32)| {
-            let mix = *acc * w_acc + val * w_val;
+            let mix = if val > &acc {
+                *acc * w_att_acc + val * w_att_val
+            } else {
+                *acc * w_dec_acc + val * w_dec_val
+            };
             *acc = mix;
         };
 
@@ -350,10 +359,10 @@ impl Audio {
         self.mid_smooth = [0_f32; 3];
         self.high_smooth = [0_f32; 3];
         for i in 0..bins {
-            if i < bins / 3 {
+            if i < bins / 4 {
                 self.bass_smooth[1] = self.bass_smooth[1].max(self.l_smooth_spectrum[i]);
                 self.bass_smooth[2] = self.bass_smooth[2].max(self.r_smooth_spectrum[i]);
-            } else if i < 2 * bins / 3 {
+            } else if i < 4 * bins / 5 {
                 self.mid_smooth[1] = self.mid_smooth[1].max(self.l_smooth_spectrum[i]);
                 self.mid_smooth[2] = self.mid_smooth[2].max(self.r_smooth_spectrum[i]);
             } else {
