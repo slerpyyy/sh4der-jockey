@@ -470,31 +470,40 @@ impl Jockey {
         self.update_pipeline_incremental(Duration::from_micros(50));
 
         lazy_static! {
+            // slerpy's golf coding stuff
             static ref R_NAME: CString = CString::new("R").unwrap();
             static ref K_NAME: CString = CString::new("K").unwrap();
+
+            // miscellaneous
             static ref RESOLUTION_NAME: CString = CString::new("resolution").unwrap();
-            static ref PASS_INDEX_NAME: CString = CString::new("passIndex").unwrap();
+            static ref PASS_INDEX_NAME: CString = CString::new("pass_index").unwrap();
+            static ref OUT_COLOR_NAME: CString = CString::new("out_color").unwrap();
+            static ref POSITION_NAME: CString = CString::new("position").unwrap();
+            static ref VERTEX_COUNT_NAME: CString = CString::new("vertex_count").unwrap();
+            static ref NOISE_NAME: CString = CString::new("noise").unwrap();
+
+            // time tracking
             static ref TIME_NAME: CString = CString::new("time").unwrap();
-            static ref FRAME_NAME: CString = CString::new("frameCount").unwrap();
-            static ref DELTA_NAME: CString = CString::new("deltaTime").unwrap();
+            static ref DELTA_NAME: CString = CString::new("time_delta").unwrap();
+            static ref FRAME_NAME: CString = CString::new("frame_count").unwrap();
+
+            // direct user input
             static ref BEAT_NAME: CString = CString::new("beat").unwrap();
             static ref SLIDERS_NAME: CString = CString::new("sliders").unwrap();
             static ref BUTTONS_NAME: CString = CString::new("buttons").unwrap();
-            static ref VERTEX_COUNT_NAME: CString = CString::new("vertexCount").unwrap();
-            static ref OUT_COLOR_NAME: CString = CString::new("out_color").unwrap();
-            static ref POSITION_NAME: CString = CString::new("position").unwrap();
+
+            // audio input
+            static ref VOLUME_NAME: CString = CString::new("volume").unwrap();
             static ref SAMPLES_NAME: CString = CString::new("samples").unwrap();
-            static ref RAW_SPECTRUM_NAME: CString = CString::new("raw_spectrum").unwrap();
+            static ref RAW_SPECTRUM_NAME: CString = CString::new("spectrum_raw").unwrap();
             static ref SPECTRUM_NAME: CString = CString::new("spectrum").unwrap();
-            static ref SMOOTH_SPECTRUM_NAME: CString = CString::new("smooth_spectrum").unwrap();
+            static ref SMOOTH_SPECTRUM_NAME: CString = CString::new("spectrum_smooth").unwrap();
             static ref BASS_NAME: CString = CString::new("bass").unwrap();
             static ref MID_NAME: CString = CString::new("mid").unwrap();
             static ref HIGH_NAME: CString = CString::new("high").unwrap();
-            static ref SMOOTH_BASS_NAME: CString = CString::new("smooth_bass").unwrap();
-            static ref SMOOTH_MID_NAME: CString = CString::new("smooth_mid").unwrap();
-            static ref SMOOTH_HIGH_NAME: CString = CString::new("smooth_high").unwrap();
-            static ref NOISE_NAME: CString = CString::new("noise").unwrap();
-            static ref VOLUME_NAME: CString = CString::new("volume").unwrap();
+            static ref SMOOTH_BASS_NAME: CString = CString::new("bass_smooth").unwrap();
+            static ref SMOOTH_MID_NAME: CString = CString::new("mid_smooth").unwrap();
+            static ref SMOOTH_HIGH_NAME: CString = CString::new("high_smooth").unwrap();
         }
 
         // compute uniforms

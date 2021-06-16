@@ -164,7 +164,7 @@ impl Pipeline {
                     Some(s) => TextureBuilder::parse(s, false, true)?,
                     None => TextureBuilder::new(),
                 };
-                let raw_spectrum_opts = match object.get("raw_spectrum") {
+                let raw_spectrum_opts = match object.get("spectrum_raw") {
                     Some(s) => TextureBuilder::parse(s, false, true)?,
                     None => TextureBuilder::new(),
                 };
@@ -172,7 +172,7 @@ impl Pipeline {
                     Some(s) => TextureBuilder::parse(s, false, true)?,
                     None => TextureBuilder::new(),
                 };
-                let smooth_spectrum_opts = match object.get("smooth_spectrum") {
+                let smooth_spectrum_opts = match object.get("spectrum_smooth") {
                     Some(s) => TextureBuilder::parse(s, false, true)?,
                     None => TextureBuilder::new(),
                 };
@@ -216,7 +216,7 @@ impl Pipeline {
         );
 
         buffers.insert(
-            CString::new("raw_spectrum").unwrap(),
+            CString::new("spectrum_raw").unwrap(),
             raw_spectrum_opts.build_texture(),
         );
 
@@ -226,7 +226,7 @@ impl Pipeline {
         );
 
         buffers.insert(
-            CString::new("smooth_spectrum").unwrap(),
+            CString::new("spectrum_smooth").unwrap(),
             smooth_spectrum_opts.build_texture(),
         );
 
