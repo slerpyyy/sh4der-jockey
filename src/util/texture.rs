@@ -524,7 +524,7 @@ macro_rules! impl_texture {
                             0,
                             gl::FALSE,
                             0,
-                            gl::WRITE_ONLY,
+                            gl::READ_WRITE,
                             self.format as _,
                         );
                         gl_debug_check!();
@@ -628,7 +628,7 @@ macro_rules! impl_texture {
                             gl::FALSE,
                             0,
                             gl::READ_WRITE,
-                            gl::RGBA32F,
+                            self.format as _,
                         );
                         gl_debug_check!();
                     }
