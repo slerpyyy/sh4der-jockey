@@ -63,7 +63,7 @@ impl Stage {
                 out[k] = match object.get(name) {
                     Some(Value::String(f)) => match std::fs::read_to_string(f) {
                         Ok(s) => Some((s, f.into())),
-                        Err(e) => return Err(e.to_string()),
+                        Err(e) => return Err(format!("{}, {}", e.to_string(), f)),
                     },
                     Some(s) => {
                         return Err(format!(

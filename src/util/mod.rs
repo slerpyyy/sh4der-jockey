@@ -325,7 +325,7 @@ pub fn preprocess(
                     #[cfg(not(test))]
                     let file = match std::fs::read_to_string(file_name) {
                         Ok(s) => s,
-                        Err(e) => return Err(e.to_string()),
+                        Err(e) => return Err(format!("{}, {}", e.to_string(), file_name)),
                     };
 
                     // dummy for unit tests
