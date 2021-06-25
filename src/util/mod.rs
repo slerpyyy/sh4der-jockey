@@ -231,13 +231,14 @@ fn in_block(prefix: &str, start: &str, end: &str) -> bool {
 }
 
 /// Generates a sequence of numbers that are unlikely to appear in shader code
-fn file_index_jank(n: usize) -> usize {
-    ((7 * n + 100) | 1) & 0xff
+fn file_index_jank(n: u32) -> u32 {
+    let lim = u32::MAX >> 2;
+    ((7 * n + 100) & lim) ^ lim
 }
 
 pub fn process_error(mut err: String, lut: &[String]) -> String {
     for (k, file) in lut.iter().enumerate() {
-        let key = format!("{}", file_index_jank(k));
+        let key = format!("{}", file_index_jank(k as u32));
         err = err.replace(key.as_str(), file);
     }
 
@@ -282,7 +283,7 @@ pub fn preprocess(
 
         // offset file id
         #[cfg(not(test))]
-        let file_id = file_index_jank(file_id);
+        let file_id = file_index_jank(file_id as u32);
 
         // respect pragma once
         let once_re: &Regex = &ONCE_RE;
