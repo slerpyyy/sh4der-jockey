@@ -44,7 +44,7 @@ impl Pipeline {
             prog_id,
             target: None,
             kind: StageKind::Vert {
-                count: 98,
+                count: 108,
                 mode: gl::LINES,
                 thickness: 5.0,
             },
