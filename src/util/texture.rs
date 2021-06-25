@@ -5,6 +5,7 @@ use as_any::AsAny;
 use core::panic;
 use image::DynamicImage;
 use serde_yaml::Value;
+use std::cell::RefCell;
 use std::{fmt::Debug, rc::Rc, u8};
 
 fn _assert_is_object_safe(_: &dyn Texture) {}
@@ -14,7 +15,7 @@ pub trait Texture: Debug + AsAny {
     fn resolution(&self) -> [u32; 3];
     fn texture_id(&self) -> GLuint;
     fn framebuffer_id(&self) -> Option<GLuint>;
-    fn swap(&mut self) {}
+    fn swap(&self) {}
 }
 
 #[derive(Debug)]
@@ -147,29 +148,29 @@ impl Drop for FrameBuffer {
 
 #[derive(Debug)]
 pub struct DoubleFrameBuffer {
-    front: FrameBuffer,
-    back: FrameBuffer,
+    front: RefCell<FrameBuffer>,
+    back: RefCell<FrameBuffer>,
 }
 
 impl Texture for DoubleFrameBuffer {
     fn bind(&self, binding_unit: u32) {
-        self.front.bind(binding_unit)
+        self.front.borrow().bind(binding_unit)
     }
 
     fn resolution(&self) -> [u32; 3] {
-        self.front.resolution()
+        self.front.borrow().resolution()
     }
 
     fn texture_id(&self) -> GLuint {
-        self.back.texture_id()
+        self.back.borrow().texture_id()
     }
 
     fn framebuffer_id(&self) -> Option<GLuint> {
-        self.back.framebuffer_id()
+        self.back.borrow().framebuffer_id()
     }
 
-    fn swap(&mut self) {
-        std::mem::swap(&mut self.front, &mut self.back)
+    fn swap(&self) {
+        self.front.swap(&self.back)
     }
 }
 
@@ -196,12 +197,12 @@ impl DoubleFrameBuffer {
         float: bool,
     ) -> Self {
         Self {
-            front: FrameBuffer::with_params(
+            front: RefCell::new(FrameBuffer::with_params(
                 width, height, min_filter, mag_filter, wrap_mode, mipmap, float,
-            ),
-            back: FrameBuffer::with_params(
+            )),
+            back: RefCell::new(FrameBuffer::with_params(
                 width, height, min_filter, mag_filter, wrap_mode, mipmap, float,
-            ),
+            )),
         }
     }
 }

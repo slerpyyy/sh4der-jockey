@@ -726,6 +726,8 @@ impl Jockey {
                 for (k, name) in stage.deps.iter().enumerate() {
                     let tex = self.pipeline.buffers.get(name).unwrap();
                     let loc = gl::GetUniformLocation(stage.prog_id, name.as_ptr());
+                    debug_assert_ne!(loc, -1);
+
                     gl::ActiveTexture(gl::TEXTURE0 + k as GLenum);
                     gl_debug_check!();
 
@@ -833,8 +835,7 @@ impl Jockey {
 
                     // swap buffers
                     if let Some(name) = &stage.target {
-                        let tex = self.pipeline.buffers.get_mut(name).unwrap();
-                        Rc::get_mut(tex).unwrap().swap();
+                        self.pipeline.buffers.get(name).unwrap().swap();
                     }
                 },
             }
