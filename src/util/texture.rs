@@ -10,7 +10,7 @@ use std::{fmt::Debug, rc::Rc, u8};
 fn _assert_is_object_safe(_: &dyn Texture) {}
 
 pub trait Texture: Debug + AsAny {
-    fn bind(&self);
+    fn bind(&self, binding_unit: u32);
     fn resolution(&self) -> [u32; 3];
     fn texture_id(&self) -> GLuint;
     fn framebuffer_id(&self) -> Option<GLuint>;
@@ -29,7 +29,7 @@ impl Texture for FrameBuffer {
         [self.res[0], self.res[1], 0]
     }
 
-    fn bind(&self) {
+    fn bind(&self, _binding_unit: u32) {
         unsafe {
             gl::BindTexture(gl::TEXTURE_2D, self.tex_id);
             gl_debug_check!();
@@ -152,8 +152,8 @@ pub struct DoubleFrameBuffer {
 }
 
 impl Texture for DoubleFrameBuffer {
-    fn bind(&self) {
-        self.front.bind()
+    fn bind(&self, binding_unit: u32) {
+        self.front.bind(binding_unit)
     }
 
     fn resolution(&self) -> [u32; 3] {
@@ -512,14 +512,14 @@ macro_rules! impl_texture {
                 out
             }
 
-            fn bind(&self) {
+            fn bind(&self, binding_unit: u32) {
                 unsafe {
                     gl::BindTexture($enum_type, self.id);
                     gl_debug_check!();
 
                     if $is_image {
                         gl::BindImageTexture(
-                            0,
+                            binding_unit,
                             self.id,
                             0,
                             gl::FALSE,

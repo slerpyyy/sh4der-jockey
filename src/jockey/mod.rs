@@ -729,7 +729,7 @@ impl Jockey {
                     gl::ActiveTexture(gl::TEXTURE0 + k as GLenum);
                     gl_debug_check!();
 
-                    tex.bind();
+                    tex.bind(k as _);
                     gl_debug_check!();
 
                     gl::Uniform1i(loc, k as _);
@@ -754,7 +754,11 @@ impl Jockey {
             match &stage.kind {
                 StageKind::Comp { dispatch, .. } => unsafe {
                     gl::DispatchCompute(dispatch[0], dispatch[1], dispatch[2]);
-                    gl::MemoryBarrier(gl::TEXTURE_UPDATE_BARRIER_BIT);
+                    gl::MemoryBarrier(
+                        gl::TEXTURE_UPDATE_BARRIER_BIT
+                            | gl::TEXTURE_FETCH_BARRIER_BIT
+                            | gl::SHADER_IMAGE_ACCESS_BARRIER_BIT,
+                    );
                     gl_debug_check!();
                 },
                 _ => unsafe {
