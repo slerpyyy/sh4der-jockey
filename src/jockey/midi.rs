@@ -1,4 +1,4 @@
-use midir::{Ignore, MidiInput, MidiInputConnection, MidiInputPort};
+use midir::{ConnectError, Ignore, MidiInput, MidiInputConnection, MidiInputPort};
 use std::{
     collections::HashMap,
     sync::mpsc::{channel, Receiver},
@@ -17,6 +17,7 @@ pub struct Midi {
     pub button_bindings: HashMap<[u8; 2], usize>,
     pub slider_bindings: HashMap<[u8; 2], usize>,
     config_file: std::path::PathBuf,
+    port_count: usize,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -52,6 +53,7 @@ impl Midi {
                 ),
             };
         }
+        let port_count = 0;
 
         let mut this = Self {
             conns,
@@ -63,6 +65,7 @@ impl Midi {
             button_bindings,
             slider_bindings,
             config_file,
+            port_count,
         };
 
         this.connect();
@@ -71,7 +74,7 @@ impl Midi {
 
     pub fn check_connections(&mut self) {
         let midi_in = MidiInput::new("Sh4derJockey").unwrap();
-        if midi_in.port_count() == self.conns.len() {
+        if midi_in.port_count() == self.port_count {
             return;
         }
         self.conns = Vec::new();
@@ -92,41 +95,50 @@ impl Midi {
         let mut conns = Vec::new();
         let mut queues = Vec::new();
         for in_port in in_ports.iter() {
-            let (conn, rx) = self.new_connection(in_port);
+            let (conn, rx) = match self.new_connection(in_port) {
+                Ok(x) => x,
+                Err(x) => {
+                    println!(
+                        "Failed to connect to {}: {:?}",
+                        midi_in.port_name(&in_port).unwrap(),
+                        x
+                    );
+                    continue;
+                }
+            };
             conns.push(conn);
             queues.push(rx);
         }
 
         self.conns = conns;
         self.queues = queues;
+        self.port_count = midi_in.port_count();
     }
 
     fn new_connection(
         &mut self,
         in_port: &MidiInputPort,
-    ) -> (MidiInputConnection<()>, Receiver<[u8; 3]>) {
+    ) -> Result<(MidiInputConnection<()>, Receiver<[u8; 3]>), ConnectError<MidiInput>> {
         let mut midi_input = MidiInput::new("Sh4derJockey").unwrap();
         midi_input.ignore(Ignore::None);
         let port_name = midi_input.port_name(&in_port).unwrap();
         println!("Connecting to input port: {}", port_name);
 
         let (tx, rx) = channel();
-        let conn = midi_input
-            .connect(
-                in_port,
-                format!("sh4der-jockey-read-input-{}", port_name).as_str(),
-                move |_, message, _| {
-                    if message.len() != 3 {
-                        return;
-                    }
-                    let mut out = [0; 3];
-                    out.copy_from_slice(message);
-                    tx.send(out).unwrap();
-                },
-                (),
-            )
-            .expect("Failed to create MIDI connection");
-        (conn, rx)
+        let conn = midi_input.connect(
+            in_port,
+            format!("sh4der-jockey-read-input-{}", port_name).as_str(),
+            move |_, message, _| {
+                if message.len() != 3 {
+                    return;
+                }
+                let mut out = [0; 3];
+                out.copy_from_slice(message);
+                tx.send(out).unwrap();
+            },
+            (),
+        )?;
+        Ok((conn, rx))
     }
 
     pub fn parse_msg(message: [u8; 3]) -> Option<MessageKind> {
