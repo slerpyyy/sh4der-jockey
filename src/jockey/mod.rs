@@ -311,6 +311,7 @@ impl Jockey {
             .unwrap()
             .map(|s| s.unwrap().file_name().into_string().unwrap())
             .filter(|s| s.ends_with(".yaml"))
+            .filter(|s| s != "config.yaml")
             .collect();
 
         println!("Found pipeline files: {:?}", &self.pipeline_files);

@@ -30,17 +30,13 @@ pub enum MessageKind {
 
 impl Midi {
     pub fn new() -> Self {
-        let conns = Vec::new();
-        let queues = Vec::new();
-        let last_button = [0, 0];
-        let last_slider = [0, 0];
         let sliders = [0.0; MIDI_N];
         let buttons = [(0f32, Instant::now(), Instant::now(), 0); MIDI_N];
         let mut button_bindings = HashMap::new();
         let mut slider_bindings = HashMap::new();
 
         let mut config_file = std::env::current_exe().unwrap();
-        config_file.set_file_name("midi-config.yaml");
+        config_file.set_file_name("midi-config.dat");
 
         if let Ok(file) = std::fs::File::open(&config_file) {
             match serde_yaml::from_reader(file) {
@@ -53,19 +49,18 @@ impl Midi {
                 ),
             };
         }
-        let port_count = 0;
 
         let mut this = Self {
-            conns,
-            queues,
-            last_button,
-            last_slider,
+            conns: Vec::new(),
+            queues: Vec::new(),
+            last_button: [0, 0],
+            last_slider: [0, 0],
             sliders,
             buttons,
             button_bindings,
             slider_bindings,
             config_file,
-            port_count,
+            port_count: 0,
         };
 
         this.connect();
