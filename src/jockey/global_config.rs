@@ -1,5 +1,4 @@
 use serde_yaml::Value;
-use std::path::{Path, PathBuf};
 
 pub struct GlobalConfig {
     pub midi_devices: Vec<String>,
