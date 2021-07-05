@@ -1,3 +1,4 @@
+use super::GlobalConfig;
 use crate::util::RingBuffer;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use num_complex::Complex;
@@ -56,7 +57,7 @@ pub struct Audio {
 }
 
 impl Audio {
-    pub fn new(window_size: usize) -> Self {
+    pub fn new(window_size: usize, config: &GlobalConfig) -> Self {
         let size = window_size;
         let spec_size = size / 2;
         let bands = 100;
@@ -105,7 +106,7 @@ impl Audio {
             sample_freq: 0,
         };
 
-        if let Err(err) = this.connect() {
+        if let Err(err) = this.connect(config) {
             eprintln!("Error connecting to audio input device: {}", err);
         }
 
@@ -129,12 +130,24 @@ impl Audio {
         *self.r_samples.lock().unwrap() = RingBuffer::new(new_size);
     }
 
-    pub fn connect(&mut self) -> Result<(), String> {
+    pub fn connect(&mut self, config: &GlobalConfig) -> Result<(), String> {
         let host = cpal::default_host();
         println!("Available Hosts: {:?}", cpal::available_hosts());
-        let device = host
-            .default_input_device()
-            .ok_or("No input device is available".to_string())?;
+        let device = match &config.audio_device {
+            None => host
+                .default_input_device()
+                .ok_or("No input device is available".to_string()),
+            Some(s) => {
+                let mut ret = None;
+                for dev in host.input_devices().unwrap() {
+                    let dev_name = dev.name().map_err(|e| e.to_string())?;
+                    if dev_name.contains(s) {
+                        ret = Some(dev);
+                    }
+                }
+                ret.ok_or(format!("Failed to find audio device {}", s))
+            }
+        }?;
 
         println!(
             "Connected to audio input device: {:?}",
@@ -393,10 +406,10 @@ impl Audio {
         self.mid_smooth = [0_f32; 3];
         self.high_smooth = [0_f32; 3];
         for i in 0..bins {
-            if i < bins / 4 {
+            if i < 25 {
                 self.bass_smooth[1] = self.bass_smooth[1].max(self.l_spectrum_smooth[i]);
                 self.bass_smooth[2] = self.bass_smooth[2].max(self.r_spectrum_smooth[i]);
-            } else if i < 2 * bins / 3 {
+            } else if i < 80 {
                 self.mid_smooth[1] = self.mid_smooth[1].max(self.l_spectrum_smooth[i]);
                 self.mid_smooth[2] = self.mid_smooth[2].max(self.r_spectrum_smooth[i]);
             } else {
@@ -409,10 +422,10 @@ impl Audio {
         self.high_smooth[0] = (self.high_smooth[1] + self.high_smooth[2]) / 2_f32;
 
         for i in 0..bins {
-            if i < bins / 4 {
+            if i < 25 {
                 self.bass[1] = self.bass[1].max(self.l_spectrum[i]);
                 self.bass[2] = self.bass[2].max(self.r_spectrum[i]);
-            } else if i < 2 * bins / 3 {
+            } else if i < 80 {
                 self.mid[1] = self.mid[1].max(self.l_spectrum[i]);
                 self.mid[2] = self.mid[2].max(self.r_spectrum[i]);
             } else {

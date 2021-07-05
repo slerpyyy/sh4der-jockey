@@ -5,6 +5,8 @@ use std::{
     time::Instant,
 };
 
+use super::GlobalConfig;
+
 pub const MIDI_N: usize = 32;
 
 pub struct Midi {
@@ -16,6 +18,7 @@ pub struct Midi {
     pub buttons: [(f32, Instant, Instant, u32); MIDI_N],
     pub button_bindings: HashMap<[u8; 2], usize>,
     pub slider_bindings: HashMap<[u8; 2], usize>,
+    preferred_devices: Vec<String>,
     config_file: std::path::PathBuf,
     port_count: usize,
 }
@@ -29,7 +32,7 @@ pub enum MessageKind {
 }
 
 impl Midi {
-    pub fn new() -> Self {
+    pub fn new(config: GlobalConfig) -> Self {
         let sliders = [0.0; MIDI_N];
         let buttons = [(0f32, Instant::now(), Instant::now(), 0); MIDI_N];
         let mut button_bindings = HashMap::new();
@@ -37,6 +40,8 @@ impl Midi {
 
         let mut config_file = std::env::current_exe().unwrap();
         config_file.set_file_name("midi-config.dat");
+
+        let preferred_devices = config.midi_devices;
 
         if let Ok(file) = std::fs::File::open(&config_file) {
             match serde_yaml::from_reader(file) {
@@ -59,6 +64,7 @@ impl Midi {
             buttons,
             button_bindings,
             slider_bindings,
+            preferred_devices,
             config_file,
             port_count: 0,
         };
@@ -87,6 +93,25 @@ impl Midi {
             return;
         }
 
+        let in_ports = if self.preferred_devices.len() != 0 {
+            in_ports
+                .into_iter()
+                .filter(|port| {
+                    let mut matches = false;
+                    for pref in self.preferred_devices.iter() {
+                        matches = matches
+                            || midi_in
+                                .port_name(port)
+                                .unwrap_or(String::new())
+                                .contains(pref);
+                    }
+                    matches
+                })
+                .collect()
+        } else {
+            in_ports
+        };
+
         let mut conns = Vec::new();
         let mut queues = Vec::new();
         for in_port in in_ports.iter() {
@@ -111,7 +136,7 @@ impl Midi {
     }
 
     fn new_connection(
-        &mut self,
+        &self,
         in_port: &MidiInputPort,
     ) -> Result<(MidiInputConnection<()>, Receiver<[u8; 3]>), ConnectError<MidiInput>> {
         let mut midi_input = MidiInput::new("Sh4derJockey").unwrap();

@@ -17,6 +17,7 @@ use std::{
 
 mod audio;
 mod beatsync;
+mod global_config;
 mod midi;
 mod pipeline;
 mod stage;
@@ -24,6 +25,7 @@ mod uniforms;
 
 pub use audio::*;
 pub use beatsync::*;
+pub use global_config::*;
 pub use midi::*;
 pub use pipeline::*;
 pub use stage::*;
@@ -101,7 +103,8 @@ impl Jockey {
     /// This will spin up a Winit window, initialize Imgui,
     /// create a OpenGL context and more!
     pub fn init() -> Self {
-        let audio = Audio::new(AUDIO_SAMPLES);
+        let config = GlobalConfig::new();
+        let audio = Audio::new(AUDIO_SAMPLES, &config);
 
         let title = Self::title();
         let events_loop = glutin::event_loop::EventLoop::new();
@@ -208,7 +211,7 @@ impl Jockey {
         };
 
         let pipeline = Pipeline::splash_screen();
-        let midi = Midi::new();
+        let midi = Midi::new(config);
 
         let now = Instant::now();
         let mut this = Self {
