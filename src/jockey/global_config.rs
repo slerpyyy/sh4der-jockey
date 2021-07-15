@@ -3,6 +3,7 @@ use serde_yaml::Value;
 pub struct GlobalConfig {
     pub midi_devices: Vec<String>,
     pub audio_device: Option<String>,
+    pub ndi_sources: Vec<String>,
 }
 
 impl GlobalConfig {
@@ -13,9 +14,11 @@ impl GlobalConfig {
                 println!("Failed to load config.yaml: {}", e);
                 let midi_devices = vec![];
                 let audio_device = None;
+                let ndi_sources = vec![];
                 Self {
                     midi_devices,
                     audio_device,
+                    ndi_sources,
                 }
             }
         }
@@ -65,9 +68,34 @@ impl GlobalConfig {
             }
         };
 
+        let mut ndi_sources = vec![];
+        match object.get("ndi_sources") {
+            Some(Value::Sequence(xs)) => {
+                for val in xs {
+                    match val.as_str() {
+                        Some(s) => ndi_sources.push(s.to_owned()),
+                        None => {
+                            return Err(format!(
+                                "Expected NDI source name {:?} to be a string",
+                                val
+                            ))
+                        }
+                    }
+                }
+            }
+            None => {}
+            Some(s) => {
+                return Err(format!(
+                    "Expected ndi_sources to be a list of strings, got: {:?}",
+                    s
+                ))
+            }
+        };
+
         Ok(Self {
             midi_devices,
             audio_device,
+            ndi_sources,
         })
     }
 }

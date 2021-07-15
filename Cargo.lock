@@ -1420,6 +1420,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "ndi"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e194c0e1a4c7124d13c6d9a61a359577e34fd3583676303d338d31461a108139"
+
+[[package]]
 name = "ndk"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2087,6 +2093,7 @@ dependencies = [
  "imgui-winit-support",
  "lazy_static",
  "midir",
+ "ndi",
  "notify",
  "num-complex",
  "rand",

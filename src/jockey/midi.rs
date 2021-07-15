@@ -32,7 +32,7 @@ pub enum MessageKind {
 }
 
 impl Midi {
-    pub fn new(config: GlobalConfig) -> Self {
+    pub fn new(config: &GlobalConfig) -> Self {
         let sliders = [0.0; MIDI_N];
         let buttons = [(0f32, Instant::now(), Instant::now(), 0); MIDI_N];
         let mut button_bindings = HashMap::new();
@@ -41,7 +41,7 @@ impl Midi {
         let mut config_file = std::env::current_exe().unwrap();
         config_file.set_file_name("midi-config.dat");
 
-        let preferred_devices = config.midi_devices;
+        let preferred_devices = config.midi_devices.clone();
 
         if let Ok(file) = std::fs::File::open(&config_file) {
             match serde_yaml::from_reader(file) {

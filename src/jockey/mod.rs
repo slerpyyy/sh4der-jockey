@@ -19,10 +19,12 @@ mod audio;
 mod beatsync;
 mod global_config;
 mod midi;
+mod ndi;
 mod pipeline;
 mod stage;
 mod uniforms;
 
+pub use self::ndi::*;
 pub use audio::*;
 pub use beatsync::*;
 pub use global_config::*;
@@ -71,6 +73,7 @@ pub struct Jockey {
     pub last_frame_ui: Instant,
     pub midi: Midi,
     pub audio: Audio,
+    pub ndi: Ndi,
     pub pipeline_files: Vec<String>,
     pub pipeline_index: usize,
     pub pipeline: Pipeline,
@@ -211,7 +214,8 @@ impl Jockey {
         };
 
         let pipeline = Pipeline::splash_screen();
-        let midi = Midi::new(config);
+        let midi = Midi::new(&config);
+        let ndi = Ndi::new(&config);
 
         let now = Instant::now();
         let mut this = Self {
@@ -224,6 +228,7 @@ impl Jockey {
             last_frame_ui: now,
             midi,
             audio,
+            ndi,
             pipeline_files: vec![],
             pipeline,
             pipeline_index: 0,
@@ -385,6 +390,7 @@ impl Jockey {
 
         &mut self.midi.check_connections();
         &mut self.midi.handle_input();
+        &mut self.ndi.handle_input();
 
         let mut take_screenshot = false;
         let mut do_update_pipeline = unsafe { PIPELINE_STALE.swap(false, Ordering::Relaxed) }
@@ -726,6 +732,7 @@ impl Jockey {
                     gl_debug_check!();
                 }
 
+                let mut last_img = 0;
                 // Add and bind uniform texture dependencies
                 for (k, name) in stage.deps.iter().enumerate() {
                     let tex = self.pipeline.buffers.get(name).unwrap();
@@ -746,6 +753,28 @@ impl Jockey {
                     let res = tex.resolution();
                     gl_debug_check!();
 
+                    gl::Uniform4f(
+                        res_loc,
+                        res[0] as _,
+                        res[1] as _,
+                        res[2] as _,
+                        res[0] as f32 / res[1] as f32,
+                    );
+                    gl_debug_check!();
+                    last_img = k + 1;
+                }
+                if let Some(tex) = self.ndi.texture.as_ref() {
+                    let name = CString::new("ndi").unwrap();
+                    let loc = gl::GetUniformLocation(stage.prog_id, name.as_ptr());
+                    tex.bind(last_img as _);
+                    gl::ActiveTexture(gl::TEXTURE0 + last_img as GLenum);
+                    gl_debug_check!();
+                    gl::Uniform1i(loc, last_img as _);
+                    gl_debug_check!();
+                    let res_name = CString::new(format!("{}_res", name.to_str().unwrap())).unwrap();
+                    let res_loc = gl::GetUniformLocation(stage.prog_id, res_name.as_ptr());
+                    let res = tex.resolution();
+                    gl_debug_check!();
                     gl::Uniform4f(
                         res_loc,
                         res[0] as _,
