@@ -16,6 +16,7 @@ pub struct Pipeline {
     pub audio_samples: usize,
     pub smoothing_attack: f32,
     pub smoothing_decay: f32,
+    pub requested_ndi_sources: HashMap<CString, String>,
 }
 
 impl Pipeline {
@@ -27,6 +28,7 @@ impl Pipeline {
             audio_samples: AUDIO_SAMPLES,
             smoothing_attack: FFT_ATTACK,
             smoothing_decay: FFT_DECAY,
+            requested_ndi_sources: HashMap::new(),
         }
     }
 
@@ -60,6 +62,7 @@ impl Pipeline {
             audio_samples: AUDIO_SAMPLES,
             smoothing_attack: FFT_ATTACK,
             smoothing_decay: FFT_DECAY,
+            requested_ndi_sources: HashMap::new(),
         }
     }
 
@@ -328,6 +331,55 @@ impl Pipeline {
             yield_now().await;
         }
 
+        //parse ndi section
+        let ndi_sources = match object.get("ndi") {
+            Some(Value::Sequence(s)) => s.clone(),
+            None => vec![],
+            Some(s) => {
+                return Err(format!(
+                    "Expected \"ndi\" to be an array, got {:?} instead.",
+                    s
+                ));
+            }
+        };
+
+        let mut requested_ndi_sources = HashMap::new();
+        for src in ndi_sources {
+            let source = match src.get("source") {
+                Some(Value::String(s)) => s.clone(),
+                s => {
+                    return Err(format!(
+                        "Expected ndi.source to be a string, got {:?} instead",
+                        s
+                    ))
+                }
+            };
+            let name = match src.get("name") {
+                Some(Value::String(s)) => CString::new(s.clone()).unwrap(),
+                s => {
+                    return Err(format!(
+                        "Expected ndi.name to be a string, got {:?} instead",
+                        s
+                    ))
+                }
+            };
+
+            if buffers.get(&name).is_some() {
+                return Err(format!(
+                    "Texture {:?} already exists, please try a different name",
+                    name
+                ));
+            }
+
+            let tex = TextureBuilder::parse(&src, false, false)?
+                .set_float(false)
+                .set_resolution(vec![1, 1])
+                .build_texture();
+
+            requested_ndi_sources.insert(name.clone(), source);
+            buffers.insert(name, tex);
+        }
+
         // parse stages section
         let passes = match object.get("stages") {
             Some(Value::Sequence(s)) => s.clone(),
@@ -404,12 +456,34 @@ impl Pipeline {
             yield_now().await;
         }
 
+        let buffers = buffers
+            .into_iter()
+            .filter(|(tex_name, _)| {
+                let mut is_used = false;
+                for stage in stages.iter() {
+                    let loc = unsafe { gl::GetUniformLocation(stage.prog_id, tex_name.as_ptr()) };
+
+                    if loc != -1 {
+                        is_used = true;
+                        break;
+                    }
+                }
+
+                if !is_used {
+                    requested_ndi_sources.remove(tex_name);
+                }
+
+                is_used
+            })
+            .collect();
+
         Ok(Self {
             stages,
             buffers,
             audio_samples,
             smoothing_attack,
             smoothing_decay,
+            requested_ndi_sources,
         })
     }
 

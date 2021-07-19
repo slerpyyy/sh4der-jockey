@@ -30,7 +30,8 @@ regex = "1.4.6"
 rustfft = "6.0"
 serde_yaml = "0.8.17"
 take_mut = "0.2.2"
-ndi =  "0.1.0"
+ndi =  { path = "D:\\1Git/sp4ghet/ndi-rs/ndi", version = "0.1.0"}
+error-chain = "0.12.4"
 
 [build-dependencies]
 anyhow = "1.0.40"

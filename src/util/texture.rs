@@ -421,6 +421,7 @@ impl TextureBuilder {
                 self.mag_filter,
                 self.wrap_mode,
                 format,
+                self.mipmap,
                 data,
             )),
             &[w, h] => Rc::new(Texture2D::with_params(
@@ -429,6 +430,7 @@ impl TextureBuilder {
                 self.mag_filter,
                 self.wrap_mode,
                 format,
+                self.mipmap,
                 data,
             )),
             &[w, h, d] => Rc::new(Texture3D::with_params(
@@ -437,6 +439,7 @@ impl TextureBuilder {
                 self.mag_filter,
                 self.wrap_mode,
                 format,
+                self.mipmap,
                 data,
             )),
             _ => unreachable!(),
@@ -452,6 +455,7 @@ impl TextureBuilder {
                 self.mag_filter,
                 self.wrap_mode,
                 format,
+                false,
                 data,
             )),
             &[w, h] => Rc::new(Image2D::with_params(
@@ -460,6 +464,7 @@ impl TextureBuilder {
                 self.mag_filter,
                 self.wrap_mode,
                 format,
+                false,
                 data,
             )),
             &[w, h, d] => Rc::new(Image3D::with_params(
@@ -468,6 +473,7 @@ impl TextureBuilder {
                 self.mag_filter,
                 self.wrap_mode,
                 format,
+                false,
                 data,
             )),
             _ => unreachable!(),
@@ -504,6 +510,10 @@ macro_rules! impl_texture {
             pub id: GLuint,
             pub format: TextureFormat,
             pub res: [u32; $dim],
+            pub min_filter: GLenum,
+            pub mag_filter: GLenum,
+            pub wrap_mode: GLenum,
+            pub mipmap: bool,
         }
 
         impl Texture for $name {
@@ -550,6 +560,7 @@ macro_rules! impl_texture {
                     gl::LINEAR,
                     gl::REPEAT,
                     TextureFormat::RGBA32F,
+                    false,
                     std::ptr::null(),
                 )
             }
@@ -582,6 +593,7 @@ macro_rules! impl_texture {
                 mag_filter: GLenum,
                 wrap_mode: GLenum,
                 format: TextureFormat,
+                mipmap: bool,
                 data: *const c_void,
             ) -> Self {
                 for k in resolution.iter_mut() {
@@ -638,6 +650,10 @@ macro_rules! impl_texture {
                         id: tex_id,
                         format,
                         res: resolution,
+                        wrap_mode,
+                        min_filter,
+                        mag_filter,
+                        mipmap,
                     }
                 }
             }
@@ -659,7 +675,9 @@ macro_rules! impl_texture {
                         data,
                     );
                     gl_debug_check!();
-                    gl::GenerateMipmap($enum_type);
+                    if self.mipmap {
+                        gl::GenerateMipmap($enum_type);
+                    }
                     gl_debug_check!();
                 }
             }
@@ -712,6 +730,7 @@ pub fn make_noise() -> Texture3D {
         gl::LINEAR,
         gl::REPEAT,
         TextureFormat::RGBA8,
+        false,
         data.as_ptr() as _,
     );
 
@@ -727,6 +746,7 @@ pub fn make_texture_from_image(dyn_image: DynamicImage) -> Texture2D {
         gl::LINEAR,
         gl::REPEAT,
         TextureFormat::RGBA8,
+        false,
         image.as_raw().as_ptr() as _,
     );
 
