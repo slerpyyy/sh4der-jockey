@@ -1,11 +1,11 @@
 extern crate ndi;
 use std::{
-    convert::TryInto,
+    iter::FromIterator,
     sync::{Arc, Mutex},
     thread,
 };
 
-use ndi::VideoData;
+use image::GenericImageView;
 
 use super::*;
 
@@ -24,7 +24,7 @@ static NDI_RECEIVER_NAME: &'static str = "Sh4derJockey";
 
 pub struct Ndi {
     sources: Arc<Mutex<Vec<ndi::Source>>>,
-    videos: HashMap<String, (Arc<Mutex<bool>>, Arc<Mutex<VideoData>>)>,
+    videos: HashMap<String, (Arc<Mutex<bool>>, Arc<Mutex<image::DynamicImage>>)>,
 }
 
 impl Ndi {
@@ -71,6 +71,56 @@ impl Ndi {
                 *sources = locals;
             }
         });
+    }
+
+    fn convert_format(video: ndi::VideoData) -> image::DynamicImage {
+        let size = video.line_stride_in_bytes().unwrap() * video.yres();
+        let slice = unsafe { std::slice::from_raw_parts(video.p_data(), size as _) };
+        let vec = Vec::from_iter(slice.to_owned());
+
+        match video.four_cc() {
+            ndi::FourCCVideoType::BGRA => {
+                let buf = image::ImageBuffer::<image::Bgra<u8>, Vec<_>>::from_vec(
+                    video.xres(),
+                    video.yres(),
+                    vec,
+                )
+                .unwrap();
+
+                image::DynamicImage::ImageBgra8(buf)
+            }
+            ndi::FourCCVideoType::BGRX => {
+                let buf = image::ImageBuffer::<image::Bgr<u8>, Vec<_>>::from_vec(
+                    video.xres(),
+                    video.yres(),
+                    vec,
+                )
+                .unwrap();
+
+                image::DynamicImage::ImageBgr8(buf)
+            }
+            ndi::FourCCVideoType::RGBA => {
+                let buf = image::ImageBuffer::<image::Rgba<u8>, Vec<_>>::from_vec(
+                    video.xres(),
+                    video.yres(),
+                    vec,
+                )
+                .unwrap();
+
+                image::DynamicImage::ImageRgba8(buf)
+            }
+            ndi::FourCCVideoType::RGBX => {
+                let buf = image::ImageBuffer::<image::Rgb<u8>, Vec<_>>::from_vec(
+                    video.xres(),
+                    video.yres(),
+                    vec,
+                )
+                .unwrap();
+
+                image::DynamicImage::ImageRgb8(buf)
+            }
+            _ => panic!("Failed to convert image"),
+        }
     }
 
     pub fn connect(&mut self, requested: &[String]) -> Result<()> {
@@ -122,7 +172,9 @@ impl Ndi {
                 .ndi_recv_name(NDI_RECEIVER_NAME.to_string())
                 .build()?;
             recv.connect(&source);
-            let arc = Arc::new(Mutex::new(VideoData::new()));
+            let arc = Arc::new(Mutex::new(image::DynamicImage::ImageRgba8(
+                image::ImageBuffer::new(1, 1),
+            )));
             let active = Arc::new(Mutex::new(true));
             self.videos.insert(req, (active.clone(), arc.clone()));
 
@@ -139,8 +191,11 @@ impl Ndi {
                 let frame_type = recv.capture_video(&mut video_data, 1000);
                 if frame_type == ndi::FrameType::Video {
                     if let Some(video) = video_data {
+                        let img = Ndi::convert_format(video);
+                        let img = img.flipv();
+
                         let mut lock = arc.lock().unwrap();
-                        *lock = video;
+                        *lock = img;
                     }
                 }
             });
@@ -152,18 +207,18 @@ impl Ndi {
     pub fn update_texture(&self, tex_name: &String, tex: &mut Texture2D) {
         if let Some((_, video)) = self.videos.get(tex_name) {
             let video = video.lock().unwrap();
-            if tex.resolution() != [video.xres(), video.yres(), 0] {
+            if tex.resolution() != [video.width(), video.height(), 0] {
                 *tex = Texture2D::with_params(
-                    [video.xres(), video.yres()],
+                    [video.width(), video.height()],
                     tex.min_filter,
                     tex.mag_filter,
                     tex.wrap_mode,
                     tex.format,
                     tex.mipmap,
-                    video.p_data() as _,
+                    video.to_rgba8().as_ptr() as _,
                 );
             } else {
-                tex.write(video.p_data() as _);
+                tex.write(video.to_rgba8().as_ptr() as _);
             }
         }
     }

@@ -371,7 +371,7 @@ impl Pipeline {
                 ));
             }
 
-            let tex = TextureBuilder::parse(&src, false, false)?
+            let tex = TextureBuilder::parse(&src, false, true)?
                 .set_float(false)
                 .set_resolution(vec![1, 1])
                 .build_texture();
