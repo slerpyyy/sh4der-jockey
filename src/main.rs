@@ -1,12 +1,13 @@
 //#![feature(external_doc)]
 //#![doc(include = "../README.md")]
 
+#[allow(unused)]
+#[macro_use]
+extern crate error_chain;
+
 #[macro_use]
 mod util;
 mod jockey;
-
-#[macro_use]
-extern crate error_chain;
 
 use getopts::Options;
 use jockey::Jockey;

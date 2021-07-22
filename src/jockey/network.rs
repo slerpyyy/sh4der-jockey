@@ -1,4 +1,4 @@
-extern crate ndi;
+use ndi::{self, error::NDIError};
 use super::*;
 use image::GenericImageView;
 use std::{
@@ -6,17 +6,6 @@ use std::{
     sync::{Arc, Mutex},
     thread,
 };
-
-mod errors {
-    error_chain! {
-        foreign_links {
-            NDI(ndi::NDIError);
-            Other(std::str::Utf8Error);
-        }
-    }
-}
-
-use errors::*;
 
 static NDI_RECEIVER_NAME: &'static str = "Sh4derJockey";
 
@@ -42,7 +31,7 @@ impl Ndi {
 
     pub fn start_search(&self) {
         let sources = self.sources.clone();
-        thread::spawn(move || -> Result<()> {
+        thread::spawn(move || -> Result<(), NDIError> {
             // TODO: Do we really want ot exit early with no warning?
             let find_local = ndi::FindBuilder::new().show_local_sources(true).build()?;
             let find_remote = ndi::FindBuilder::new().show_local_sources(false).build()?;
@@ -118,7 +107,7 @@ impl Ndi {
         }
     }
 
-    pub fn connect(&mut self, requested: &[String]) -> Result<()> {
+    pub fn connect(&mut self, requested: &[String]) -> Result<(), NDIError> {
         let sources = self.sources.lock().unwrap();
         println!("{:?}", sources);
 
@@ -162,7 +151,7 @@ impl Ndi {
 
             self.videos.insert(req, Arc::clone(&video));
 
-            println!("Connected to NDI source: {}", source.get_name()?);
+            println!("Connected to NDI source: {}", source.get_name().unwrap_or_else(|_| "<no-name>".into()));
 
             let weak = Arc::downgrade(&video);
             thread::spawn(move || loop {

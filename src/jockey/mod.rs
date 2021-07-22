@@ -19,12 +19,12 @@ mod audio;
 mod beatsync;
 mod global_config;
 mod midi;
-mod ndi;
+mod network;
 mod pipeline;
 mod stage;
 mod uniforms;
 
-pub use self::ndi::*;
+pub use network::*;
 pub use audio::*;
 pub use beatsync::*;
 pub use global_config::*;
