@@ -1,13 +1,11 @@
 extern crate ndi;
+use super::*;
+use image::GenericImageView;
 use std::{
     iter::FromIterator,
     sync::{Arc, Mutex},
     thread,
 };
-
-use image::GenericImageView;
-
-use super::*;
 
 mod errors {
     error_chain! {
@@ -24,14 +22,13 @@ static NDI_RECEIVER_NAME: &'static str = "Sh4derJockey";
 
 pub struct Ndi {
     sources: Arc<Mutex<Vec<ndi::Source>>>,
-    videos: HashMap<String, (Arc<Mutex<bool>>, Arc<Mutex<image::DynamicImage>>)>,
+    videos: HashMap<String, Arc<Mutex<image::DynamicImage>>>,
 }
 
 impl Ndi {
     pub fn new(requested: &[String]) -> Self {
-        let sources = Arc::new(Mutex::new(vec![]));
+        let sources = Default::default();
         let videos = HashMap::new();
-
         let mut this = Self { sources, videos };
 
         this.start_search();
@@ -44,31 +41,29 @@ impl Ndi {
     }
 
     pub fn start_search(&self) {
-        let mutex = self.sources.clone();
+        let sources = self.sources.clone();
         thread::spawn(move || -> Result<()> {
+            // TODO: Do we really want ot exit early with no warning?
             let find_local = ndi::FindBuilder::new().show_local_sources(true).build()?;
             let find_remote = ndi::FindBuilder::new().show_local_sources(false).build()?;
+
             loop {
                 thread::sleep(Duration::from_secs(2));
-                let mut sources = mutex.lock().unwrap();
+
                 let mut locals = match find_local.current_sources(1000) {
                     Ok(s) => s,
                     Err(ndi::NDIError::FindSourcesTimeout) => vec![],
-                    _ => {
-                        eprintln!("Something funky happened in NDI find");
-                        vec![]
-                    }
+                    _ => panic!("Something funky happened in NDI find"),
                 };
+
                 let mut remotes = match find_remote.current_sources(1000) {
                     Ok(s) => s,
                     Err(ndi::NDIError::FindSourcesTimeout) => vec![],
-                    _ => {
-                        eprintln!("Something funky happened in NDI find");
-                        vec![]
-                    }
+                    _ => panic!("Something funky happened in NDI find"),
                 };
+
                 locals.append(&mut remotes);
-                *sources = locals;
+                *sources.lock().unwrap() = locals;
             }
         });
     }
@@ -126,10 +121,11 @@ impl Ndi {
     pub fn connect(&mut self, requested: &[String]) -> Result<()> {
         let sources = self.sources.lock().unwrap();
         println!("{:?}", sources);
+
         let src: Vec<(String, &ndi::Source)> = sources
             .iter()
             .filter_map(|src| {
-                let src_name = src.get_name().unwrap_or_else(|_| String::new());
+                let src_name = src.get_name().ok()?;
                 for pat in requested {
                     if src_name.contains(pat) {
                         return Some((pat.clone(), src));
@@ -145,25 +141,11 @@ impl Ndi {
             requested.len()
         );
 
-        let mut dump = vec![];
-        for (pre_req, (active, _)) in self.videos.iter() {
-            let mut is_active = active.lock().unwrap();
-            let mut matched = false;
-            for (req, _) in src.iter() {
-                matched = matched || req == pre_req;
-            }
-            if !matched {
-                dump.push(pre_req.clone());
-                *is_active = false;
-            }
-        }
-
-        for k in dump {
-            self.videos.remove(&k);
-        }
+        self.videos
+            .retain(|pre_req, _| src.iter().find(|(req, _)| req == pre_req).is_some());
 
         for (req, source) in src {
-            if let Some(_) = self.videos.get(&req) {
+            if self.videos.get(&req).is_some() {
                 continue;
             }
 
@@ -171,32 +153,39 @@ impl Ndi {
                 .color_format(ndi::RecvColorFormat::RGBX_RGBA)
                 .ndi_recv_name(NDI_RECEIVER_NAME.to_string())
                 .build()?;
+
             recv.connect(&source);
-            let arc = Arc::new(Mutex::new(image::DynamicImage::ImageRgba8(
+
+            let video = Arc::new(Mutex::new(image::DynamicImage::ImageRgba8(
                 image::ImageBuffer::new(1, 1),
             )));
-            let active = Arc::new(Mutex::new(true));
-            self.videos.insert(req, (active.clone(), arc.clone()));
+
+            self.videos.insert(req, Arc::clone(&video));
 
             println!("Connected to NDI source: {}", source.get_name()?);
 
+            let weak = Arc::downgrade(&video);
             thread::spawn(move || loop {
-                // seems to deadlock otherwise
-                thread::sleep(Duration::from_millis(1));
-                if !*active.lock().unwrap() {
-                    println!("Ending recv loop");
+                if weak.strong_count() == 0 {
+                    println!("Ending RECV loop");
                     break;
                 }
-                let mut video_data = None;
-                let frame_type = recv.capture_video(&mut video_data, 1000);
-                if frame_type == ndi::FrameType::Video {
-                    if let Some(video) = video_data {
-                        let img = Ndi::convert_format(video);
-                        let img = img.flipv();
 
-                        let mut lock = arc.lock().unwrap();
-                        *lock = img;
-                    }
+                let mut video_data = None;
+                if recv.capture_video(&mut video_data, 1000) != ndi::FrameType::Video {
+                    continue;
+                }
+
+                let img = match video_data {
+                    Some(video) => Ndi::convert_format(video).flipv(),
+                    _ => continue,
+                };
+
+                if let Some(strong) = weak.upgrade() {
+                    *strong.lock().unwrap() = img;
+                } else {
+                    println!("Ending RECV loop");
+                    break;
                 }
             });
         }
@@ -205,7 +194,7 @@ impl Ndi {
     }
 
     pub fn update_texture(&self, tex_name: &String, tex: &mut Texture2D) {
-        if let Some((_, video)) = self.videos.get(tex_name) {
+        if let Some(video) = self.videos.get(tex_name) {
             let video = video.lock().unwrap();
             if tex.resolution() != [video.width(), video.height(), 0] {
                 *tex = Texture2D::with_params(
