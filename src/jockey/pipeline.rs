@@ -2,7 +2,7 @@ use super::uniforms::*;
 use crate::{jockey::*, util::Cache};
 use async_std::task::yield_now;
 use serde_yaml::Value;
-use std::{collections::HashMap, ffi::CString, path::Path, rc::Rc};
+use std::{collections::{HashMap, HashSet}, ffi::CString, path::Path, rc::Rc};
 
 /// The rendering pipeline struct
 ///
@@ -442,6 +442,7 @@ impl Pipeline {
         }
 
         // compute uniform dependencies
+        let mut used_buffers = HashSet::new();
         for stage in stages.iter_mut() {
             for tex_name in buffers.keys() {
                 // try to locate the uniform in the program
@@ -450,32 +451,21 @@ impl Pipeline {
                 // add uniform to list of dependencies
                 if loc != -1 {
                     stage.deps.push(tex_name.clone());
+                    used_buffers.insert(tex_name.clone());
                 }
             }
 
             yield_now().await;
         }
 
-        let buffers = buffers
-            .into_iter()
-            .filter(|(tex_name, _)| {
-                let mut is_used = false;
-                for stage in stages.iter() {
-                    let loc = unsafe { gl::GetUniformLocation(stage.prog_id, tex_name.as_ptr()) };
-
-                    if loc != -1 {
-                        is_used = true;
-                        break;
-                    }
-                }
-
-                if !is_used {
-                    requested_ndi_sources.remove(tex_name);
-                }
-
-                is_used
-            })
-            .collect();
+        // remove unnecessary buffers
+        buffers.retain(|name, _| {
+            let needed = used_buffers.contains(name);
+            if !needed {
+                requested_ndi_sources.remove(name);
+            }
+            needed
+        });
 
         Ok(Self {
             stages,
