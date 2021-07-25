@@ -17,18 +17,18 @@ use std::{
 
 mod audio;
 mod beatsync;
-mod global_config;
+mod config;
 mod midi;
 mod network;
 mod pipeline;
 mod stage;
 mod uniforms;
 
-pub use network::*;
 pub use audio::*;
 pub use beatsync::*;
-pub use global_config::*;
+pub use config::*;
 pub use midi::*;
+pub use network::*;
 pub use pipeline::*;
 pub use stage::*;
 pub use uniforms::*;
@@ -106,7 +106,7 @@ impl Jockey {
     /// This will spin up a Winit window, initialize Imgui,
     /// create a OpenGL context and more!
     pub fn init() -> Self {
-        let config = GlobalConfig::new();
+        let config = Config::new();
         let audio = Audio::new(AUDIO_SAMPLES, &config);
 
         let title = Self::title();

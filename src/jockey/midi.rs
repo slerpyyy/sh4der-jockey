@@ -1,11 +1,10 @@
+use super::Config;
 use midir::{ConnectError, Ignore, MidiInput, MidiInputConnection, MidiInputPort};
 use std::{
     collections::HashMap,
     sync::mpsc::{channel, Receiver},
     time::Instant,
 };
-
-use super::GlobalConfig;
 
 pub const MIDI_N: usize = 32;
 
@@ -32,7 +31,7 @@ pub enum MessageKind {
 }
 
 impl Midi {
-    pub fn new(config: &GlobalConfig) -> Self {
+    pub fn new(config: &Config) -> Self {
         let sliders = [0.0; MIDI_N];
         let buttons = [(0f32, Instant::now(), Instant::now(), 0); MIDI_N];
         let mut button_bindings = HashMap::new();

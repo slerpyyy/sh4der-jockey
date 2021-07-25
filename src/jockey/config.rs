@@ -1,14 +1,14 @@
 use serde_yaml::Value;
 
-pub struct GlobalConfig {
+pub struct Config {
     pub midi_devices: Vec<String>,
     pub audio_device: Option<String>,
     pub ndi_sources: Vec<String>,
 }
 
-impl GlobalConfig {
+impl Config {
     pub fn new() -> Self {
-        match Self::load_config() {
+        match Self::load() {
             Ok(x) => x,
             Err(e) => {
                 println!("Failed to load config.yaml: {}", e);
@@ -24,7 +24,7 @@ impl GlobalConfig {
         }
     }
 
-    pub fn load_config() -> Result<Self, String> {
+    pub fn load() -> Result<Self, String> {
         let mut path = std::env::current_dir().map_err(|e| e.to_string())?;
         println!("{:?}", path);
         path.push("config.yaml");

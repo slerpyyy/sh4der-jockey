@@ -1,4 +1,4 @@
-use super::GlobalConfig;
+use super::Config;
 use crate::util::RingBuffer;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use num_complex::Complex;
@@ -57,7 +57,7 @@ pub struct Audio {
 }
 
 impl Audio {
-    pub fn new(window_size: usize, config: &GlobalConfig) -> Self {
+    pub fn new(window_size: usize, config: &Config) -> Self {
         let size = window_size;
         let spec_size = size / 2;
         let bands = 100;
@@ -130,7 +130,7 @@ impl Audio {
         *self.r_samples.lock().unwrap() = RingBuffer::new(new_size);
     }
 
-    pub fn connect(&mut self, config: &GlobalConfig) -> Result<(), String> {
+    pub fn connect(&mut self, config: &Config) -> Result<(), String> {
         let host = cpal::default_host();
         println!("Available Hosts: {:?}", cpal::available_hosts());
         let device = match &config.audio_device {

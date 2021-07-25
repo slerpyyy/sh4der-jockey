@@ -1,6 +1,6 @@
-use ndi::{self, error::NDIError};
 use super::*;
 use image::GenericImageView;
+use ndi::{self, error::NDIError};
 use std::{
     iter::FromIterator,
     sync::{Arc, Mutex},
@@ -151,7 +151,10 @@ impl Ndi {
 
             self.videos.insert(req, Arc::clone(&video));
 
-            println!("Connected to NDI source: {}", source.get_name().unwrap_or_else(|_| "<no-name>".into()));
+            println!(
+                "Connected to NDI source: {}",
+                source.get_name().unwrap_or_else(|_| "<no-name>".into())
+            );
 
             let weak = Arc::downgrade(&video);
             thread::spawn(move || loop {

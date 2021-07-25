@@ -2,7 +2,12 @@ use super::uniforms::*;
 use crate::{jockey::*, util::Cache};
 use async_std::task::yield_now;
 use serde_yaml::Value;
-use std::{collections::{HashMap, HashSet}, ffi::CString, path::Path, rc::Rc};
+use std::{
+    collections::{HashMap, HashSet},
+    ffi::CString,
+    path::Path,
+    rc::Rc,
+};
 
 /// The rendering pipeline struct
 ///
