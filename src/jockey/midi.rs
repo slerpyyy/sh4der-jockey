@@ -247,15 +247,29 @@ impl Midi {
         }
     }
 
-    pub fn auto_bind_slider(&mut self, id: usize) {
+    pub fn bind_slider(&mut self, id: usize) {
         if id < MIDI_N {
+            self.slider_bindings.retain(|_, bid| *bid != id);
             self.slider_bindings.insert(self.last_slider, id);
         }
     }
 
-    pub fn auto_bind_button(&mut self, id: usize) {
+    pub fn bind_button(&mut self, id: usize) {
         if id < MIDI_N {
+            self.button_bindings.retain(|_, bid| *bid != id);
             self.button_bindings.insert(self.last_button, id);
+        }
+    }
+
+    pub fn unbind_slider(&mut self, id: usize) {
+        if id < MIDI_N {
+            self.slider_bindings.retain(|_, bid| *bid != id);
+        }
+    }
+
+    pub fn unbind_button(&mut self, id: usize) {
+        if id < MIDI_N {
+            self.button_bindings.retain(|_, bid| *bid != id);
         }
     }
 }

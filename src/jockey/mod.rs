@@ -82,6 +82,7 @@ pub struct Jockey {
     pub speed: f32,
     pub time_range: (f32, f32),
     pub frame: u32,
+    pub alt_pressed: bool,
 }
 
 impl std::fmt::Debug for Jockey {
@@ -237,6 +238,7 @@ impl Jockey {
             speed: 1.0,
             time_range: (0.0, 60.0),
             frame: 0,
+            alt_pressed: false,
         };
 
         this.ctx.context = unsafe { this.ctx.context.make_current().unwrap() };
@@ -393,6 +395,7 @@ impl Jockey {
         let window = self.ctx.context.window();
         let ui_window = self.ctx.ui_context.window();
         let pipeline = &mut self.pipeline;
+        let alt_pressed = &mut self.alt_pressed;
         let mut done = false;
 
         &mut self.midi.check_connections();
@@ -427,6 +430,7 @@ impl Jockey {
                             let ctrl = input.modifiers.ctrl();
                             let alt = input.modifiers.alt();
                             let logo = input.modifiers.logo();
+                            *alt_pressed = alt;
 
                             if Some(glutin::event::VirtualKeyCode::Return) == input.virtual_keycode
                                 && input.state == glutin::event::ElementState::Pressed
@@ -914,7 +918,6 @@ impl Jockey {
             let flags = imgui::sys::ImGuiDockNodeFlags_None as i32;
             let viewport = imgui::sys::igGetMainViewport();
             let window_class = imgui::sys::ImGuiWindowClass_ImGuiWindowClass();
-
             imgui::sys::igDockSpaceOverViewport(viewport, flags, window_class);
         }
 
@@ -973,8 +976,14 @@ impl Jockey {
         if let Some(window) = imgui::Window::new(im_str!("Buttons")).begin(&ui) {
             for k in 0..self.midi.buttons.len() {
                 let token = ui.push_id(i32::MAX - k as i32);
-                if ui.small_button(im_str!("bind")) {
-                    self.midi.auto_bind_button(k);
+                if !self.alt_pressed {
+                    if ui.small_button(im_str!("bind")) {
+                        self.midi.bind_button(k);
+                    }
+                } else {
+                    if ui.small_button(im_str!("unbind")) {
+                        self.midi.unbind_button(k);
+                    }
                 }
                 token.pop();
                 ui.same_line();
@@ -1012,8 +1021,14 @@ impl Jockey {
         if let Some(window) = imgui::Window::new(im_str!("Sliders")).begin(&ui) {
             for k in 0..self.midi.sliders.len() {
                 let token = ui.push_id(k as i32);
-                if ui.small_button(im_str!("bind")) {
-                    self.midi.auto_bind_slider(k);
+                if !self.alt_pressed {
+                    if ui.small_button(im_str!("bind")) {
+                        self.midi.bind_slider(k);
+                    }
+                } else {
+                    if ui.small_button(im_str!("unbind")) {
+                        self.midi.unbind_slider(k);
+                    }
                 }
                 token.pop();
                 ui.same_line();
