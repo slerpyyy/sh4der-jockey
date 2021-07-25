@@ -574,6 +574,15 @@ impl Jockey {
         for (pass_num, stage) in self.pipeline.stages.iter_mut().enumerate() {
             let stage_start = Instant::now();
 
+            // skip stage if target is never used
+            if !matches!(stage.kind, StageKind::Comp { .. }) {
+                if let Some(name) = &stage.target {
+                    if self.pipeline.buffers.get(name).is_none() {
+                        continue;
+                    }
+                }
+            }
+
             // get size of the render target
             let target_res = match stage.resolution() {
                 Some(s) => s,
@@ -795,7 +804,7 @@ impl Jockey {
 
                     // get render target id
                     let (target_tex, target_fb) = if let Some(name) = &stage.target {
-                        let tex = &self.pipeline.buffers[name];
+                        let tex = self.pipeline.buffers.get(name).unwrap();
                         let tex_id = tex.texture_id();
                         let fb_id = tex
                             .framebuffer_id()
