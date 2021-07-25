@@ -12,15 +12,15 @@ static NDI_RECEIVER_NAME: &'static str = "Sh4derJockey";
 pub struct Ndi {
     sources: Arc<Mutex<Vec<ndi::Source>>>,
     videos: HashMap<String, Arc<Mutex<image::DynamicImage>>>,
+    searching: bool,
 }
 
 impl Ndi {
     pub fn new(requested: &[String]) -> Self {
         let sources = Default::default();
         let videos = HashMap::new();
-        let mut this = Self { sources, videos };
-
-        this.start_search();
+        let searching = false;
+        let mut this = Self { sources, videos, searching };
 
         if let Err(e) = this.connect(requested) {
             eprintln!("Failed to connect to NDI sources: {}", e);
@@ -29,15 +29,16 @@ impl Ndi {
         this
     }
 
-    pub fn start_search(&self) {
+    pub fn search_sources(&self, blocking: bool) {
         let sources = self.sources.clone();
-        thread::spawn(move || -> Result<(), NDIError> {
-            // TODO: Do we really want ot exit early with no warning?
+        let handle = thread::spawn(move || -> Result<(), NDIError> {
             let find_local = ndi::FindBuilder::new().show_local_sources(true).build()?;
             let find_remote = ndi::FindBuilder::new().show_local_sources(false).build()?;
 
             loop {
-                thread::sleep(Duration::from_secs(2));
+                if !blocking {
+                    thread::sleep(Duration::from_secs(2));
+                }
 
                 let mut locals = match find_local.current_sources(1000) {
                     Ok(s) => s,
@@ -53,8 +54,16 @@ impl Ndi {
 
                 locals.append(&mut remotes);
                 *sources.lock().unwrap() = locals;
+
+                if blocking {
+                    return Ok(());
+                }
             }
         });
+
+        if blocking {
+            handle.join().unwrap().unwrap();
+        }
     }
 
     fn convert_format(video: ndi::VideoData) -> image::DynamicImage {
@@ -108,7 +117,22 @@ impl Ndi {
     }
 
     pub fn connect(&mut self, requested: &[String]) -> Result<(), NDIError> {
-        let sources = self.sources.lock().unwrap();
+        if requested.is_empty() {
+            return Ok(());
+        }
+
+        let sources = if self.searching {
+            self.sources.lock().unwrap()
+        } else {
+            self.search_sources(true);
+
+            // take lock first to the search thread can't interfere with us
+            let res = self.sources.lock().unwrap();
+            self.search_sources(false);
+            self.searching = true;
+            res
+        };
+
         println!("{:?}", sources);
 
         let src: Vec<(String, &ndi::Source)> = sources
