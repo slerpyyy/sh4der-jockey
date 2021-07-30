@@ -1,6 +1,5 @@
 use super::*;
-use image::GenericImageView;
-use ndi::{self, error::NDIError};
+use ndi::{self, FindCreateError, FindSourcesTimeout};
 use std::{
     iter::FromIterator,
     sync::{Arc, Mutex},
@@ -31,7 +30,7 @@ impl Ndi {
 
     pub fn search_sources(&self, blocking: bool) {
         let sources = self.sources.clone();
-        let handle = thread::spawn(move || -> Result<(), NDIError> {
+        let handle = thread::spawn(move || -> Result<(), FindCreateError> {
             let find_local = ndi::FindBuilder::new().show_local_sources(true).build()?;
             let find_remote = ndi::FindBuilder::new().show_local_sources(false).build()?;
 
@@ -40,20 +39,24 @@ impl Ndi {
                     thread::sleep(Duration::from_secs(2));
                 }
 
-                let mut locals = match find_local.current_sources(1000) {
+                let locals = match find_local.current_sources(1000) {
                     Ok(s) => s,
-                    Err(ndi::NDIError::FindSourcesTimeout) => vec![],
-                    _ => panic!("Something funky happened in NDI find"),
+                    Err(FindSourcesTimeout) => vec![],
                 };
 
-                let mut remotes = match find_remote.current_sources(1000) {
+                let remotes = match find_remote.current_sources(1000) {
                     Ok(s) => s,
-                    Err(ndi::NDIError::FindSourcesTimeout) => vec![],
-                    _ => panic!("Something funky happened in NDI find"),
+                    Err(FindSourcesTimeout) => vec![],
                 };
 
-                locals.append(&mut remotes);
-                *sources.lock().unwrap() = locals;
+                let mut sources = sources.lock().unwrap();
+                for source in locals.into_iter().chain(remotes) {
+                    let name = source.get_name().ok();
+                    let pos = sources.binary_search_by_key(&name, |s| s.get_name().ok());
+                    if let Err(index) = pos {
+                        sources.insert(index, source);
+                    }
+                }
 
                 if blocking {
                     return Ok(());
@@ -116,7 +119,7 @@ impl Ndi {
         }
     }
 
-    pub fn connect(&mut self, requested: &[String]) -> Result<(), NDIError> {
+    pub fn connect(&mut self, requested: &[String]) -> Result<(), ndi::RecvCreateError> {
         if requested.is_empty() {
             return Ok(());
         }
@@ -126,14 +129,14 @@ impl Ndi {
         } else {
             self.search_sources(true);
 
-            // take lock first to the search thread can't interfere with us
+            // take lock before spawning the search thread
             let res = self.sources.lock().unwrap();
             self.search_sources(false);
             self.searching = true;
             res
         };
 
-        println!("{:?}", sources);
+        println!("Found sources: {:?}", sources);
 
         let src: Vec<(String, &ndi::Source)> = sources
             .iter()
@@ -211,7 +214,7 @@ impl Ndi {
 
     pub fn update_texture(&self, tex_name: &String, tex: &mut Texture2D) {
         if let Some(video) = self.videos.get(tex_name) {
-            let video = video.lock().unwrap();
+            let video = video.lock().unwrap().to_rgba8();
             if tex.resolution() != [video.width(), video.height(), 0] {
                 *tex = Texture2D::with_params(
                     [video.width(), video.height()],
@@ -220,10 +223,10 @@ impl Ndi {
                     tex.wrap_mode,
                     tex.format,
                     tex.mipmap,
-                    video.to_rgba8().as_ptr() as _,
+                    video.as_ptr() as _,
                 );
             } else {
-                tex.write(video.to_rgba8().as_ptr() as _);
+                tex.write(video.as_ptr() as _);
             }
         }
     }

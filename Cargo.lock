@@ -1462,8 +1462,7 @@ dependencies = [
 [[package]]
 name = "ndi"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e194c0e1a4c7124d13c6d9a61a359577e34fd3583676303d338d31461a108139"
+source = "git+https://github.com/sp4ghet/ndi-rs?branch=main#ef04f2db548df5aeffe150d8ffc55157c3dc8c67"
 
 [[package]]
 name = "ndk"

@@ -197,7 +197,7 @@ impl Jockey {
 
         #[rustfmt::skip]
         let mut watcher = notify::immediate_watcher(
-            |_| unsafe { PIPELINE_STALE.store(true, Ordering::Relaxed) }
+            |_| unsafe { PIPELINE_STALE.store(true, Ordering::Release) }
         ).unwrap();
 
         notify::Watcher::watch(&mut watcher, ".", notify::RecursiveMode::Recursive).unwrap();
@@ -373,6 +373,7 @@ impl Jockey {
                 if self.pipeline.audio_samples != self.audio.size {
                     self.audio.resize(self.pipeline.audio_samples);
                 }
+
                 let requests: Vec<String> = self
                     .pipeline
                     .requested_ndi_sources
@@ -402,7 +403,7 @@ impl Jockey {
         &mut self.midi.handle_input();
 
         let mut take_screenshot = false;
-        let mut do_update_pipeline = unsafe { PIPELINE_STALE.swap(false, Ordering::Relaxed) }
+        let mut do_update_pipeline = unsafe { PIPELINE_STALE.swap(false, Ordering::AcqRel) }
             && self.last_build.elapsed().as_millis() > 300;
 
         let main_id = self.ctx.context.window().id();
@@ -931,7 +932,7 @@ impl Jockey {
                         let ims = unsafe { imgui::ImStr::from_cstr_unchecked(&cst) };
                         if ui.button_with_size(ims, [256.0, 18.0]) {
                             self.pipeline_index = k;
-                            unsafe { PIPELINE_STALE.store(true, Ordering::Relaxed) }
+                            unsafe { PIPELINE_STALE.store(true, Ordering::Release) }
                         }
                     }
                 }
