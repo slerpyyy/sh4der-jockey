@@ -203,7 +203,7 @@ impl Jockey {
             |_| unsafe { PIPELINE_STALE.store(true, Ordering::Release) }
         ).unwrap();
 
-        let playback = Playback::new(0.0, 1.0);
+        let playback = Playback::new();
 
         notify::Watcher::watch(&mut watcher, ".", notify::RecursiveMode::Recursive).unwrap();
 
@@ -482,6 +482,10 @@ impl Jockey {
         if do_update_pipeline {
             self.update_pipeline();
             self.last_build = Instant::now();
+        }
+
+        if let Some(play) = &self.playback {
+            play.resync(self.time, self.speed);
         }
     }
 
@@ -948,9 +952,6 @@ impl Jockey {
         }
 
         if let Some(window) = imgui::Window::new(im_str!("Timeline")).begin(&ui) {
-            let old_time = self.time;
-            let old_speed = self.speed;
-
             if ui.button_with_size(im_str!("Play"), [64.0, 18.0]) {
                 self.speed = 1.0;
             }
@@ -981,12 +982,6 @@ impl Jockey {
             ui.input_float(im_str!("end"), end).build();
 
             window.end();
-
-            if self.time != old_time || self.speed != old_speed {
-                print!("Playback resync... ");
-                self.playback = Playback::new(self.time, self.speed);
-                println!("Done!");
-            }
         }
 
         if let Some(window) = imgui::Window::new(im_str!("Buttons")).begin(&ui) {
