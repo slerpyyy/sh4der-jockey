@@ -1,4 +1,4 @@
-use crate::util::*;
+use crate::{jockey::playback::Playback, util::*};
 use gl::types::*;
 use glutin::platform::run_return::EventLoopExtRunReturn;
 use imgui::im_str;
@@ -21,6 +21,7 @@ mod config;
 mod midi;
 mod network;
 mod pipeline;
+mod playback;
 mod stage;
 mod uniforms;
 
@@ -30,6 +31,7 @@ pub use config::*;
 pub use midi::*;
 pub use network::*;
 pub use pipeline::*;
+pub use playback::*;
 pub use stage::*;
 pub use uniforms::*;
 
@@ -74,6 +76,7 @@ pub struct Jockey {
     pub midi: Midi,
     pub audio: Audio,
     pub ndi: Ndi,
+    pub playback: Option<Playback>,
     pub pipeline_files: Vec<String>,
     pub pipeline_index: usize,
     pub pipeline: Pipeline,
@@ -200,6 +203,8 @@ impl Jockey {
             |_| unsafe { PIPELINE_STALE.store(true, Ordering::Release) }
         ).unwrap();
 
+        let playback = Playback::new(0.0, 1.0);
+
         notify::Watcher::watch(&mut watcher, ".", notify::RecursiveMode::Recursive).unwrap();
 
         let ctx = MegaContext {
@@ -230,6 +235,7 @@ impl Jockey {
             midi,
             audio,
             ndi,
+            playback,
             pipeline_files: vec![],
             pipeline,
             pipeline_index: 0,
@@ -942,6 +948,9 @@ impl Jockey {
         }
 
         if let Some(window) = imgui::Window::new(im_str!("Timeline")).begin(&ui) {
+            let old_time = self.time;
+            let old_speed = self.speed;
+
             if ui.button_with_size(im_str!("Play"), [64.0, 18.0]) {
                 self.speed = 1.0;
             }
@@ -972,6 +981,12 @@ impl Jockey {
             ui.input_float(im_str!("end"), end).build();
 
             window.end();
+
+            if self.time != old_time || self.speed != old_speed {
+                print!("Playback resync... ");
+                self.playback = Playback::new(self.time, self.speed);
+                println!("Done!");
+            }
         }
 
         if let Some(window) = imgui::Window::new(im_str!("Buttons")).begin(&ui) {
