@@ -179,41 +179,43 @@ pub unsafe fn gl_TexImageND(
     type_: GLenum,
     pixels: *const c_void,
 ) {
-    match target {
-        gl::TEXTURE_1D => gl::TexImage1D(
-            target,
-            level,
-            internalformat,
-            resolution[0] as _,
-            border,
-            format,
-            type_,
-            pixels,
-        ),
-        gl::TEXTURE_2D => gl::TexImage2D(
-            target,
-            level,
-            internalformat,
-            resolution[0] as _,
-            resolution[1] as _,
-            border,
-            format,
-            type_,
-            pixels,
-        ),
-        gl::TEXTURE_3D => gl::TexImage3D(
-            target,
-            level,
-            internalformat,
-            resolution[0] as _,
-            resolution[1] as _,
-            resolution[2] as _,
-            border,
-            format,
-            type_,
-            pixels,
-        ),
-        _ => unreachable!(),
+    unsafe {
+        match target {
+            gl::TEXTURE_1D => gl::TexImage1D(
+                target,
+                level,
+                internalformat,
+                resolution[0] as _,
+                border,
+                format,
+                type_,
+                pixels,
+            ),
+            gl::TEXTURE_2D => gl::TexImage2D(
+                target,
+                level,
+                internalformat,
+                resolution[0] as _,
+                resolution[1] as _,
+                border,
+                format,
+                type_,
+                pixels,
+            ),
+            gl::TEXTURE_3D => gl::TexImage3D(
+                target,
+                level,
+                internalformat,
+                resolution[0] as _,
+                resolution[1] as _,
+                resolution[2] as _,
+                border,
+                format,
+                type_,
+                pixels,
+            ),
+            _ => unreachable!(),
+        }
     }
 }
 

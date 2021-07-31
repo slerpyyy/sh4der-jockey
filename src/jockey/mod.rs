@@ -399,8 +399,8 @@ impl Jockey {
         let alt_pressed = &mut self.alt_pressed;
         let mut done = false;
 
-        &mut self.midi.check_connections();
-        &mut self.midi.handle_input();
+        self.midi.check_connections();
+        self.midi.handle_input();
 
         let mut take_screenshot = false;
         let mut do_update_pipeline = unsafe { PIPELINE_STALE.swap(false, Ordering::AcqRel) }

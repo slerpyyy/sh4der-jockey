@@ -19,7 +19,11 @@ impl Ndi {
         let sources = Default::default();
         let videos = HashMap::new();
         let searching = false;
-        let mut this = Self { sources, videos, searching };
+        let mut this = Self {
+            sources,
+            videos,
+            searching,
+        };
 
         if let Err(e) = this.connect(requested) {
             eprintln!("Failed to connect to NDI sources: {}", e);
@@ -51,12 +55,23 @@ impl Ndi {
 
                 let mut sources = sources.lock().unwrap();
                 for source in locals.into_iter().chain(remotes) {
-                    let name = source.get_name().ok();
-                    let pos = sources.binary_search_by_key(&name, |s| s.get_name().ok());
+                    let name = source.get_name();
+                    if name
+                        .chars()
+                        .filter(|&c| c != std::char::REPLACEMENT_CHARACTER)
+                        .next()
+                        .is_none()
+                    {
+                        continue;
+                    }
+
+                    let pos = sources.binary_search_by_key(&name, |s| s.get_name());
                     if let Err(index) = pos {
                         sources.insert(index, source);
                     }
                 }
+
+                println!("{:?}", sources);
 
                 if blocking {
                     return Ok(());
@@ -70,15 +85,15 @@ impl Ndi {
     }
 
     fn convert_format(video: ndi::VideoData) -> image::DynamicImage {
-        let size = video.line_stride_in_bytes().unwrap() * video.yres();
+        let size = video.line_stride_in_bytes().unwrap() * video.height();
         let slice = unsafe { std::slice::from_raw_parts(video.p_data(), size as _) };
         let vec = Vec::from_iter(slice.to_owned());
 
         match video.four_cc() {
             ndi::FourCCVideoType::BGRA => {
                 let buf = image::ImageBuffer::<image::Bgra<u8>, Vec<_>>::from_vec(
-                    video.xres(),
-                    video.yres(),
+                    video.width(),
+                    video.height(),
                     vec,
                 )
                 .unwrap();
@@ -87,8 +102,8 @@ impl Ndi {
             }
             ndi::FourCCVideoType::BGRX => {
                 let buf = image::ImageBuffer::<image::Bgr<u8>, Vec<_>>::from_vec(
-                    video.xres(),
-                    video.yres(),
+                    video.width(),
+                    video.height(),
                     vec,
                 )
                 .unwrap();
@@ -97,8 +112,8 @@ impl Ndi {
             }
             ndi::FourCCVideoType::RGBA => {
                 let buf = image::ImageBuffer::<image::Rgba<u8>, Vec<_>>::from_vec(
-                    video.xres(),
-                    video.yres(),
+                    video.width(),
+                    video.height(),
                     vec,
                 )
                 .unwrap();
@@ -107,8 +122,8 @@ impl Ndi {
             }
             ndi::FourCCVideoType::RGBX => {
                 let buf = image::ImageBuffer::<image::Rgb<u8>, Vec<_>>::from_vec(
-                    video.xres(),
-                    video.yres(),
+                    video.width(),
+                    video.height(),
                     vec,
                 )
                 .unwrap();
@@ -141,7 +156,7 @@ impl Ndi {
         let src: Vec<(String, &ndi::Source)> = sources
             .iter()
             .filter_map(|src| {
-                let src_name = src.get_name().ok()?;
+                let src_name = src.get_name();
                 for pat in requested {
                     if src_name.contains(pat) {
                         return Some((pat.clone(), src));
@@ -178,10 +193,7 @@ impl Ndi {
 
             self.videos.insert(req, Arc::clone(&video));
 
-            println!(
-                "Connected to NDI source: {}",
-                source.get_name().unwrap_or_else(|_| "<no-name>".into())
-            );
+            println!("Connected to NDI source: {}", source.get_name());
 
             let weak = Arc::downgrade(&video);
             thread::spawn(move || loop {

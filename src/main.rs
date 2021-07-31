@@ -1,6 +1,9 @@
 //#![feature(external_doc)]
 //#![doc(include = "../README.md")]
 
+#![warn(unsafe_op_in_unsafe_fn)]
+#![warn(missing_debug_implementations)]
+
 #[allow(unused)]
 #[macro_use]
 extern crate error_chain;
