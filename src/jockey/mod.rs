@@ -483,10 +483,6 @@ impl Jockey {
             self.update_pipeline();
             self.last_build = Instant::now();
         }
-
-        if let Some(play) = &self.playback {
-            play.resync(self.time as _, self.speed as _);
-        }
     }
 
     /// Does all the OpenGL magic.
@@ -513,6 +509,11 @@ impl Jockey {
         self.time += delta * self.speed;
         self.last_frame = now;
         self.frame = self.frame.wrapping_add(1);
+
+        // must happen before any blocking operation
+        if let Some(play) = &self.playback {
+            play.resync(self.time as _, self.speed as _);
+        }
 
         {
             // update audio samples texture
