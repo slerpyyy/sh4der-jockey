@@ -10,6 +10,7 @@ build = "build.rs"
 #panic = "abort"
 
 [dependencies]
+anyhow = "1.0"
 as-any = "0.2"
 async-std = { version = "1.9", default-features = false, features = ["std"] }
 cpal = "0.13"

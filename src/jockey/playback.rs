@@ -40,15 +40,15 @@ pub struct Playback {
 }
 
 impl Playback {
-    pub fn with_path(path: impl AsRef<Path>) -> Option<Self> {
-        let (stream, stream_handle) = OutputStream::try_default().unwrap();
-        let sink = Sink::try_new(&stream_handle).unwrap();
+    pub fn with_path(path: impl AsRef<Path>) -> Result<Self, anyhow::Error> {
+        let (stream, stream_handle) = OutputStream::try_default()?;
+        let sink = Sink::try_new(&stream_handle)?;
 
-        let file = File::open(path).unwrap();
-        let (source, handle) = RemoteSource::from_file(file).unwrap();
+        let file = File::open(path)?;
+        let (source, handle) = RemoteSource::from_file(file)?;
         sink.append(source);
 
-        Some(Self {
+        Ok(Self {
             handle,
             _stream: stream,
             _sink: sink,
@@ -73,7 +73,7 @@ struct RemoteSource {
 
 impl RemoteSource {
     pub fn from_file(file: File) -> Result<(Self, Arc<Mutex<Option<(f64, f64)>>>), DecoderError> {
-        let decoder = Decoder::new(BufReader::new(file)).unwrap();
+        let decoder = Decoder::new(BufReader::new(file))?;
         let sample_rate = decoder.sample_rate();
         let channels = decoder.channels();
         let data = decoder.collect();
