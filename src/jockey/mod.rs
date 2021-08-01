@@ -485,7 +485,7 @@ impl Jockey {
         }
 
         if let Some(play) = &self.playback {
-            play.resync(self.time, self.speed);
+            play.resync(self.time as _, self.speed as _);
         }
     }
 
