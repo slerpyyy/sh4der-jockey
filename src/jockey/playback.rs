@@ -1,10 +1,5 @@
 use rodio::{decoder::DecoderError, Decoder, OutputStream, Sink, Source};
-use std::{
-    fs::File,
-    io::BufReader,
-    sync::{Arc, Mutex},
-    time::Duration,
-};
+use std::{fs::File, io::BufReader, path::Path, sync::{Arc, Mutex}, time::Duration};
 
 /// Maximum number of seconds the audio can be out of sync by
 /// before the source decides to jump to the target.
@@ -14,25 +9,35 @@ const JUMP_THRESHOLD: f64 = 0.3;
 ///
 /// Setting this too high will introduce sampling artefacts.
 /// If set too low, the audio might drift out of sync.
-const TIME_LERP: f64 = 1e-6;
+const TIME_LERP: f64 = 1e-5;
 
 /// ~~that's what they called me in college~~
 /// Weight for interpolating the playback speed towards the target.
-const SPEED_LERP: f64 = 0.5;
+///
+/// There is no technical problem with setting this to `1.0`,
+/// but with a small weight you can hear the player change speed which is nice.
+const SPEED_LERP: f64 = 0.16;
+
+/// The minimal playback speed which is allowed to play at full volume.
+///
+/// If the playback speed drops below this threshold,
+/// the volume will be linearly scaled down to reduce clicking noises.
+const SPEED_MIN: f64 = 0.25;
 
 pub struct Playback {
     handle: Arc<Mutex<Option<(f64, f64)>>>,
     _sink: Sink,
-    // music stops when this thing drops
+    /// music stops when this thing drops
     _stream: OutputStream,
 }
 
 impl Playback {
-    pub fn new() -> Option<Self> {
+    pub fn with_path(path: impl AsRef<Path>) -> Option<Self> {
         let (stream, stream_handle) = OutputStream::try_default().unwrap();
         let sink = Sink::try_new(&stream_handle).unwrap();
 
-        let (source, handle) = RemoteSource::from_file(File::open("test.mp3").unwrap()).unwrap();
+        let file = File::open(path).unwrap();
+        let (source, handle) = RemoteSource::from_file(file).unwrap();
 
         sink.append(source);
 
@@ -43,6 +48,7 @@ impl Playback {
         })
     }
 
+    /// Lets the sound thread know what the current state of the timeline is.
     pub fn resync(&self, time: f64, speed: f64) {
         *self.handle.lock().unwrap() = Some((time, speed));
     }
@@ -84,10 +90,12 @@ impl Iterator for RemoteSource {
     type Item = i16;
 
     fn next(&mut self) -> Option<Self::Item> {
-        // TODO: Don't implicitely convert to mono
+        let volume = (self.speed.abs() / SPEED_MIN).min(1.0);
+
+        // TODO: Don't implicitly convert to mono
         let sample = (self.time * self.sample_rate as f64).round() as usize;
         let index = (self.channels as usize * sample + 1) % self.data.len();
-        let value = self.data.get(index).cloned();
+        let value = self.data.get(index).map(|&s| (s as f64 * volume) as _);
 
         // fetch target and drop the mutex right away
         let target = self.control.lock().unwrap().take();
@@ -99,7 +107,7 @@ impl Iterator for RemoteSource {
 
             let time_delta = target_time - self.time;
             if time_delta.abs() > JUMP_THRESHOLD {
-                println!("Seek audio by {}s", time_delta);
+                //println!("Seek audio by {}s", time_delta);
                 self.time = target_time;
             } else {
                 self.time += TIME_LERP * time_delta;

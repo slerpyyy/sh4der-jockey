@@ -1,9 +1,11 @@
+use std::fs::File;
 use serde_yaml::Value;
 
 pub struct Config {
     pub midi_devices: Vec<String>,
     pub audio_device: Option<String>,
     pub ndi_sources: Vec<String>,
+    pub sound_file: Option<String>,
 }
 
 impl Config {
@@ -12,13 +14,11 @@ impl Config {
             Ok(x) => x,
             Err(e) => {
                 println!("Failed to load config.yaml: {}", e);
-                let midi_devices = vec![];
-                let audio_device = None;
-                let ndi_sources = vec![];
                 Self {
-                    midi_devices,
-                    audio_device,
-                    ndi_sources,
+                    midi_devices: vec![],
+                    audio_device: None,
+                    ndi_sources: vec![],
+                    sound_file: None,
                 }
             }
         }
@@ -26,10 +26,9 @@ impl Config {
 
     pub fn load() -> Result<Self, String> {
         let mut path = std::env::current_dir().map_err(|e| e.to_string())?;
-        println!("{:?}", path);
         path.push("config.yaml");
-        println!("{:?}", path);
-        let reader = std::fs::File::open(path).map_err(|e| e.to_string())?;
+
+        let reader = File::open(path).map_err(|e| e.to_string())?;
         let object: Value = serde_yaml::from_reader(reader).map_err(|e| e.to_string())?;
 
         let mut midi_devices = vec![];
@@ -92,10 +91,22 @@ impl Config {
             }
         };
 
+        let sound_file = match object.get("sound_file") {
+            Some(Value::String(s)) => Some(s.clone()),
+            None => None,
+            s => {
+                return Err(format!(
+                    "Expected sound_file to be a string, got: {:?}",
+                    s
+                ))
+            }
+        };
+
         Ok(Self {
             midi_devices,
             audio_device,
             ndi_sources,
+            sound_file,
         })
     }
 }

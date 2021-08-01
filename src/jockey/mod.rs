@@ -203,7 +203,7 @@ impl Jockey {
             |_| unsafe { PIPELINE_STALE.store(true, Ordering::Release) }
         ).unwrap();
 
-        let playback = Playback::new();
+        let playback = config.sound_file.as_ref().and_then(Playback::with_path);
 
         notify::Watcher::watch(&mut watcher, ".", notify::RecursiveMode::Recursive).unwrap();
 
