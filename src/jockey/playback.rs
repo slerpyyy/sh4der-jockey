@@ -1,5 +1,12 @@
 use rodio::{decoder::DecoderError, Decoder, OutputStream, Sink, Source};
-use std::{fs::File, io::BufReader, path::Path, sync::{Arc, Mutex}, time::Duration};
+use std::{
+    collections::VecDeque,
+    fs::File,
+    io::BufReader,
+    path::Path,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 /// Maximum number of seconds the audio can be out of sync by
 /// before the source decides to jump to the target.
@@ -26,9 +33,10 @@ const SPEED_MIN: f64 = 0.25;
 
 pub struct Playback {
     handle: Arc<Mutex<Option<(f64, f64)>>>,
-    _sink: Sink,
-    /// music stops when this thing drops
+
+    // music stops when this thing drops
     _stream: OutputStream,
+    _sink: Sink,
 }
 
 impl Playback {
@@ -38,7 +46,6 @@ impl Playback {
 
         let file = File::open(path).unwrap();
         let (source, handle) = RemoteSource::from_file(file).unwrap();
-
         sink.append(source);
 
         Some(Self {
@@ -56,6 +63,7 @@ impl Playback {
 
 struct RemoteSource {
     data: Vec<i16>,
+    chunk: VecDeque<i16>,
     control: Arc<Mutex<Option<(f64, f64)>>>,
     time: f64,
     speed: f64,
@@ -75,6 +83,7 @@ impl RemoteSource {
 
         let this = Self {
             data,
+            chunk: VecDeque::new(),
             control,
             time: 0.0,
             speed: 1.0,
@@ -84,18 +93,22 @@ impl RemoteSource {
 
         Ok((this, control_handle))
     }
-}
 
-impl Iterator for RemoteSource {
-    type Item = i16;
-
-    fn next(&mut self) -> Option<Self::Item> {
+    fn request_next_chunk(&mut self) {
         let volume = (self.speed.abs() / SPEED_MIN).min(1.0);
 
-        // TODO: Don't implicitly convert to mono
-        let sample = (self.time * self.sample_rate as f64).round() as usize;
-        let index = (self.channels as usize * sample + 1) % self.data.len();
-        let value = self.data.get(index).map(|&s| (s as f64 * volume) as _);
+        // fetch chunk
+        let index = (self.time * self.sample_rate as f64).round() as usize;
+        let start = (self.channels as usize * index) % self.data.len();
+        let end = start + self.channels as usize;
+        debug_assert!(end <= self.data.len());
+
+        // extend chunk
+        self.chunk.extend(
+            self.data[start..end]
+                .iter()
+                .map(|&x| (x as f64 * volume) as i16),
+        );
 
         // fetch target and drop the mutex right away
         let target = self.control.lock().unwrap().take();
@@ -114,8 +127,19 @@ impl Iterator for RemoteSource {
             }
         }
 
-        self.time += self.speed / (self.sample_rate as f64 * self.channels as f64);
-        value
+        self.time += self.speed / self.sample_rate as f64;
+    }
+}
+
+impl Iterator for RemoteSource {
+    type Item = i16;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.chunk.is_empty() {
+            self.request_next_chunk();
+        }
+
+        self.chunk.pop_front()
     }
 }
 

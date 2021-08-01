@@ -1,5 +1,5 @@
-use std::fs::File;
 use serde_yaml::Value;
+use std::fs::File;
 
 pub struct Config {
     pub midi_devices: Vec<String>,
@@ -94,12 +94,7 @@ impl Config {
         let sound_file = match object.get("sound_file") {
             Some(Value::String(s)) => Some(s.clone()),
             None => None,
-            s => {
-                return Err(format!(
-                    "Expected sound_file to be a string, got: {:?}",
-                    s
-                ))
-            }
+            s => return Err(format!("Expected sound_file to be a string, got: {:?}", s)),
         };
 
         Ok(Self {
