@@ -12,6 +12,21 @@
 
 ボタンやスライダーに対してMIDIを割り当てることが可能です。`bind`を長押ししながらMIDIコントローラーを操作して、最後に受信したMIDIキーと結び付けられます。
 
+## Config File
+A config file is a special yaml file called `config.yaml` at the project root alongside the pipeline files (described below).
+An example config file is shown below:
+
+コンフィグファイルはプロジェクトディレクトリの直下にある `config.yaml` という名前の特殊な設定ファイルで、pipelineを跨いだ設定項目をいくつか設定できます。設定されていない場合はデフォルトですべてのMIDIデバイスとデフォルトオーディオ入力デバイスに接続を試みます。
+
+```yaml
+midi_devices:
+  - "My MIDI Substr"
+  - "Other Device"
+audio_device: "Audio Input Substr"
+```
+
+この設定はオーディオ入力デバイスとMIDIデバイス名の部分文字列とマッチするか、で検索します。
+
 ## パイプライン
 
 プログラムは起動したときに`cwd`直下にある`.yaml`ファイルを探してパイプライン(Pipeline)ファイルとして扱います。
@@ -41,6 +56,11 @@ stages:
     mipmap: true
 
   - fs: "post_process.frag"
+
+
+ndi:
+  - source: "source substring"
+    name: "sampler_name"
 
 images:
   - path: "images/image.png"
@@ -106,7 +126,7 @@ out vec4 out_color;
 #version 140
 
 out vec4 v_color;
-uniform int vertexCount;
+uniform int vertex_count;
 
 void main(){
 
@@ -152,7 +172,7 @@ void main(){
 
 ```glsl
 // countで指定された頂点数。
-uniform int vertexCount;
+uniform int vertex_count;
 
 // 点, 線, ポリゴンの頂点カラー
 out vec4 v_color;
@@ -244,13 +264,13 @@ uniform vec4 resolution; // vec4(x, y, x/y, y/x)
 
 // ステージのインデックス
 // 同じシェーダーを複数回実行する場合に便利かもしれません
-uniform int passIndex;
+uniform int pass_index;
 
 // プログラム起動時からの秒数
 uniform float time;
 
 // 前フレームからの経過時間
-uniform float delta;
+uniform float time_delta;
 
 // beat == time * BPM / 60
 // BPMはコントロールパネルから設定できます。
@@ -267,31 +287,51 @@ uniform float sliders[32];
 // count: NoteOnが何回発行されたかを数え上げる整数値
 uniform vec4 buttons[32];
 
-// デフォルトオーディオ入力からの生サンプル.
+// A 32x32x32 の乱数テキスチャ.
+// パイプラインが読み込まれるたびに再計算されるのでコンパイルなどを走らせるとテキスチャの中身が変わります。
+uniform sampler3D noise;
+
+// プログラム開始からのフレーム数
+uniform int frame_count;
+
+// オーディオ入力デバイスからの生サンプル.
 // r には左チャンネル (モノラルの場合は唯一)　の情報が入ります
 // g には右チャンネルの情報が入ります
 uniform sampler1D samples;
 
 // 生FFT情報
 // r/g は上記と同じく
-uniform sampler1D raw_spectrum;
+uniform sampler1D spectrum_raw;
 
 // "いい感じ"なFFT、EQをかけたり音階にゆるく対応しています。
 // r/g は上記の同じく
 uniform sampler1D spectrum;
+uniform sampler1D spectrum_smooth;
+uniform sampler1D spectrum_integrated;
+uniform sampler1D spectrum_smooth_integrated;
+
+// Bass/Mid/High
+uniform vec3 bass;
+uniform vec3 bass_smooth;
+uniform vec3 bass_integrated;
+uniform vec3 bass_smooth_integrated;
+
+uniform vec3 mid;
+uniform vec3 mid_smooth;
+uniform vec3 mid_integrated;
+uniform vec3 mid_smooth_integrated;
+
+uniform vec3 high;
+uniform vec3 high_smooth;
+uniform vec3 high_integrated;
+uniform vec3 high_smooth_integrated;
 
 // 現在の音量, 全サンプルのRMSで計算されてます
 // r には左右の平均値、モノラルの場合は音量が入ります
 // g には左チャンネルの音量が入ります
 // b には右チャンネルの音量が入ります
 uniform vec3 volume;
-
-// A 32x32x32 の乱数テキスチャ.
-// パイプラインが読み込まれるたびに再計算されるのでコンパイルなどを走らせるとテキスチャの中身が変わります。
-uniform sampler3D noise;
-
-// プログラム開始からのフレーム数
-uniform int frameCount;
+uniform vec3 volume_integrated;
 ```
 
 ## Hotkeys

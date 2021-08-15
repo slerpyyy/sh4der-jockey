@@ -11,6 +11,20 @@ Then run the tool in your project folder with the `-i` flag. This will instruct 
 
 You can bind buttons and sliders to MIDI buttons and sliders by holding the `bind` button while moving the slider or hitting the button. The last note before the button is released will be bound to that button/slider.
 
+## Config File
+A config file is a special yaml file called `config.yaml` at the project root alongside the pipeline files (described below). This configures certain things for the project as a whole, which spans several pipelines.
+Without a config file, the program defaults to collecting all MIDI inputs and the default audio input.
+An example config file is shown below:
+
+```yaml
+midi_devices:
+  - "My MIDI Substr"
+  - "Other Device"
+audio_device: "Audio Input Substr"
+```
+
+This will search for the relevant MIDI and audio devices based on a simple matching based on `device_name.contains(substr)`.
+
 ## Pipeline
 
 Once the tools is starts, it looks for files ending in `.yaml` in the current working directory and treats these as pipeline files.
@@ -36,6 +50,10 @@ stages:
     mipmap: true
 
   - fs: "post_process.frag"
+
+ndi:
+  - source: "source substring"
+    name: "sampler_name"
 
 images:
   - path: "images/image.png"
@@ -102,7 +120,7 @@ out vec4 out_color;
 #version 140
 
 out vec4 v_color;
-uniform int vertexCount;
+uniform int vertex_count;
 
 void main(){
 
@@ -146,7 +164,7 @@ A vertex shader stage must contain the following fields
 
 ```glsl
 // The total number of vertices used. This uniform only applies to vertex shader stages.
-uniform int vertexCount;
+uniform int vertex_count;
 
 // The color of the element being drawn. Only available in the vertex shader.
 out vec4 v_color;
@@ -237,13 +255,13 @@ uniform vec4 resolution; // vec4(x, y, x/y, y/x)
 
 // stage index
 // may be useful for running the same shader multiple times
-uniform int passIndex;
+uniform int pass_index;
 
 // time in seconds since program startup
 uniform float time;
 
-// deltaTime between now and the previous frame
-uniform float delta;
+// Δt between now and the previous frame
+uniform float time_delta;
 
 // increases with time * BPM / 60
 // BPM is controlled by tap tempo in control panel
@@ -260,6 +278,13 @@ uniform float sliders[32];
 // count: integer count of how many times button has been pressed
 uniform vec4 buttons[32];
 
+// A 32x32x32 random noise texture.
+// Note this texture is recalculated per pipeline load, so the pattern changes every time you recompile or reload a pipeline.
+uniform sampler3D noise;
+
+// current frame since program start
+uniform int frame_count;
+
 // The raw samples taken from the default audio in.
 // r contains the left channel (or the only channel if the input is mono)
 // g contains the right channel
@@ -267,24 +292,37 @@ uniform sampler1D samples;
 
 // Raw FFT output
 // r/g channels same as samples
-uniform sampler1D raw_spectrum;
+uniform sampler1D spectrum_raw;
 
 // "nice" FFT, does some bucketing and EQ
 // r/g channels same as samples
 uniform sampler1D spectrum;
+uniform sampler1D spectrum_smooth;
+uniform sampler1D spectrum_integrated;
+uniform sampler1D spectrum_smooth_integrated;
+
+// Bass/Mid/High
+uniform vec3 bass;
+uniform vec3 bass_smooth;
+uniform vec3 bass_integrated;
+uniform vec3 bass_smooth_integrated;
+
+uniform vec3 mid;
+uniform vec3 mid_smooth;
+uniform vec3 mid_integrated;
+uniform vec3 mid_smooth_integrated;
+
+uniform vec3 high;
+uniform vec3 high_smooth;
+uniform vec3 high_integrated;
+uniform vec3 high_smooth_integrated;
 
 // instantaneous volume
 // r contains average of L/R volume, or the volume of the single channel for mono
 // g contains the L channel volume
 // b contains the R channel volume
 uniform vec3 volume;
-
-// A 32x32x32 random noise texture.
-// Note this texture is recalculated per pipeline load, so the pattern changes every time you recompile or reload a pipeline.
-uniform sampler3D noise;
-
-// current frame since program start
-uniform int frameCount;
+uniform vec3 volume_integrated;
 ```
 
 ## Hotkeys
