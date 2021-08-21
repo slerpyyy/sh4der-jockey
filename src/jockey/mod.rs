@@ -203,15 +203,17 @@ impl Jockey {
             |_| unsafe { PIPELINE_STALE.store(true, Ordering::Release) }
         ).unwrap();
 
-        let playback = config.sound_file.as_ref().and_then(|path| {
-            match Playback::with_path(path) {
-                Ok(s) => Some(s),
-                Err(e) => {
-                    println!("Failed to start playback: {}", e);
-                    None
-                }
-            }
-        });
+        let playback =
+            config
+                .sound_file
+                .as_ref()
+                .and_then(|path| match Playback::with_path(path) {
+                    Ok(s) => Some(s),
+                    Err(e) => {
+                        println!("Failed to start playback: {}", e);
+                        None
+                    }
+                });
 
         notify::Watcher::watch(&mut watcher, ".", notify::RecursiveMode::Recursive).unwrap();
 
@@ -785,7 +787,6 @@ impl Jockey {
                 for (k, name) in stage.deps.iter().enumerate() {
                     let tex = self.pipeline.buffers.get(name).unwrap();
                     let loc = gl::GetUniformLocation(stage.prog_id, name.as_ptr());
-
                     debug_assert_ne!(loc, -1);
 
                     gl::ActiveTexture(gl::TEXTURE0 + k as GLenum);
@@ -973,6 +974,7 @@ impl Jockey {
             ui.same_line();
             if ui.button_with_size(im_str!("Reset"), [64.0, 18.0]) {
                 self.time = 0.0;
+                self.frame = 0;
             }
 
             let (start, end) = &mut self.time_range;
