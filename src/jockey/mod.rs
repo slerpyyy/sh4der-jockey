@@ -516,13 +516,17 @@ impl Jockey {
                 right: &[f32],
             ) {
                 if let Some(tex) = buffers.get_mut(name) {
-                    let data = interlace(left, right);
-                    Rc::get_mut(tex)
-                        .unwrap()
-                        .as_any_mut()
-                        .downcast_mut::<Texture1D>()
-                        .unwrap()
-                        .write(data.as_ptr() as _);
+                    unsafe {
+                        alloca::with_slice_assume_init(left.len() + right.len(), |buffer| {
+                            interlace(left, right, buffer);
+                            Rc::get_mut(tex)
+                                .unwrap()
+                                .as_any_mut()
+                                .downcast_mut::<Texture1D>()
+                                .unwrap()
+                                .write(buffer.as_ptr() as _);
+                        })
+                    }
                 }
             }
 
@@ -778,14 +782,15 @@ impl Jockey {
                     gl_debug_check!();
 
                     let name_len = name.as_bytes().len();
-                    let res_loc = alloca::with_alloca_zeroed(name_len + 5, |res_name| {
+                    let res_loc = alloca::with_bytes(name_len + 5, |buffer| {
+                        let res_name = &mut *(buffer as *mut _ as *mut [u8]);
+
                         res_name[..name_len].copy_from_slice(name.as_bytes());
                         res_name[name_len..].copy_from_slice("_res\0".as_bytes());
+
                         gl::GetUniformLocation(stage.prog_id, res_name.as_ptr() as _)
                     });
 
-                    //let res_name = CString::new(format!("{}_res", name.to_str().unwrap())).unwrap();
-                    //let res_loc = gl::GetUniformLocation(stage.prog_id, res_name.as_ptr());
                     let res = tex.resolution();
                     gl_debug_check!();
 

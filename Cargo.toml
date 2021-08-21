@@ -10,7 +10,7 @@ build = "build.rs"
 #panic = "abort"
 
 [dependencies]
-alloca = { git = "https://github.com/slerpyyy/alloca-rs" }
+alloca = { git = "https://github.com/slerpyyy/alloca-rs", branch = "v2" }
 anyhow = "1.0"
 as-any = "0.2"
 async-std = { version = "1.9", default-features = false, features = ["std"] }

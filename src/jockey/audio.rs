@@ -241,7 +241,7 @@ impl Audio {
             self.volume[2] = (self.r_signal.iter().map(|&x| x.powi(2)).sum::<f32>()
                 / l_samples.size as f32)
                 .sqrt();
-            self.volume[0] = (self.volume[1] + self.volume[2]) / 2f32;
+            self.volume[0] = (self.volume[1] + self.volume[2]) / 2.0;
         } else {
             self.volume[0] = self.volume[1];
         };
@@ -257,33 +257,27 @@ impl Audio {
             return;
         }
 
-        let left: Vec<_> = self
+        let mut left_iter = self
             .l_signal
             .iter()
-            .map(|x| Complex::new(x.clone(), 0f32))
-            .collect();
+            .map(|&x| Complex::new(x, 0.0));
 
-        let right: Vec<_> = self
+        let mut right_iter = self
             .r_signal
             .iter()
-            .map(|x| Complex::new(x.clone(), 0f32))
-            .collect();
+            .map(|&x| Complex::new(x, 0.0));
 
-        self.l_fft.copy_from_slice(&left);
-        self.r_fft.copy_from_slice(&right);
+        self.l_fft.fill_with(|| left_iter.next().unwrap());
+        self.r_fft.fill_with(|| right_iter.next().unwrap());
 
         self.fft.process(&mut self.l_fft);
         self.fft.process(&mut self.r_fft);
 
-        let left_spectrum: Vec<_> = self.l_fft.iter().map(|z| z.norm_sqr()).collect();
-        let right_spectrum: Vec<_> = self.r_fft.iter().map(|z| z.norm_sqr()).collect();
+        let mut left_spectrum = self.l_fft.iter().map(|z| z.norm_sqr()).inspect(|x| debug_assert!(x.is_finite()));
+        let mut right_spectrum = self.r_fft.iter().map(|z| z.norm_sqr()).inspect(|x| debug_assert!(x.is_finite()));
 
-        debug_assert!(left_spectrum.iter().all(|f| f.is_finite()));
-        debug_assert!(right_spectrum.iter().all(|f| f.is_finite()));
-
-        let len = left_spectrum.len() / 2;
-        self.l_raw_spectrum.copy_from_slice(&left_spectrum[..len]);
-        self.r_raw_spectrum.copy_from_slice(&right_spectrum[..len]);
+        self.l_raw_spectrum.fill_with(|| left_spectrum.next().unwrap());
+        self.r_raw_spectrum.fill_with(|| right_spectrum.next().unwrap());
 
         self.update_nice_fft();
         self.update_smooth_fft();

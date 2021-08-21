@@ -362,29 +362,33 @@ pub fn preprocess(
     }
 
     // handle includes recursively
-    let mut once_ignore = HashSet::new();
     let lines = recurse(
         &code,
         file_name,
         HashSet::new(),
-        &mut once_ignore,
+        &mut HashSet::new(),
         file_name_lut,
     )?;
+
     Ok(lines.join("\n"))
 }
 
-pub fn interlace<T: Clone>(mut first: &[T], mut second: &[T]) -> Vec<T> {
-    let mut out = Vec::with_capacity(first.len() + second.len());
-    while let (Some((fh, ft)), Some((sh, st))) = (first.split_first(), second.split_first()) {
-        out.push(fh.clone());
-        out.push(sh.clone());
-        first = ft;
-        second = st;
-    }
+pub fn interlace<T: Clone>(first: &[T], second: &[T], out: &mut [T]) {
+    debug_assert_eq!(first.len() + second.len(), out.len());
 
-    out.extend_from_slice(first);
-    out.extend_from_slice(second);
-    out
+    let mut a = first;
+    let mut b = second;
+    let mut i = 0;
+
+    while i < out.len() {
+        if let Some((head, tail)) = a.split_first() {
+            out[i] = head.clone();
+            a = tail;
+            i += 1;
+        }
+
+        std::mem::swap(&mut a, &mut b);
+    }
 }
 
 #[allow(dead_code)]
@@ -425,9 +429,10 @@ mod test {
     fn interlace_simple() {
         let first = &[1, 2, 3, 4];
         let second = &[5, 6, 7, 8];
-        let vec = interlace(first, second);
+        let mut result = [0; 8];
+        interlace(first, second, &mut result);
 
-        assert_eq!(vec, &[1, 5, 2, 6, 3, 7, 4, 8]);
+        assert_eq!(&result, &[1, 5, 2, 6, 3, 7, 4, 8]);
     }
 
     #[test]
@@ -443,9 +448,10 @@ mod test {
     fn interlace_unbalanced() {
         let first = &[1, 2, 3];
         let second = &[4, 5, 6, 7, 8];
-        let vec = interlace(first, second);
+        let mut result = [0; 8];
+        interlace(first, second, &mut result);
 
-        assert_eq!(vec, &[1, 4, 2, 5, 3, 6, 7, 8]);
+        assert_eq!(&result, &[1, 4, 2, 5, 3, 6, 7, 8]);
     }
 
     #[test]

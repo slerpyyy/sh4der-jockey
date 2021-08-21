@@ -101,7 +101,7 @@ impl Midi {
                         matches = matches
                             || midi_in
                                 .port_name(port)
-                                .unwrap_or(String::new())
+                                .unwrap_or_default()
                                 .contains(pref);
                     }
                     matches

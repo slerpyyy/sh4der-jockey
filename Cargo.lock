@@ -41,7 +41,7 @@ dependencies = [
 [[package]]
 name = "alloca"
 version = "0.3.3"
-source = "git+https://github.com/slerpyyy/alloca-rs#9c1d21b8390ddad3c8a33db1b9b8cdc40132bd27"
+source = "git+https://github.com/slerpyyy/alloca-rs?branch=v2#f4b535712070d4f1331d49b5ee258598f0544499"
 dependencies = [
  "cc",
 ]
