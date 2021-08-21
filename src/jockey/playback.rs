@@ -16,7 +16,7 @@ const JUMP_THRESHOLD: f64 = 0.3;
 ///
 /// Setting this too high will introduce sampling artefacts.
 /// If set too low, the audio might drift out of sync.
-const TIME_LERP: f64 = 1e-5;
+const TIME_LERP: f64 = 1e-6;
 
 /// ~~that's what they called me in college~~
 /// Weight for interpolating the playback speed towards the target.
@@ -28,8 +28,8 @@ const SPEED_LERP: f64 = 0.16;
 /// The minimal playback speed which is allowed to play at full volume.
 ///
 /// If the playback speed drops below this threshold,
-/// the volume will be linearly scaled down to reduce clicking noises.
-const SPEED_MIN: f64 = 0.25;
+/// the volume will be scaled down to reduce clicking noises.
+const SPEED_MIN: f64 = 0.7;
 
 pub struct Playback {
     handle: Arc<Mutex<Option<(f64, f64)>>>,
@@ -95,7 +95,8 @@ impl RemoteSource {
     }
 
     fn request_next_chunk(&mut self) {
-        let volume = (self.speed.abs() / SPEED_MIN).min(1.0);
+        let mut volume = (self.speed.abs() / SPEED_MIN).min(1.0);
+        volume *= volume * (3.0 - 2.0 * volume); // smoothstep
 
         // fetch chunk
         let index = (self.time * self.sample_rate as f64).round() as usize;
