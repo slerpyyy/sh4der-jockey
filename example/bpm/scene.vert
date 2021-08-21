@@ -2,7 +2,7 @@
 
 out vec4 v_color;
 
-uniform int vertexCount;
+uniform int vertex_count;
 uniform vec4 resolution;
 uniform float time;
 uniform float beat;
@@ -49,7 +49,7 @@ vec3 cube(int id) { // 36v
 void main() {
     vec3 p = cube(gl_VertexID);
 
-    float t = 36 * float(gl_VertexID / 36) / vertexCount;
+    float t = 36 * float(gl_VertexID / 36) / vertex_count;
     float a = time + 8 * tau * t;
 
     p *= 0.5 * pow(1 - fract(beat), 5);

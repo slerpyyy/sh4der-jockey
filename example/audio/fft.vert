@@ -4,7 +4,7 @@ out vec4 v_color;
 
 uniform sampler1D spectrum;
 uniform vec4 resolution;
-uniform int vertexCount;
+uniform int vertex_count;
 
 const float PI = acos(-1.);
 const float TAU = 2. * PI;
@@ -20,7 +20,7 @@ mat2 r2d(float t) {
 
 void main() {
     int vid = gl_VertexID;
-    float x = 2 * float(vid) / vertexCount - 1;
+    float x = 2 * float(vid) / vertex_count - 1;
 
     vec2 samp = texture(spectrum, abs(x)).rg;
 

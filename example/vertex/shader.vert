@@ -2,7 +2,7 @@
 
 out vec4 v_color;
 
-uniform int vertexCount;
+uniform int vertex_count;
 uniform vec4 resolution;
 uniform float time;
 
@@ -15,7 +15,7 @@ mat2 rot(float a)
 }
 
 void main() {
-  float a = 8.0 * pi * gl_VertexID / vertexCount;
+  float a = 8.0 * pi * gl_VertexID / vertex_count;
 
   float r = 26.0 / 8.0;
   vec2 off = vec2(sin(r*a) + 2.3, cos(r*a) + 1.0);

@@ -4,7 +4,7 @@ out vec4 v_color;
 
 uniform sampler1D samples;
 uniform vec4 resolution;
-uniform int vertexCount;
+uniform int vertex_count;
 
 const float PI = acos(-1.);
 const float TAU = 2. * PI;
@@ -20,7 +20,7 @@ mat2 r2d(float t) {
 
 void main() {
     int vid = gl_VertexID;
-    float x = float(vid) / vertexCount;
+    float x = float(vid) / vertex_count;
     vec2 samp = texture(samples, x).rg;
 
     vec3 c = grad(vec3(0.8, 0.5, 0.4), vec3(0.2, 0.4, 0.2), vec3(2.0, 1.0, 1.0), vec3(0.0, 0.25, 0.25), x);
