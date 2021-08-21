@@ -39,6 +39,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "alloca"
+version = "0.3.3"
+source = "git+https://github.com/slerpyyy/alloca-rs#9c1d21b8390ddad3c8a33db1b9b8cdc40132bd27"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "alsa"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2135,6 +2143,7 @@ dependencies = [
 name = "sh4der-jockey"
 version = "0.1.2"
 dependencies = [
+ "alloca",
  "anyhow",
  "as-any",
  "async-std",

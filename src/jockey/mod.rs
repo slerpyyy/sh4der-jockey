@@ -766,7 +766,6 @@ impl Jockey {
                 for (k, name) in stage.deps.iter().enumerate() {
                     let tex = self.pipeline.buffers.get(name).unwrap();
                     let loc = gl::GetUniformLocation(stage.prog_id, name.as_ptr());
-
                     debug_assert_ne!(loc, -1);
 
                     gl::ActiveTexture(gl::TEXTURE0 + k as GLenum);
@@ -778,8 +777,15 @@ impl Jockey {
                     gl::Uniform1i(loc, k as _);
                     gl_debug_check!();
 
-                    let res_name = CString::new(format!("{}_res", name.to_str().unwrap())).unwrap();
-                    let res_loc = gl::GetUniformLocation(stage.prog_id, res_name.as_ptr());
+                    let name_len = name.as_bytes().len();
+                    let res_loc = alloca::with_alloca_zeroed(name_len + 5, |res_name| {
+                        res_name[..name_len].copy_from_slice(name.as_bytes());
+                        res_name[name_len..].copy_from_slice("_res\0".as_bytes());
+                        gl::GetUniformLocation(stage.prog_id, res_name.as_ptr() as _)
+                    });
+
+                    //let res_name = CString::new(format!("{}_res", name.to_str().unwrap())).unwrap();
+                    //let res_loc = gl::GetUniformLocation(stage.prog_id, res_name.as_ptr());
                     let res = tex.resolution();
                     gl_debug_check!();
 
@@ -954,6 +960,7 @@ impl Jockey {
             ui.same_line();
             if ui.button_with_size(im_str!("Reset"), [64.0, 18.0]) {
                 self.time = 0.0;
+                self.frame = 0;
             }
 
             let (start, end) = &mut self.time_range;
