@@ -1008,18 +1008,18 @@ impl Jockey {
                 // button is false while it's held down.
                 // we consider button to be pressed when the mouse is over button
                 // and the mouse is held down
-                if self.midi.buttons[k].0 == 0_f32
+                if self.midi.buttons[k].0 == 0.0
                     && ui.is_mouse_down(imgui::MouseButton::Left)
                     && ui.is_item_hovered()
                 {
-                    self.midi.buttons[k].0 = 1_f32;
+                    self.midi.buttons[k].0 = 1.0;
                     self.midi.buttons[k].1 = Instant::now();
                     self.midi.buttons[k].3 += 1;
                 }
 
                 // button is true when it gets released
-                if self.midi.buttons[k].0 != 0_f32 && button {
-                    self.midi.buttons[k].0 = 0_f32;
+                if self.midi.buttons[k].0 != 0.0 && button {
+                    self.midi.buttons[k].0 = 0.0;
                     self.midi.buttons[k].2 = Instant::now();
                 }
 

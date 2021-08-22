@@ -67,27 +67,27 @@ mod test {
     #[test]
     fn push() {
         let mut rb = RingBuffer::<f32>::new(8192);
-        rb.push(&12_f32);
-        assert_eq!(rb.get(rb.size - 1), 12_f32);
+        rb.push(&12.0);
+        assert_eq!(rb.get(rb.size - 1), 12.0);
     }
 
     #[test]
     fn push_slice() {
         let mut rb = RingBuffer::<f32>::new(8192);
-        let slice = [13_f32; 8192];
+        let slice = [13.0; 8192];
         rb.push_slice(&slice);
         for i in 0..8192 {
-            assert_eq!(rb.get(i), 13_f32);
+            assert_eq!(rb.get(i), 13.0);
         }
     }
 
     #[test]
     fn copy_to_slice() {
         let mut rb = RingBuffer::<f32>::new(8192);
-        let pre_slice = [13_f32; 8192];
+        let pre_slice = [13.0; 8192];
         rb.push_slice(&pre_slice);
 
-        let mut ret_slice = [0_f32; 8192];
+        let mut ret_slice = [0.0; 8192];
         rb.copy_to_slice(&mut ret_slice);
 
         for i in 0..8192 {

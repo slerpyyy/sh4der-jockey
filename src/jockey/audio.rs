@@ -72,20 +72,20 @@ impl Audio {
             r_signal: vec![0.0; size],
             l_fft: vec![Complex::new(0.0, 0.0); size],
             r_fft: vec![Complex::new(0.0, 0.0); size],
-            volume: [0f32; 3],
-            volume_integrated: [0f32; 3],
-            bass: [0f32; 3],
-            bass_integrated: [0f32; 3],
-            mid: [0f32; 3],
-            mid_integrated: [0f32; 3],
-            high: [0f32; 3],
-            high_integrated: [0f32; 3],
-            bass_smooth: [0f32; 3],
-            mid_smooth: [0f32; 3],
-            high_smooth: [0f32; 3],
-            bass_smooth_integrated: [0f32; 3],
-            mid_smooth_integrated: [0f32; 3],
-            high_smooth_integrated: [0f32; 3],
+            volume: [0.0; 3],
+            volume_integrated: [0.0; 3],
+            bass: [0.0; 3],
+            bass_integrated: [0.0; 3],
+            mid: [0.0; 3],
+            mid_integrated: [0.0; 3],
+            high: [0.0; 3],
+            high_integrated: [0.0; 3],
+            bass_smooth: [0.0; 3],
+            mid_smooth: [0.0; 3],
+            high_smooth: [0.0; 3],
+            bass_smooth_integrated: [0.0; 3],
+            mid_smooth_integrated: [0.0; 3],
+            high_smooth_integrated: [0.0; 3],
             l_raw_spectrum: vec![0.0; spec_size],
             r_raw_spectrum: vec![0.0; spec_size],
             l_spectrum: vec![0.0; bands],
@@ -257,27 +257,36 @@ impl Audio {
             return;
         }
 
-        let mut left_iter = self
+        let left_iter = self
             .l_signal
             .iter()
             .map(|&x| Complex::new(x, 0.0));
 
-        let mut right_iter = self
+        let right_iter = self
             .r_signal
             .iter()
             .map(|&x| Complex::new(x, 0.0));
 
-        self.l_fft.fill_with(|| left_iter.next().unwrap());
-        self.r_fft.fill_with(|| right_iter.next().unwrap());
+        fn fill_iter<T>(slice: &mut [T], iter: impl Iterator<Item = T>) {
+            for (k, value) in iter.take(slice.len()).enumerate() {
+                slice[k] = value;
+            }
+        }
+
+        fill_iter(&mut self.l_fft, left_iter);
+        fill_iter(&mut self.r_fft, right_iter);
 
         self.fft.process(&mut self.l_fft);
         self.fft.process(&mut self.r_fft);
 
-        let mut left_spectrum = self.l_fft.iter().map(|z| z.norm_sqr()).inspect(|x| debug_assert!(x.is_finite()));
-        let mut right_spectrum = self.r_fft.iter().map(|z| z.norm_sqr()).inspect(|x| debug_assert!(x.is_finite()));
+        let left_spectrum = self.l_fft.iter().map(|z| z.norm_sqr());
+        let right_spectrum = self.r_fft.iter().map(|z| z.norm_sqr());
 
-        self.l_raw_spectrum.fill_with(|| left_spectrum.next().unwrap());
-        self.r_raw_spectrum.fill_with(|| right_spectrum.next().unwrap());
+        fill_iter(&mut self.l_raw_spectrum, left_spectrum);
+        fill_iter(&mut self.r_raw_spectrum, right_spectrum);
+
+        debug_assert!(self.l_raw_spectrum.iter().all(|x| x.is_finite()));
+        debug_assert!(self.r_raw_spectrum.iter().all(|x| x.is_finite()));
 
         self.update_nice_fft();
         self.update_smooth_fft();
@@ -291,19 +300,19 @@ impl Audio {
         let n = self.l_raw_spectrum.len() * 2;
         let bins = self.l_spectrum.len();
 
-        self.l_spectrum.fill(0f32);
-        self.r_spectrum.fill(0f32);
-        self.bass = [0f32; 3];
-        self.mid = [0f32; 3];
-        self.high = [0f32; 3];
+        self.l_spectrum.fill(0.0);
+        self.r_spectrum.fill(0.0);
+        self.bass = [0.0; 3];
+        self.mid = [0.0; 3];
+        self.high = [0.0; 3];
 
         let fs_over_n = self.sample_freq as f32 / n as f32;
 
         let half_n = self.l_raw_spectrum.len() as f32;
-        let inv_half_n = 1f32 / half_n;
+        let inv_half_n = 1.0 / half_n;
 
-        let mut max_left = 0f32;
-        let mut max_right = 0f32;
+        let mut max_left: f32 = 0.0;
+        let mut max_right: f32 = 0.0;
         for (i, (l, r)) in self
             .l_raw_spectrum
             .iter()
@@ -322,7 +331,7 @@ impl Audio {
                 bin as usize
             };
 
-            //https://github.com/jberg/butterchurn/blob/master/src/audio/fft.js#L20
+            // https://github.com/jberg/butterchurn/blob/master/src/audio/fft.js#L20
             let eq = -0.02 * ((half_n - i as f32) * inv_half_n).log10();
             let l_int = l * eq;
             let r_int = r * eq;
@@ -334,16 +343,17 @@ impl Audio {
         }
 
         for i in 1..(bins - 1) {
-            if self.l_spectrum[i] == 0f32 {
-                self.l_spectrum[i] = (self.l_spectrum[i - 1] + self.l_spectrum[i + 1]) / 2f32;
+            if self.l_spectrum[i] == 0.0 {
+                self.l_spectrum[i] = (self.l_spectrum[i - 1] + self.l_spectrum[i + 1]) / 2.0;
             }
-            if self.r_spectrum[i] == 0f32 {
-                self.r_spectrum[i] = (self.r_spectrum[i - 1] + self.r_spectrum[i + 1]) / 2f32;
+            if self.r_spectrum[i] == 0.0 {
+                self.r_spectrum[i] = (self.r_spectrum[i - 1] + self.r_spectrum[i + 1]) / 2.0;
             }
         }
+
         for i in 0..bins {
-            self.l_spectrum[i] /= if max_left == 0_f32 { 1_f32 } else { max_left };
-            self.r_spectrum[i] /= if max_right == 0_f32 { 1_f32 } else { max_right };
+            self.l_spectrum[i] /= if max_left == 0.0 { 1.0 } else { max_left };
+            self.r_spectrum[i] /= if max_right == 0.0 { 1.0 } else { max_right };
         }
 
         self.l_spectrum_integrated
@@ -396,9 +406,9 @@ impl Audio {
     fn update_bass_mid_high(&mut self) {
         let bins = self.l_spectrum_smooth.len();
 
-        self.bass_smooth = [0_f32; 3];
-        self.mid_smooth = [0_f32; 3];
-        self.high_smooth = [0_f32; 3];
+        self.bass_smooth = [0.0; 3];
+        self.mid_smooth = [0.0; 3];
+        self.high_smooth = [0.0; 3];
         for i in 0..bins {
             if i < 25 {
                 self.bass_smooth[1] = self.bass_smooth[1].max(self.l_spectrum_smooth[i]);
@@ -411,9 +421,9 @@ impl Audio {
                 self.high_smooth[2] = self.high_smooth[2].max(self.r_spectrum_smooth[i]);
             }
         }
-        self.bass_smooth[0] = (self.bass_smooth[1] + self.bass_smooth[2]) / 2_f32;
-        self.mid_smooth[0] = (self.mid_smooth[1] + self.mid_smooth[2]) / 2_f32;
-        self.high_smooth[0] = (self.high_smooth[1] + self.high_smooth[2]) / 2_f32;
+        self.bass_smooth[0] = (self.bass_smooth[1] + self.bass_smooth[2]) / 2.0;
+        self.mid_smooth[0] = (self.mid_smooth[1] + self.mid_smooth[2]) / 2.0;
+        self.high_smooth[0] = (self.high_smooth[1] + self.high_smooth[2]) / 2.0;
 
         for i in 0..bins {
             if i < 25 {
@@ -427,9 +437,9 @@ impl Audio {
                 self.high[2] = self.high[2].max(self.r_spectrum[i]);
             }
         }
-        self.bass[0] = (self.bass[1] + self.bass[2]) / 2_f32;
-        self.mid[0] = (self.mid[1] + self.mid[2]) / 2_f32;
-        self.high[0] = (self.high[1] + self.high[2]) / 2_f32;
+        self.bass[0] = (self.bass[1] + self.bass[2]) / 2.0;
+        self.mid[0] = (self.mid[1] + self.mid[2]) / 2.0;
+        self.high[0] = (self.high[1] + self.high[2]) / 2.0;
 
         self.bass_smooth_integrated
             .iter_mut()

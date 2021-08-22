@@ -32,8 +32,9 @@ pub enum MessageKind {
 
 impl Midi {
     pub fn new(config: &Config) -> Self {
+        let now = Instant::now();
         let sliders = [0.0; MIDI_N];
-        let buttons = [(0f32, Instant::now(), Instant::now(), 0); MIDI_N];
+        let buttons = [(0.0, now, now, 0); MIDI_N];
         let mut button_bindings = HashMap::new();
         let mut slider_bindings = HashMap::new();
 
@@ -209,7 +210,7 @@ impl Midi {
                         } => {
                             self.last_button = [channel, key];
                             if let Some(&id) = self.button_bindings.get(&self.last_button) {
-                                self.buttons[id].0 = velocity as f32 / 127_f32;
+                                self.buttons[id].0 = velocity as f32 / 127.0;
                                 self.buttons[id].1 = Instant::now();
                                 self.buttons[id].3 += 1;
                             }
@@ -217,7 +218,7 @@ impl Midi {
                         MessageKind::NoteOff { channel, key, .. } => {
                             self.last_button = [channel, key];
                             if let Some(&id) = self.button_bindings.get(&self.last_button) {
-                                self.buttons[id].0 = 0_f32;
+                                self.buttons[id].0 = 0.0;
                                 self.buttons[id].2 = Instant::now();
                             }
                         }
@@ -228,7 +229,7 @@ impl Midi {
                         } => {
                             self.last_button = [channel, key];
                             if let Some(&id) = self.button_bindings.get(&self.last_button) {
-                                self.buttons[id].0 = pressure as f32 / 127_f32;
+                                self.buttons[id].0 = pressure as f32 / 127.0;
                             }
                         }
                         MessageKind::ControlChange {
@@ -238,7 +239,7 @@ impl Midi {
                         } => {
                             self.last_slider = [channel, key];
                             if let Some(&id) = self.slider_bindings.get(&self.last_slider) {
-                                self.sliders[id] = value as f32 / 127_f32;
+                                self.sliders[id] = value as f32 / 127.0;
                             }
                         }
                     },
