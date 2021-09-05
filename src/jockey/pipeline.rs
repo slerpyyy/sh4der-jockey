@@ -38,11 +38,11 @@ impl Pipeline {
     }
 
     pub fn splash_screen() -> Self {
-        const SPLASH_VERT: &str = include_str!("shaders/splash.vert");
+        const SPLASH_FRAG: &str = include_str!("shaders/splash.frag");
 
         let sh_ids = vec![
-            compile_shader(SPLASH_VERT, gl::VERTEX_SHADER).unwrap(),
-            compile_shader(PASS_FRAG, gl::FRAGMENT_SHADER).unwrap(),
+            compile_shader(PASS_VERT, gl::VERTEX_SHADER).unwrap(),
+            compile_shader(SPLASH_FRAG, gl::FRAGMENT_SHADER).unwrap(),
         ];
 
         let prog_id = link_program(&sh_ids).unwrap();
@@ -50,11 +50,7 @@ impl Pipeline {
         let stages = vec![Stage {
             prog_id,
             target: None,
-            kind: StageKind::Vert {
-                count: 108,
-                mode: gl::LINES,
-                thickness: 5.0,
-            },
+            kind: StageKind::Frag {},
             sh_ids,
             deps: Vec::new(),
             perf: RunningAverage::new(),
