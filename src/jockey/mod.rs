@@ -934,6 +934,32 @@ impl Jockey {
         }
 
         if let Some(window) = imgui::Window::new(im_str!("Pipelines")).begin(&ui) {
+            if ui.button_with_size(im_str!("Select project folder"), [0.0; 2]) {
+                std::thread::spawn(|| {
+                    let choice = nfd::open_pick_folder(None);
+                    let path = match choice {
+                        Ok(nfd::Response::Okay(s)) => s,
+                        Err(err) => {
+                            println!("{:?}", err);
+                            return;
+                        }
+                        _ => unreachable!(),
+                    };
+
+                    println!("Setting cwd to {}", &path);
+                    if let Err(err) = std::env::set_current_dir(path) {
+                        println!("Failed setting cwd: {}", err);
+                    } else {
+                        println!("All good, it seems");
+                    }
+
+                    unsafe {
+                        PIPELINE_STALE.store(true, Ordering::Release);
+                    }
+                });
+            }
+
+            ui.separator();
             match self.pipeline_files.len() {
                 0 => ui.text("No yaml file found"),
                 1 => ui.text("Only one yaml file found"),
@@ -1060,10 +1086,13 @@ impl Jockey {
             ui.plot_lines(im_str!("right"), &self.audio.r_signal)
                 .build();
 
+            ui.separator();
             ui.plot_lines(im_str!("left FFT"), self.audio.l_raw_spectrum.as_slice())
                 .build();
             ui.plot_lines(im_str!("right FFT"), self.audio.r_raw_spectrum.as_slice())
                 .build();
+
+            ui.separator();
             ui.plot_lines(im_str!("nice L FFT"), self.audio.l_spectrum.as_slice())
                 .build();
             ui.plot_lines(im_str!("nice R FFT"), self.audio.r_spectrum.as_slice())

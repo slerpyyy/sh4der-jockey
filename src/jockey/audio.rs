@@ -257,15 +257,9 @@ impl Audio {
             return;
         }
 
-        let left_iter = self
-            .l_signal
-            .iter()
-            .map(|&x| Complex::new(x, 0.0));
+        let left_iter = self.l_signal.iter().map(|&x| Complex::new(x, 0.0));
 
-        let right_iter = self
-            .r_signal
-            .iter()
-            .map(|&x| Complex::new(x, 0.0));
+        let right_iter = self.r_signal.iter().map(|&x| Complex::new(x, 0.0));
 
         fn fill_iter<T>(slice: &mut [T], iter: impl Iterator<Item = T>) {
             for (k, value) in iter.take(slice.len()).enumerate() {

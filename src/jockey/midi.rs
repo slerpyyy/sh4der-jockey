@@ -99,11 +99,8 @@ impl Midi {
                 .filter(|port| {
                     let mut matches = false;
                     for pref in self.preferred_devices.iter() {
-                        matches = matches
-                            || midi_in
-                                .port_name(port)
-                                .unwrap_or_default()
-                                .contains(pref);
+                        matches =
+                            matches || midi_in.port_name(port).unwrap_or_default().contains(pref);
                     }
                     matches
                 })

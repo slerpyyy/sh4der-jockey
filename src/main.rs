@@ -1,8 +1,8 @@
-//#![feature(external_doc)]
-//#![doc(include = "../README.md")]
-
 #![warn(unsafe_op_in_unsafe_fn)]
 #![warn(missing_debug_implementations)]
+
+// Do not open the console on launch
+//#![windows_subsystem = "windows"]
 
 #[allow(unused)]
 #[macro_use]
