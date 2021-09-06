@@ -51,7 +51,7 @@ pub struct MegaContext {
     pub renderer: imgui_opengl_renderer::Renderer,
     pub vao: GLuint,
     pub vbo: GLuint,
-    pub watcher: notify::RecommendedWatcher,
+    pub watcher: Option<notify::RecommendedWatcher>,
     pub context: glutin::WindowedContext<glutin::PossiblyCurrent>,
     pub ui_context: glutin::WindowedContext<glutin::PossiblyCurrent>,
     pub events_loop: glutin::event_loop::EventLoop<()>,
@@ -195,19 +195,12 @@ impl Jockey {
 
         let frame_perf = RunningAverage::new();
 
-        #[rustfmt::skip]
-        let mut watcher = notify::immediate_watcher(
-            |_| unsafe { PIPELINE_STALE.store(true, Ordering::Release) }
-        ).unwrap();
-
-        notify::Watcher::watch(&mut watcher, ".", notify::RecursiveMode::Recursive).unwrap();
-
         let ctx = MegaContext {
             imgui,
             renderer,
             vao,
             vbo,
-            watcher,
+            watcher: None,
             context,
             ui_context,
             events_loop,
@@ -314,8 +307,6 @@ impl Jockey {
     /// attempt to read and compile all necessary shaders. If everything loaded
     /// successfully, the new Pipeline struct will stomp the old one.
     pub fn update_pipeline(&mut self) {
-        //let start_time = Instant::now();
-
         // find pipeline files in working directory
         self.pipeline_files = std::fs::read_dir(".")
             .unwrap()
@@ -381,6 +372,16 @@ impl Jockey {
                     .map(|x| x.clone())
                     .collect();
                 self.ndi.connect(&requests).unwrap();
+
+                self.ctx.watcher = Some({
+                    let mut watcher = notify::immediate_watcher(|_| unsafe {
+                        PIPELINE_STALE.store(true, Ordering::Release)
+                    })
+                    .unwrap();
+
+                    notify::Watcher::watch(&mut watcher, ".", notify::RecursiveMode::Recursive).unwrap();
+                    watcher
+                });
             }
         }
     }
