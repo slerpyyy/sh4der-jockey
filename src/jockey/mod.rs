@@ -83,6 +83,7 @@ pub struct Jockey {
     pub time_range: (f32, f32),
     pub frame: u32,
     pub alt_pressed: bool,
+    pub console: String,
 }
 
 impl std::fmt::Debug for Jockey {
@@ -232,6 +233,7 @@ impl Jockey {
             time_range: (0.0, 60.0),
             frame: 0,
             alt_pressed: false,
+            console: String::new(),
         };
 
         this.ctx.context = unsafe { this.ctx.context.make_current().unwrap() };
@@ -350,13 +352,15 @@ impl Jockey {
                 self.pipeline = match result {
                     Ok(old) => old,
                     Err(err) => {
-                        eprintln!("Failed to build pipeline:\n{}", err);
+                        self.console = format!("Failed to build pipeline:\n{}", err);
+                        eprintln!("{}", &self.console);
                         return;
                     }
                 };
 
                 let build_time = self.last_build.elapsed().as_secs_f64();
-                println!("Build pipeline over a span of {}s", build_time);
+                self.console = format!("Build pipeline over a span of {}s", build_time);
+                println!("{}", &self.console);
 
                 // copy audio configs
                 self.audio.attack = self.pipeline.smoothing_attack;
@@ -379,7 +383,8 @@ impl Jockey {
                     })
                     .unwrap();
 
-                    notify::Watcher::watch(&mut watcher, ".", notify::RecursiveMode::Recursive).unwrap();
+                    notify::Watcher::watch(&mut watcher, ".", notify::RecursiveMode::Recursive)
+                        .unwrap();
                     watcher
                 });
             }
@@ -940,11 +945,7 @@ impl Jockey {
                     let choice = nfd::open_pick_folder(None);
                     let path = match choice {
                         Ok(nfd::Response::Okay(s)) => s,
-                        Err(err) => {
-                            println!("{:?}", err);
-                            return;
-                        }
-                        _ => unreachable!(),
+                        _ => return,
                     };
 
                     println!("Setting cwd to {}", &path);
@@ -1148,6 +1149,11 @@ impl Jockey {
                 100.0 * stage_sum_ms / frame_ms
             ));
 
+            window.end();
+        }
+
+        if let Some(window) = imgui::Window::new(im_str!("Build Output")).begin(&ui) {
+            ui.text(&self.console);
             window.end();
         }
 

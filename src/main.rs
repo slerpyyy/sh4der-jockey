@@ -1,8 +1,7 @@
 #![warn(unsafe_op_in_unsafe_fn)]
 #![warn(missing_debug_implementations)]
-
-// Do not open the console on launch
-//#![windows_subsystem = "windows"]
+// Do not open the console on launch in release
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 #[allow(unused)]
 #[macro_use]
