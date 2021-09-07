@@ -123,9 +123,10 @@ out vec4 v_color;
 uniform int vertex_count;
 
 void main(){
+  float a = 12 * gl_VertexID / vertex_count;
+  gl_VertexPos = vec4(cos(a), sin(a), a, 1);
 
-   v_color = vec4(1);
-   gl_VertexPos
+  v_color = vec4(1);
 }
 ```
 
@@ -220,8 +221,7 @@ images:
 
 ```glsl
 uniform sampler2D {name_of_image};
-// vec4(x,y,z, x/y)
-uniform vec4 {name_of_image}_res;
+uniform vec4 {name_of_image}_res; // vec4(x, y, z, x/y)
 ```
 
 Currently supports only static images. `png` and `jpeg` have been tested.
@@ -230,7 +230,7 @@ Currently supports only static images. `png` and `jpeg` have been tested.
 
 ```yaml
 audio:
-  audio_samples: n
+  audio_samples: int
   spectrum:
     mipmap: bool
     filter: (linear | nearest)
@@ -279,7 +279,8 @@ uniform float sliders[32];
 uniform vec4 buttons[32];
 
 // A 32x32x32 random noise texture.
-// Note this texture is recalculated per pipeline load, so the pattern changes every time you recompile or reload a pipeline.
+// Note this texture is recalculated per pipeline load,
+// so the pattern changes every time you recompile or reload a pipeline.
 uniform sampler3D noise;
 
 // current frame since program start
@@ -327,8 +328,8 @@ uniform vec3 volume_integrated;
 
 ## Hotkeys
 
-|key combination| feature | notes |
-| :---- | :---- | :---- |
-| ctrl + enter | rebuild current pipeline | |
-| alt + enter | Toggle borderless fullscreen | |
-| shift + ctrl + s | take screenshot | screenshots are saved in the executable directory |
+|key combination| feature |
+| --- | --- |
+| ctrl + enter | rebuild current pipeline |
+| alt + enter | Toggle borderless fullscreen |
+| shift + ctrl + s | take screenshot and save it in the cwd |

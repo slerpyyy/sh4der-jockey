@@ -57,7 +57,6 @@ stages:
 
   - fs: "post_process.frag"
 
-
 ndi:
   - source: "source substring"
     name: "sampler_name"
@@ -129,9 +128,10 @@ out vec4 v_color;
 uniform int vertex_count;
 
 void main(){
+  float a = 12 * gl_VertexID / vertex_count;
+  gl_VertexPos = vec4(cos(a), sin(a), a, 1);
 
-   v_color = vec4(1);
-   gl_VertexPos
+  v_color = vec4(1);
 }
 ```
 
@@ -229,8 +229,7 @@ images:
 
 ```glsl
 uniform sampler2D {name_of_image};
-// vec4(x,y,z, x/y)
-uniform vec4 {name_of_image}_res;
+uniform vec4 {name_of_image}_res; // vec4(x, y, z, x/y)
 ```
 
 現状静止画しかサポートしていません. `png` と `jpeg`は検証しましたが他の画像でも動くかもしれません.
@@ -254,7 +253,7 @@ audio:
     wrap_mode: (clamp | repeat)
 ```
 
-すべてのオーディオテキスチャはFloatです。
+すべてのオーディオテキスチャはfloatです。
 
 ## 共通uniform
 
@@ -287,8 +286,9 @@ uniform float sliders[32];
 // count: NoteOnが何回発行されたかを数え上げる整数値
 uniform vec4 buttons[32];
 
-// A 32x32x32 の乱数テキスチャ.
-// パイプラインが読み込まれるたびに再計算されるのでコンパイルなどを走らせるとテキスチャの中身が変わります。
+// 32x32x32の乱数テキスチャ。
+// パイプラインが読み込まれるたびに再計算されるので
+// 　コンパイルなどを走らせるとテキスチャの中身が変わります。
 uniform sampler3D noise;
 
 // プログラム開始からのフレーム数
@@ -336,8 +336,8 @@ uniform vec3 volume_integrated;
 
 ## Hotkeys
 
-|key combination| feature | notes |
-| :---- | :---- | :---- |
-| ctrl + enter | パイプラインのビルド | |
-| alt + enter | borderless windowed モード切り替え | |
-| shift + ctrl + s | スクリーンショットを撮る | スクリーンショットはバイナリの保存してあるディレクトリ以下に配置されます |
+| key combination　| feature |
+| --- | --- |
+| ctrl + enter | パイプラインのビルド |
+| alt + enter | borderless windowed モード切り替え |
+| shift + ctrl + s | スクリーンショットを撮って、cwd以下に配置されます |
