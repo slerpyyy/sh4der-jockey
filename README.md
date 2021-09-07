@@ -1,8 +1,18 @@
+<div style="display: flex; align-items: center;">
+<img style="float: left; height: 8em; margin: 2em" src="docs/logo.png">
+<div>
+
 # Sh4derJockey
+
 *A custom VJ tool written by sp4ghet and slerpy*
 
+</div>
+</div>
+
+<!--
 ![code-quality](https://img.shields.io/badge/code%20quality-jank-red)
 ![works-on](https://img.shields.io/badge/works%20on-my%20mashine%E2%84%A2-orange)
+-->
 
 ## Documentation
 
