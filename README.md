@@ -1,12 +1,9 @@
 <div style="display: flex; align-items: center;">
-<img style="float: left; height: 8em; margin: 2em" src="docs/logo.png">
-<div>
-
-# Sh4derJockey
-
-*A custom VJ tool written by sp4ghet and slerpy*
-
-</div>
+    <img style="float: left; height: 8em; margin: 2em" src="docs/logo.png">
+    <div>
+        <h1>Sh4derJockey</h1>
+        <p><em>A custom VJ tool written by sp4ghet and slerpy</em></p>
+    </div>
 </div>
 
 <!--
