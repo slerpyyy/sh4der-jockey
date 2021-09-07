@@ -26,3 +26,24 @@ cargo install --path .
 
 | ⚠️ | Please note that the tool may drop config files in the folder where the executable is located. |
 |-|-|
+
+## License
+
+This project is licensed under either of
+
+ * Apache License, Version 2.0
+   ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
+ * MIT license
+   ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
+
+at your option.
+
+This program makes use of [NDI®](https://www.ndi.tv/) (Network Device Interface), a standard developed by [NewTek, Inc](https://www.newtek.com/).
+
+Please refer to https://www.ndi.tv/ for further information about this technology.
+
+## Contribution
+
+Unless you explicitly state otherwise, any contribution intentionally submitted
+for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
+dual licensed as above, without any additional terms or conditions.
