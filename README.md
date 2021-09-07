@@ -1,15 +1,10 @@
-<div style="display: flex; align-items: center;">
-    <img style="float: left; height: 8em; margin: 2em" src="docs/logo.png">
-    <div>
-        <h1>Sh4derJockey</h1>
-        <p><em>A custom VJ tool written by sp4ghet and slerpy</em></p>
-    </div>
-</div>
 
-<!--
-![code-quality](https://img.shields.io/badge/code%20quality-jank-red)
-![works-on](https://img.shields.io/badge/works%20on-my%20mashine%E2%84%A2-orange)
--->
+<img align="left" style="float: left; height: 9em; margin: 2em" src="docs/logo.png">
+
+# Sh4derJockey
+*A custom VJ tool written by sp4ghet and slerpy*
+
+<br>
 
 ## Documentation
 
