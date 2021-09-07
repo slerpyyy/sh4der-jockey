@@ -11,12 +11,11 @@ build = "build.rs"
 
 [dependencies]
 alloca = { git = "https://github.com/slerpyyy/alloca-rs", branch = "v2" }
-anyhow = "1.0"
 as-any = "0.2"
 async-std = { version = "1.9", default-features = false, features = ["std"] }
 cpal = "0.13"
-error-chain = "0.12"
 futures = { version = "0.3", default-features = false }
+winapi = "0.3"
 getopts = "0.2"
 gl = "0.14"
 glutin = "0.26"

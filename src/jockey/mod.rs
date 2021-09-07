@@ -212,6 +212,8 @@ impl Jockey {
         let midi = Midi::new(&config);
         let ndi = Ndi::new(&[]);
 
+        let console = "No pipeline has been built yet".into();
+
         let now = Instant::now();
         let mut this = Self {
             ctx,
@@ -233,7 +235,7 @@ impl Jockey {
             time_range: (0.0, 60.0),
             frame: 0,
             alt_pressed: false,
-            console: String::new(),
+            console,
         };
 
         this.ctx.context = unsafe { this.ctx.context.make_current().unwrap() };

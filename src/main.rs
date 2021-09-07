@@ -1,11 +1,5 @@
 #![warn(unsafe_op_in_unsafe_fn)]
 #![warn(missing_debug_implementations)]
-// Do not open the console on launch in release
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-
-#[allow(unused)]
-#[macro_use]
-extern crate error_chain;
 
 #[macro_use]
 mod util;
@@ -13,6 +7,28 @@ mod jockey;
 
 use getopts::Options;
 use jockey::Jockey;
+
+#[cfg(all(windows, not(debug_assertions)))]
+fn close_console() {
+    let console = unsafe { winapi::um::wincon::GetConsoleWindow() };
+    if console.is_null() {
+        return;
+    }
+
+    let mut console_pid = 0;
+    let status =
+        unsafe { winapi::um::winuser::GetWindowThreadProcessId(console, &mut console_pid) };
+    if status == 0 {
+        return;
+    }
+
+    let self_pid = unsafe { winapi::um::processthreadsapi::GetCurrentProcessId() };
+    if console_pid != self_pid {
+        return;
+    }
+
+    unsafe { winapi::um::wincon::FreeConsole() };
+}
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -52,6 +68,10 @@ fn main() {
 
     // create the jockey
     let mut jockey = Jockey::init();
+
+    // close console
+    #[cfg(all(windows, not(debug_assertions)))]
+    close_console();
 
     loop {
         // do event stuff
