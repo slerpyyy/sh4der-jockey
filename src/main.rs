@@ -5,50 +5,39 @@
 mod util;
 mod jockey;
 
-use getopts::Options;
 use jockey::Jockey;
+use clap::{AppSettings, Clap};
+use lazy_static::lazy_static;
 
-#[cfg(all(windows, not(debug_assertions)))]
-fn close_console() {
-    let console = unsafe { winapi::um::wincon::GetConsoleWindow() };
-    if console.is_null() {
-        return;
-    }
+lazy_static! {
+    static ref VERSION: String = format!(
+        "{} (commit {})",
+        env!("VERGEN_BUILD_SEMVER"),
+        &env!("VERGEN_GIT_SHA")[..14]
+    );
+}
 
-    let mut console_pid = 0;
-    let status =
-        unsafe { winapi::um::winuser::GetWindowThreadProcessId(console, &mut console_pid) };
-    if status == 0 {
-        return;
-    }
+#[derive(Clap)]
+#[clap(name = "Sh4derJockey", about)]
+#[clap(version = VERSION.as_str())]
+#[clap(setting = AppSettings::ColoredHelp)]
+struct Args {
+    #[clap(subcommand)]
+    subcmd: Option<SubCommand>,
+}
 
-    let self_pid = unsafe { winapi::um::processthreadsapi::GetCurrentProcessId() };
-    if console_pid != self_pid {
-        return;
-    }
-
-    unsafe { winapi::um::wincon::FreeConsole() };
+#[derive(Clap)]
+enum SubCommand {
+    #[clap(about = "Create a new project in an existing directory")]
+    Init,
+    #[clap(about = "Start the tool in the current working directory (default)")]
+    Run,
 }
 
 fn main() {
-    let args: Vec<String> = std::env::args().collect();
-    let bin_name = args.get(0).map(|s| s.as_str()).unwrap_or("sh4der-jockey");
+    let args: Args = Args::parse();
 
-    let mut opts = Options::new();
-    opts.optflag("h", "help", "print this help message");
-    opts.optflag("i", "init", "set up a simple example project");
-
-    let matches = opts.parse(&args[1..]).expect("failed to parse args");
-    if matches.opt_present("h") {
-        println!(
-            "{}\n\n{}",
-            opts.short_usage(bin_name),
-            opts.usage("A custom VJ tool written by sp4ghet and slerpy.")
-        );
-        return;
-    }
-
-    if matches.opt_present("i") {
+    if let Some(SubCommand::Init) = args.subcmd {
         let plf = std::path::Path::new("./pipeline.yaml");
         let shf = std::path::Path::new("./scene.frag");
 
@@ -64,6 +53,8 @@ fn main() {
 
         std::fs::write(plf, include_str!("defaults/pipeline.yaml")).unwrap();
         std::fs::write(shf, include_str!("defaults/scene.frag")).unwrap();
+
+        return;
     }
 
     // create the jockey
@@ -88,4 +79,26 @@ fn main() {
         // update ui
         jockey.update_ui();
     }
+}
+
+#[cfg(all(windows, not(debug_assertions)))]
+fn close_console() {
+    let console = unsafe { winapi::um::wincon::GetConsoleWindow() };
+    if console.is_null() {
+        return;
+    }
+
+    let mut console_pid = 0;
+    let status =
+        unsafe { winapi::um::winuser::GetWindowThreadProcessId(console, &mut console_pid) };
+    if status == 0 {
+        return;
+    }
+
+    let self_pid = unsafe { winapi::um::processthreadsapi::GetCurrentProcessId() };
+    if console_pid != self_pid {
+        return;
+    }
+
+    unsafe { winapi::um::wincon::FreeConsole() };
 }

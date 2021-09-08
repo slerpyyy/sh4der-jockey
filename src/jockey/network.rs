@@ -8,6 +8,7 @@ use std::{
 
 static NDI_RECEIVER_NAME: &'static str = "Sh4derJockey";
 
+#[derive(Debug)]
 pub struct Ndi {
     sources: Arc<Mutex<Vec<ndi::Source>>>,
     videos: HashMap<String, Arc<Mutex<image::DynamicImage>>>,
@@ -15,24 +16,15 @@ pub struct Ndi {
 }
 
 impl Ndi {
-    pub fn new(requested: &[String]) -> Self {
-        let sources = Default::default();
-        let videos = HashMap::new();
-        let searching = false;
-        let mut this = Self {
-            sources,
-            videos,
-            searching,
-        };
-
-        if let Err(e) = this.connect(requested) {
-            eprintln!("Failed to connect to NDI sources: {}", e);
+    pub fn new() -> Self {
+        Self {
+            sources: Default::default(),
+            videos: HashMap::new(),
+            searching: false,
         }
-
-        this
     }
 
-    pub fn search_sources(&self, blocking: bool) {
+    fn search_sources(&self, blocking: bool) {
         let sources = self.sources.clone();
         let handle = thread::spawn(move || -> Result<(), FindCreateError> {
             let find_local = ndi::FindBuilder::new().show_local_sources(true).build()?;

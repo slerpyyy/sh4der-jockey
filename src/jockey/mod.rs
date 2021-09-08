@@ -3,7 +3,6 @@ use gl::types::*;
 use glutin::platform::run_return::EventLoopExtRunReturn;
 use imgui::im_str;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
-use lazy_static::lazy_static;
 use std::{
     collections::{hash_map::DefaultHasher, HashMap},
     ffi::CString,
@@ -32,16 +31,6 @@ pub use network::*;
 pub use pipeline::*;
 pub use stage::*;
 pub use uniforms::*;
-
-lazy_static! {
-    static ref JOCKEY_TITLE: String = {
-        format!(
-            "Sh4derJockey (version {}-{})",
-            env!("VERGEN_BUILD_SEMVER"),
-            &env!("VERGEN_GIT_SHA")[0..7]
-        )
-    };
-}
 
 static mut PIPELINE_STALE: AtomicBool = AtomicBool::new(false);
 
@@ -97,21 +86,14 @@ impl std::fmt::Debug for Jockey {
 }
 
 impl Jockey {
-    /// Returns a string containing the name of the program, the current
-    /// version and commit hash.
-    pub fn title() -> String {
-        JOCKEY_TITLE.clone()
-    }
-
     /// Initializes the tool.
     ///
     /// This will spin up a Winit window, initialize Imgui,
     /// create a OpenGL context and more!
     pub fn init() -> Self {
-        let config = Config::new();
+        let config = Config::load_or_default();
         let audio = Audio::new(AUDIO_SAMPLES, &config);
 
-        let title = Self::title();
         let events_loop = glutin::event_loop::EventLoop::new();
         let request = glutin::GlRequest::Latest;
 
@@ -163,7 +145,7 @@ impl Jockey {
         let window_builder = glutin::window::WindowBuilder::new()
             .with_inner_size(glutin::dpi::LogicalSize::new(1280.0, 720.0))
             .with_resizable(true)
-            .with_title(title.to_owned());
+            .with_title("Sh4derJockey");
 
         #[cfg(target_os = "windows")]
         let window_builder = glutin::platform::windows::WindowBuilderExtWindows::with_drag_and_drop(
@@ -210,7 +192,7 @@ impl Jockey {
 
         let pipeline = Pipeline::splash_screen();
         let midi = Midi::new(&config);
-        let ndi = Ndi::new(&[]);
+        let ndi = Ndi::new();
 
         let console = "No pipeline has been built yet".into();
 
@@ -953,8 +935,6 @@ impl Jockey {
                     println!("Setting cwd to {}", &path);
                     if let Err(err) = std::env::set_current_dir(path) {
                         println!("Failed setting cwd: {}", err);
-                    } else {
-                        println!("All good, it seems");
                     }
 
                     unsafe {
