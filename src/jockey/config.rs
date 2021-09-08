@@ -12,7 +12,7 @@ impl Config {
         match Self::load() {
             Ok(x) => x,
             Err(e) => {
-                println!("Failed to load config.yaml: {}", e);
+                log::warn!("Failed to load config.yaml: {}", e);
                 Self {
                     midi_devices: Vec::new(),
                     audio_device: None,

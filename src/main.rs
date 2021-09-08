@@ -8,6 +8,7 @@ mod jockey;
 use jockey::Jockey;
 use clap::{AppSettings, Clap};
 use lazy_static::lazy_static;
+use simplelog::*;
 
 lazy_static! {
     static ref VERSION: String = format!(
@@ -24,6 +25,9 @@ lazy_static! {
 struct Args {
     #[clap(subcommand)]
     subcmd: Option<SubCommand>,
+
+    #[clap(short, long, parse(from_occurrences))]
+    verbose: u32,
 }
 
 #[derive(Clap)]
@@ -37,13 +41,22 @@ enum SubCommand {
 fn main() {
     let args: Args = Args::parse();
 
+    let log_level = match args.verbose {
+        0 => LevelFilter::Error,
+        1 => LevelFilter::Warn,
+        2 => LevelFilter::Info,
+        _ => LevelFilter::Debug,
+    };
+
+    TermLogger::init(log_level, Default::default(), TerminalMode::Mixed, ColorChoice::Always).unwrap();
+
     if let Some(SubCommand::Init) = args.subcmd {
         let plf = std::path::Path::new("./pipeline.yaml");
         let shf = std::path::Path::new("./scene.frag");
 
         if plf.exists() || shf.exists() {
-            eprintln!(
-                "Error: File with same name already exists.\n\n\
+            log::error!(
+                "File with same name already exists.\n\n\
                 Please make sure there are no files named \"pipeline.yaml\" or \"scene.frag\"\n\
                 in your current working directory already. Try renaming or deleting these\n\
                 files and running the command again.\n"

@@ -63,7 +63,7 @@ impl Ndi {
                     }
                 }
 
-                println!("{:?}", sources);
+                //log::info!("Found NDI sources: {:?}", sources);
 
                 if blocking {
                     return Ok(());
@@ -143,7 +143,7 @@ impl Ndi {
             res
         };
 
-        println!("Found sources: {:?}", sources);
+        log::info!("Found NDI sources: {:?}", sources);
 
         let src: Vec<(String, &ndi::Source)> = sources
             .iter()
@@ -158,7 +158,7 @@ impl Ndi {
             })
             .collect();
 
-        println!(
+        log::info!(
             "Found {} of {} requested NDI sources",
             src.len(),
             requested.len()
@@ -185,31 +185,33 @@ impl Ndi {
 
             self.videos.insert(req, Arc::clone(&video));
 
-            println!("Connected to NDI source: {}", source.get_name());
+            log::info!("Connected to NDI source: {}", source.get_name());
 
             let weak = Arc::downgrade(&video);
-            thread::spawn(move || loop {
-                if weak.strong_count() == 0 {
-                    println!("Ending RECV loop");
-                    break;
+            thread::spawn(move || {
+                loop {
+                    if weak.strong_count() == 0 {
+                        break;
+                    }
+
+                    let mut video_data = None;
+                    if recv.capture_video(&mut video_data, 1000) != ndi::FrameType::Video {
+                        continue;
+                    }
+
+                    let img = match video_data {
+                        Some(video) => Ndi::convert_format(video).flipv(),
+                        _ => continue,
+                    };
+
+                    if let Some(strong) = weak.upgrade() {
+                        *strong.lock().unwrap() = img;
+                    } else {
+                        break;
+                    }
                 }
 
-                let mut video_data = None;
-                if recv.capture_video(&mut video_data, 1000) != ndi::FrameType::Video {
-                    continue;
-                }
-
-                let img = match video_data {
-                    Some(video) => Ndi::convert_format(video).flipv(),
-                    _ => continue,
-                };
-
-                if let Some(strong) = weak.upgrade() {
-                    *strong.lock().unwrap() = img;
-                } else {
-                    println!("Ending RECV loop");
-                    break;
-                }
+                log::info!("Terminating RECV thread");
             });
         }
 

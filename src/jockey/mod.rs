@@ -301,7 +301,7 @@ impl Jockey {
             .filter(|s| s != "config.yaml")
             .collect();
 
-        println!("Found pipeline files: {:?}", &self.pipeline_files);
+        log::info!("Found pipeline files: {:?}", &self.pipeline_files);
 
         // override pipeline index, if the user has no choice
         if self.pipeline_files.len() < 2 {
@@ -312,7 +312,7 @@ impl Jockey {
         let path = match self.pipeline_files.get(self.pipeline_index) {
             Some(s) => s,
             None => {
-                eprintln!("Failed to find pipeline file");
+                log::warn!("Failed to find pipeline file");
                 return;
             }
         };
@@ -320,7 +320,7 @@ impl Jockey {
         let screen_size = self.ctx.context.window().inner_size();
         let screen_size = (screen_size.width as u32, screen_size.height as u32);
 
-        println!("Start building pipeline");
+        log::info!("Start building pipeline");
         self.pipeline_partial = Some(Box::pin(Pipeline::load(path.to_owned(), screen_size)));
     }
 
@@ -337,14 +337,14 @@ impl Jockey {
                     Ok(old) => old,
                     Err(err) => {
                         self.console = format!("Failed to build pipeline:\n{}", err);
-                        eprintln!("{}", &self.console);
+                        log::error!("{}", &self.console);
                         return;
                     }
                 };
 
                 let build_time = self.last_build.elapsed().as_secs_f64();
                 self.console = format!("Build pipeline over a span of {}s", build_time);
-                println!("{}", &self.console);
+                log::info!("{}", &self.console);
 
                 // copy audio configs
                 self.audio.attack = self.pipeline.smoothing_attack;
@@ -932,9 +932,9 @@ impl Jockey {
                         _ => return,
                     };
 
-                    println!("Setting cwd to {}", &path);
+                    log::info!("Setting cwd to {}", &path);
                     if let Err(err) = std::env::set_current_dir(path) {
-                        println!("Failed setting cwd: {}", err);
+                        log::error!("Failed setting cwd: {}", err);
                     }
 
                     unsafe {

@@ -49,7 +49,7 @@ impl Midi {
                     button_bindings = b;
                     slider_bindings = s;
                 }
-                _ => eprintln!(
+                _ => log::error!(
                     "Failed to parse midi config file. Please do not edit the config file."
                 ),
             };
@@ -89,7 +89,7 @@ impl Midi {
         // Get an input port (read from console if multiple are available)
         let in_ports = midi_in.ports();
         if midi_in.port_count() == 0 {
-            println!("Failed to find midi input port.");
+            log::warn!("No midi input port found.");
             return;
         }
 
@@ -115,7 +115,7 @@ impl Midi {
             let (conn, rx) = match self.new_connection(in_port) {
                 Ok(x) => x,
                 Err(x) => {
-                    println!(
+                    log::warn!(
                         "Failed to connect to {}: {:?}",
                         midi_in.port_name(&in_port).unwrap(),
                         x
@@ -139,7 +139,7 @@ impl Midi {
         let mut midi_input = MidiInput::new("Sh4derJockey").unwrap();
         midi_input.ignore(Ignore::None);
         let port_name = midi_input.port_name(&in_port).unwrap();
-        println!("Connecting to input port: {}", port_name);
+        log::info!("Connecting to input port: {}", port_name);
 
         let (tx, rx) = channel();
         let conn = midi_input.connect(
@@ -278,7 +278,7 @@ impl Drop for Midi {
             let tuple = (&self.button_bindings, &self.slider_bindings);
             serde_yaml::to_writer(file, &tuple).unwrap();
         } else {
-            eprint!("Failed to save midi configs... somehow...")
+            log::error!("Failed to save midi configs... somehow...")
         }
     }
 }

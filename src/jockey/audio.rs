@@ -107,7 +107,7 @@ impl Audio {
         };
 
         if let Err(err) = this.connect(config) {
-            eprintln!("Error connecting to audio input device: {}", err);
+            log::error!("Error connecting to audio input device: {}", err);
         }
 
         this
@@ -132,7 +132,7 @@ impl Audio {
 
     pub fn connect(&mut self, config: &Config) -> Result<(), String> {
         let host = cpal::default_host();
-        println!("Available Hosts: {:?}", cpal::available_hosts());
+        log::info!("Available Hosts: {:?}", cpal::available_hosts());
         let device = match &config.audio_device {
             None => host
                 .default_input_device()
@@ -149,7 +149,7 @@ impl Audio {
             }
         }?;
 
-        println!(
+        log::info!(
             "Connected to audio input device: {:?}",
             device.name().unwrap_or("<no-name>".into())
         );
@@ -164,7 +164,7 @@ impl Audio {
             .ok_or("no supported config?!".to_string())?
             .with_max_sample_rate();
 
-        println!("Supported Config: {:?}", supported_config);
+        log::info!("Supported Config: {:?}", supported_config);
 
         let config = device
             .default_input_config()
@@ -172,7 +172,7 @@ impl Audio {
             .config();
 
         let sample_format = supported_config.sample_format();
-        println!("Creating with config: {:?}", config);
+        log::info!("Creating with config: {:?}", config);
 
         let channel_count = config.channels as usize;
         self.channels = match channel_count {
@@ -206,7 +206,7 @@ impl Audio {
             cpal::SampleFormat::F32 => device
                 .build_input_stream(&config, input_callback, |err| {
                     // react to errors here.
-                    println!("{:?}", err);
+                    log::error!("Failed to build input stream: {}", err);
                 })
                 .map_err(|_| "Failed to initialize audio input stream".to_string())?,
             s => return Err(format!("Unsupported sample format {:?}", s)),
