@@ -249,7 +249,7 @@ impl Audio {
         self.volume_integrated
             .iter_mut()
             .zip(self.volume.iter())
-            .for_each(Self::take_sum);
+            .for_each(sum_left);
     }
 
     pub fn update_fft(&mut self) {
@@ -353,12 +353,12 @@ impl Audio {
         self.l_spectrum_integrated
             .iter_mut()
             .zip(&self.l_spectrum)
-            .for_each(Self::take_sum);
+            .for_each(sum_left);
 
         self.r_spectrum_integrated
             .iter_mut()
             .zip(&self.r_spectrum)
-            .for_each(Self::take_sum);
+            .for_each(sum_left);
     }
 
     fn update_smooth_fft(&mut self) {
@@ -389,12 +389,12 @@ impl Audio {
         self.l_spectrum_smooth_integrated
             .iter_mut()
             .zip(&self.l_spectrum_smooth)
-            .for_each(Self::take_sum);
+            .for_each(sum_left);
 
         self.r_spectrum_smooth_integrated
             .iter_mut()
             .zip(&self.r_spectrum_smooth)
-            .for_each(Self::take_sum);
+            .for_each(sum_left);
     }
 
     fn update_bass_mid_high(&mut self) {
@@ -438,32 +438,28 @@ impl Audio {
         self.bass_smooth_integrated
             .iter_mut()
             .zip(self.bass_smooth.iter())
-            .for_each(Self::take_sum);
+            .for_each(sum_left);
         self.mid_smooth_integrated
             .iter_mut()
             .zip(self.mid_smooth.iter())
-            .for_each(Self::take_sum);
+            .for_each(sum_left);
         self.high_smooth_integrated
             .iter_mut()
             .zip(self.high_smooth.iter())
-            .for_each(Self::take_sum);
+            .for_each(sum_left);
 
         self.bass_integrated
             .iter_mut()
             .zip(self.bass.iter())
-            .for_each(Self::take_sum);
+            .for_each(sum_left);
         self.mid_integrated
             .iter_mut()
             .zip(self.mid.iter())
-            .for_each(Self::take_sum);
+            .for_each(sum_left);
         self.high_integrated
             .iter_mut()
             .zip(self.high.iter())
-            .for_each(Self::take_sum);
-    }
-
-    fn take_sum((acc, val): (&mut f32, &f32)) {
-        *acc += val;
+            .for_each(sum_left);
     }
 
     #[allow(dead_code)]
@@ -472,4 +468,8 @@ impl Audio {
         left.copy_from_slice(&self.l_signal);
         right.copy_from_slice(&self.r_signal);
     }
+}
+
+fn sum_left((acc, val): (&mut f32, &f32)) {
+    *acc += val;
 }

@@ -9,6 +9,25 @@ use std::{
     rc::Rc,
 };
 
+pub type PipelinePartial = Box<dyn Future<Output = Result<(Pipeline, UpdateRequest), String>>>;
+
+#[derive(Debug, Clone)]
+pub struct UpdateRequest {
+    pub audio_samples: usize,
+    pub smoothing_attack: f32,
+    pub smoothing_decay: f32,
+}
+
+impl Default for UpdateRequest {
+    fn default() -> Self {
+        Self {
+            audio_samples: AUDIO_SAMPLES,
+            smoothing_attack: FFT_ATTACK,
+            smoothing_decay: FFT_DECAY,
+        }
+    }
+}
+
 /// The rendering pipeline struct
 ///
 /// This struct holds the structure of the rendering pipeline. Note that it
@@ -18,9 +37,6 @@ use std::{
 pub struct Pipeline {
     pub stages: Vec<Stage>,
     pub buffers: HashMap<CString, Rc<dyn Texture>>,
-    pub audio_samples: usize,
-    pub smoothing_attack: f32,
-    pub smoothing_decay: f32,
     pub requested_ndi_sources: HashMap<CString, String>,
 }
 
@@ -30,9 +46,6 @@ impl Pipeline {
         Self {
             stages: Vec::new(),
             buffers: HashMap::new(),
-            audio_samples: AUDIO_SAMPLES,
-            smoothing_attack: FFT_ATTACK,
-            smoothing_decay: FFT_DECAY,
             requested_ndi_sources: HashMap::new(),
         }
     }
@@ -60,14 +73,14 @@ impl Pipeline {
         Self {
             stages,
             buffers: HashMap::new(),
-            audio_samples: AUDIO_SAMPLES,
-            smoothing_attack: FFT_ATTACK,
-            smoothing_decay: FFT_DECAY,
             requested_ndi_sources: HashMap::new(),
         }
     }
 
-    pub async fn load(path: impl AsRef<Path>, screen_size: (u32, u32)) -> Result<Self, String> {
+    pub async fn load(
+        path: impl AsRef<Path>,
+        screen_size: (u32, u32),
+    ) -> Result<(Self, UpdateRequest), String> {
         let empty_cache = HashMap::new();
         Pipeline::from_file_with_cache(path, screen_size, &empty_cache).await
     }
@@ -76,7 +89,7 @@ impl Pipeline {
         path: impl AsRef<Path>,
         screen_size: (u32, u32),
         cache: &HashMap<CString, Rc<dyn Texture>>,
-    ) -> Result<Self, String> {
+    ) -> Result<(Self, UpdateRequest), String> {
         let reader = match std::fs::File::open(path) {
             Ok(s) => s,
             Err(e) => return Err(e.to_string()),
@@ -94,7 +107,7 @@ impl Pipeline {
         object: Value,
         screen_size: (u32, u32),
         cache: &HashMap<CString, Rc<dyn Texture>>,
-    ) -> Result<Self, String> {
+    ) -> Result<(Self, UpdateRequest), String> {
         let mut buffers = HashMap::<CString, Rc<dyn Texture>>::new();
         yield_now().await;
 
@@ -468,14 +481,18 @@ impl Pipeline {
             needed
         });
 
-        Ok(Self {
-            stages,
-            buffers,
-            audio_samples,
-            smoothing_attack,
-            smoothing_decay,
-            requested_ndi_sources,
-        })
+        Ok((
+            Self {
+                stages,
+                buffers,
+                requested_ndi_sources,
+            },
+            UpdateRequest {
+                audio_samples,
+                smoothing_attack,
+                smoothing_decay,
+            },
+        ))
     }
 
     pub fn resize_buffers(&mut self, width: u32, height: u32) {

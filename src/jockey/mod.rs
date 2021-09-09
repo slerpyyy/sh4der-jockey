@@ -3,6 +3,7 @@ use gl::types::*;
 use glutin::platform::run_return::EventLoopExtRunReturn;
 use imgui::im_str;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
+use notify::Watcher;
 use std::{
     collections::{hash_map::DefaultHasher, HashMap},
     ffi::CString,
@@ -33,6 +34,7 @@ pub use stage::*;
 pub use uniforms::*;
 
 static mut PIPELINE_STALE: AtomicBool = AtomicBool::new(false);
+static mut PROJECT_STALE: AtomicBool = AtomicBool::new(false);
 
 /// A struct for all the ugly internals.
 pub struct MegaContext {
@@ -66,7 +68,7 @@ pub struct Jockey {
     pub pipeline_files: Vec<String>,
     pub pipeline_index: usize,
     pub pipeline: Pipeline,
-    pub pipeline_partial: Option<Pin<Box<dyn Future<Output = Result<Pipeline, String>>>>>,
+    pub pipeline_partial: Option<Pin<PipelinePartial>>,
     pub time: f32,
     pub speed: f32,
     pub time_range: (f32, f32),
@@ -333,8 +335,11 @@ impl Jockey {
 
             if let Some(result) = futures::FutureExt::now_or_never(part) {
                 self.pipeline_partial = None;
-                self.pipeline = match result {
-                    Ok(old) => old,
+                let update = match result {
+                    Ok((pl, update)) => {
+                        self.pipeline = pl;
+                        update
+                    }
                     Err(err) => {
                         self.console = format!("Failed to build pipeline:\n{}", err);
                         log::error!("{}", &self.console);
@@ -347,28 +352,27 @@ impl Jockey {
                 log::info!("{}", &self.console);
 
                 // copy audio configs
-                self.audio.attack = self.pipeline.smoothing_attack;
-                self.audio.decay = self.pipeline.smoothing_decay;
-                if self.pipeline.audio_samples != self.audio.size {
-                    self.audio.resize(self.pipeline.audio_samples);
+                self.audio.attack = update.smoothing_attack;
+                self.audio.decay = update.smoothing_decay;
+                if update.audio_samples != self.audio.size {
+                    self.audio.resize(update.audio_samples);
                 }
 
-                let requests: Vec<String> = self
+                let requests: Vec<_> = self
                     .pipeline
                     .requested_ndi_sources
                     .values()
-                    .map(|x| x.clone())
+                    .map(|x| x.as_str())
                     .collect();
                 self.ndi.connect(&requests).unwrap();
 
                 self.ctx.watcher = Some({
-                    let mut watcher = notify::immediate_watcher(|_| unsafe {
-                        PIPELINE_STALE.store(true, Ordering::Release)
-                    })
-                    .unwrap();
-
-                    notify::Watcher::watch(&mut watcher, ".", notify::RecursiveMode::Recursive)
+                    let event_fn = |_| unsafe { PIPELINE_STALE.store(true, Ordering::Release) };
+                    let mut watcher = notify::immediate_watcher(event_fn).unwrap();
+                    watcher
+                        .watch(".", notify::RecursiveMode::Recursive)
                         .unwrap();
+
                     watcher
                 });
             }
@@ -379,6 +383,13 @@ impl Jockey {
         take_mut::take(&mut self.ctx.context, |s| unsafe {
             s.make_current().unwrap()
         });
+
+        let do_update_project = unsafe { PROJECT_STALE.swap(false, Ordering::AcqRel) };
+        if do_update_project {
+            let config = Config::load_or_default();
+            self.audio = Audio::new(AUDIO_SAMPLES, &config);
+            self.midi = Midi::new(&config);
+        }
 
         let platform = &mut self.ctx.platform;
         let events_loop = &mut self.ctx.events_loop;
@@ -939,6 +950,7 @@ impl Jockey {
 
                     unsafe {
                         PIPELINE_STALE.store(true, Ordering::Release);
+                        PROJECT_STALE.store(true, Ordering::Release);
                     }
                 });
             }

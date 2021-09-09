@@ -13,10 +13,7 @@ impl Config {
             Ok(x) => x,
             Err(e) => {
                 log::warn!("Failed to load config.yaml: {}", e);
-                Self {
-                    midi_devices: Vec::new(),
-                    audio_device: None,
-                }
+                Default::default()
             }
         }
     }

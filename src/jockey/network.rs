@@ -126,7 +126,7 @@ impl Ndi {
         }
     }
 
-    pub fn connect(&mut self, requested: &[String]) -> Result<(), ndi::RecvCreateError> {
+    pub fn connect(&mut self, requested: &[&str]) -> Result<(), ndi::RecvCreateError> {
         if requested.is_empty() {
             return Ok(());
         }
@@ -149,9 +149,9 @@ impl Ndi {
             .iter()
             .filter_map(|src| {
                 let src_name = src.get_name();
-                for pat in requested {
+                for &pat in requested {
                     if src_name.contains(pat) {
-                        return Some((pat.clone(), src));
+                        return Some((pat.into(), src));
                     }
                 }
                 None
