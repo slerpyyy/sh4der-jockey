@@ -1,4 +1,4 @@
-use anyhow::{Result, format_err};
+use anyhow::{format_err, Result};
 use serde_yaml::Value;
 
 #[derive(Debug, Default, Clone)]

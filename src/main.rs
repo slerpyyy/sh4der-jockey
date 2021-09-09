@@ -5,8 +5,8 @@
 mod util;
 mod jockey;
 
-use jockey::Jockey;
 use clap::{AppSettings, Clap};
+use jockey::Jockey;
 use lazy_static::lazy_static;
 use simplelog::*;
 
@@ -27,6 +27,7 @@ struct Args {
     subcmd: Option<SubCommand>,
 
     #[clap(short, long, parse(from_occurrences))]
+    #[clap(about = "Use verbose output (can be used multiple times)")]
     verbose: u32,
 }
 
@@ -45,10 +46,17 @@ fn main() {
         0 => LevelFilter::Error,
         1 => LevelFilter::Warn,
         2 => LevelFilter::Info,
-        _ => LevelFilter::Debug,
+        3 => LevelFilter::Debug,
+        _ => LevelFilter::Trace,
     };
 
-    TermLogger::init(log_level, Default::default(), TerminalMode::Mixed, ColorChoice::Always).unwrap();
+    TermLogger::init(
+        log_level,
+        Default::default(),
+        TerminalMode::Mixed,
+        ColorChoice::Always,
+    )
+    .unwrap();
 
     if let Some(SubCommand::Init) = args.subcmd {
         let plf = std::path::Path::new("./pipeline.yaml");
