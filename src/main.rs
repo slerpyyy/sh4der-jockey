@@ -5,6 +5,8 @@
 mod util;
 mod jockey;
 
+use std::sync::atomic::{AtomicBool, Ordering};
+
 use clap::{AppSettings, Clap};
 use jockey::Jockey;
 use lazy_static::lazy_static;
@@ -78,6 +80,20 @@ fn main() {
         return;
     }
 
+    // set termination signal handler
+    let kill_signal: &'static AtomicBool = Box::leak(Box::new(AtomicBool::new(false)));
+    ctrlc::set_handler(move || {
+        log::info!("Kill signal detected, attempt to shut down gracefully...");
+        kill_signal.store(true, Ordering::Release);
+
+        // give it a moment to exit peacefully
+        std::thread::sleep(std::time::Duration::from_secs(3));
+
+        log::info!("Alright, let's kill this thing");
+        std::process::exit(0);
+    })
+    .unwrap();
+
     // create the jockey
     let mut jockey = Jockey::init();
 
@@ -90,7 +106,7 @@ fn main() {
         jockey.handle_events();
 
         // exit loop
-        if jockey.done {
+        if jockey.done || kill_signal.load(Ordering::Acquire) {
             break;
         }
 
@@ -100,6 +116,8 @@ fn main() {
         // update ui
         jockey.update_ui();
     }
+
+    log::info!("Bye bye!");
 }
 
 #[cfg(all(windows, not(debug_assertions)))]

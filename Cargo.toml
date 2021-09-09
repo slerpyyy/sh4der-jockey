@@ -16,6 +16,7 @@ anyhow = "1.0"
 as-any = "0.2"
 async-std = { version = "1.9", default-features = false, features = ["std"] }
 cpal = "0.13"
+ctrlc = { version = "3.2", features = ["termination"] }
 futures = { version = "0.3", default-features = false }
 winapi = "0.3"
 clap = "3.0.0-beta"
