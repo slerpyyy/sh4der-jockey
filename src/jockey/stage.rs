@@ -1,7 +1,9 @@
-use crate::util::*;
+use std::ffi::CString;
+
 use gl::types::*;
 use serde_yaml::Value;
-use std::ffi::CString;
+
+use crate::util::*;
 
 pub const PASS_VERT: &str = include_str!("shaders/pass.vert");
 pub const PASS_FRAG: &str = include_str!("shaders/pass.frag");

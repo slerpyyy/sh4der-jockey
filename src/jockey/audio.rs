@@ -1,9 +1,11 @@
-use super::Config;
-use crate::util::RingBuffer;
+use std::sync::{Arc, Mutex};
+
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use num_complex::Complex;
 use rustfft::{Fft, FftPlanner};
-use std::sync::{Arc, Mutex};
+
+use super::Config;
+use crate::util::RingBuffer;
 
 pub const AUDIO_SAMPLES: usize = 8192;
 pub const FFT_ATTACK: f32 = 0.5;

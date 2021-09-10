@@ -1,13 +1,15 @@
-use super::uniforms::*;
-use crate::{jockey::*, util::Cache};
-use async_std::task::yield_now;
-use serde_yaml::Value;
 use std::{
     collections::{HashMap, HashSet},
     ffi::CString,
     path::Path,
     rc::Rc,
 };
+
+use async_std::task::yield_now;
+use serde_yaml::Value;
+
+use super::uniforms::*;
+use crate::{jockey::*, util::Cache};
 
 pub type PipelinePartial = Box<dyn Future<Output = Result<(Pipeline, UpdateRequest), String>>>;
 

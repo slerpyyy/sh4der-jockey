@@ -1,10 +1,11 @@
-use gl::types::*;
-use lazy_static::lazy_static;
-use regex::Regex;
 use std::{
     collections::HashSet,
     ffi::{c_void, CString},
 };
+
+use gl::types::*;
+use lazy_static::lazy_static;
+use regex::Regex;
 
 mod average;
 mod cache;

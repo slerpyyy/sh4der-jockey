@@ -56,8 +56,9 @@ impl BeatSync {
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use std::{ops::Sub, time::Duration};
+
+    use super::*;
 
     #[test]
     fn three_beats() {

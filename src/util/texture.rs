@@ -1,12 +1,11 @@
 #![allow(dead_code)]
-use crate::util::*;
-use crate::*;
+use std::{cell::RefCell, fmt::Debug, rc::Rc, u8};
+
 use as_any::AsAny;
-use core::panic;
 use image::DynamicImage;
 use serde_yaml::Value;
-use std::cell::RefCell;
-use std::{fmt::Debug, rc::Rc, u8};
+
+use crate::{util::*, *};
 
 fn _assert_is_object_safe(_: &dyn Texture) {}
 

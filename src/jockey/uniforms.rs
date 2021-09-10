@@ -1,8 +1,9 @@
-use lazy_static::lazy_static;
 use std::ffi::CString;
 
+use lazy_static::lazy_static;
+
 lazy_static! {
-    // slerpy's golf coding stuff
+    // slerpys golf coding stuff
     pub static ref R_NAME: CString = CString::new("R").unwrap();
     pub static ref K_NAME: CString = CString::new("K").unwrap();
 

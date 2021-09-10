@@ -1,21 +1,23 @@
-use crate::util::*;
-use gl::types::*;
-use glutin::platform::run_return::EventLoopExtRunReturn;
-use imgui::im_str;
-use imgui_winit_support::{HiDpiMode, WinitPlatform};
-use notify::Watcher;
-use std::io::Write;
 use std::{
     collections::{hash_map::DefaultHasher, HashMap},
     ffi::CString,
     future::Future,
     hash::{Hash, Hasher},
+    io::Write,
     mem::MaybeUninit,
     pin::Pin,
     rc::Rc,
     sync::atomic::{AtomicBool, Ordering},
     time::{Duration, Instant},
 };
+
+use gl::types::*;
+use glutin::platform::run_return::EventLoopExtRunReturn;
+use imgui::im_str;
+use imgui_winit_support::{HiDpiMode, WinitPlatform};
+use notify::Watcher;
+
+use crate::util::*;
 
 mod audio;
 mod beatsync;

@@ -1,5 +1,6 @@
-use super::Texture;
 use std::{collections::HashMap, rc::Rc};
+
+use super::Texture;
 
 static mut CACHE_INTERNAL: Option<HashMap<String, CacheEntry>> = None;
 

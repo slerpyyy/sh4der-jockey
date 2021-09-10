@@ -1,11 +1,13 @@
-use super::Config;
-use midir::{ConnectError, Ignore, MidiInput, MidiInputConnection, MidiInputPort};
 use std::{
     collections::HashMap,
     io::Write,
     sync::mpsc::{channel, Receiver},
     time::Instant,
 };
+
+use midir::{ConnectError, Ignore, MidiInput, MidiInputConnection, MidiInputPort};
+
+use super::Config;
 
 pub const MIDI_N: usize = 32;
 

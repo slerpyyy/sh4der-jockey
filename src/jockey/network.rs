@@ -1,10 +1,12 @@
-use super::*;
-use ndi::{self, FindCreateError, FindSourcesTimeout};
 use std::{
     iter::FromIterator,
     sync::{Arc, Mutex},
     thread,
 };
+
+use ndi::{self, FindCreateError, FindSourcesTimeout};
+
+use super::*;
 
 static NDI_RECEIVER_NAME: &'static str = "Sh4derJockey";
 
