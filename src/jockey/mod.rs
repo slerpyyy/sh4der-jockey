@@ -4,11 +4,13 @@ use glutin::platform::run_return::EventLoopExtRunReturn;
 use imgui::im_str;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 use notify::Watcher;
+use std::io::Write;
 use std::{
     collections::{hash_map::DefaultHasher, HashMap},
     ffi::CString,
     future::Future,
     hash::{Hash, Hasher},
+    mem::MaybeUninit,
     pin::Pin,
     rc::Rc,
     sync::atomic::{AtomicBool, Ordering},
@@ -518,7 +520,9 @@ impl Jockey {
             ) {
                 if let Some(tex) = buffers.get_mut(name) {
                     unsafe {
-                        alloca::with_slice_assume_init(left.len() + right.len(), |buffer| {
+                        alloca::with_slice(left.len() + right.len(), |buffer| {
+                            let buffer = &mut *(buffer as *mut [MaybeUninit<f32>] as *mut _);
+
                             interlace(left, right, buffer);
                             Rc::get_mut(tex)
                                 .unwrap()
@@ -1022,9 +1026,11 @@ impl Jockey {
                 }
                 token.pop();
                 ui.same_line();
-                let name = format!("button{}", k);
-                let cst = CString::new(name).unwrap();
-                let ims = unsafe { imgui::ImStr::from_cstr_unchecked(&cst) };
+
+                let mut buffer = [0_u8; 16];
+                write!(buffer.as_mut(), "button{}\0", k).unwrap();
+                let cstr = unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(&buffer) };
+                let ims = unsafe { imgui::ImStr::from_cstr_unchecked(cstr) };
                 let button = ui.button_with_size(ims, [64.0, 18.0]);
 
                 // button is false while it's held down.
@@ -1067,9 +1073,11 @@ impl Jockey {
                 }
                 token.pop();
                 ui.same_line();
-                let name = format!("slider{}", k);
-                let cst = CString::new(name).unwrap();
-                let ims = unsafe { imgui::ImStr::from_cstr_unchecked(&cst) };
+
+                let mut buffer = [0_u8; 16];
+                write!(buffer.as_mut(), "slider{}\0", k).unwrap();
+                let cstr = unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(&buffer) };
+                let ims = unsafe { imgui::ImStr::from_cstr_unchecked(cstr) };
                 let slider = &mut self.midi.sliders[k];
                 imgui::Slider::new(ims).range(0.0..=1.0).build(&ui, slider);
             }
@@ -1161,7 +1169,6 @@ impl Jockey {
         self.ctx.ui_context.swap_buffers().unwrap();
     }
 
-    #[allow(dead_code)]
     pub fn save_frame(&mut self) {
         take_mut::take(&mut self.ctx.context, |s| unsafe {
             s.make_current().unwrap()
