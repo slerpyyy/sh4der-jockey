@@ -1,32 +1,30 @@
 [package]
 name = "sh4der-jockey"
 version = "0.2.0"
-description = "A custom VJ tool written by sp4ghet and slerpy"
+description = "A tool for shader coding and live performances"
 edition = "2018"
 build = "build.rs"
 
-#[profile.release]
-#lto = "fat"
-#codegen-units = 1
-#panic = "abort"
+[profile.release]
+lto = "fat"
 
 [dependencies]
 alloca = { git = "https://github.com/slerpyyy/alloca-rs", branch = "v2" }
 anyhow = "1.0"
 as-any = "0.2"
 async-std = { version = "1.9", default-features = false, features = ["std"] }
+clap = "3.0.0-beta"
 cpal = "0.13"
 ctrlc = { version = "3.2", features = ["termination"] }
 futures = { version = "0.3", default-features = false }
-winapi = "0.3"
-clap = "3.0.0-beta"
 gl = "0.14"
-glutin = "0.26"
+glutin = "0.26" # must match version used in imgui forks
 image = "0.23"
 imgui = { git = "https://github.com/sp4ghet/imgui-rs", branch = "master" }
 imgui-opengl-renderer = { git = "https://github.com/sp4ghet/rust-imgui-opengl-renderer", branch = "master" }
 imgui-winit-support = { git = "https://github.com/sp4ghet/imgui-rs", branch = "master" }
 lazy_static = "1.4"
+log = "0.4"
 midir = "0.7"
 ndi = { git = "https://github.com/slerpyyy/ndi-rs", branch = "main" }
 nfd = { git = "https://github.com/saurvs/nfd-rs.git" }
@@ -36,9 +34,9 @@ rand = "0.8"
 regex = "1.4"
 rustfft = "6.0"
 serde_yaml = "0.8"
-log = "0.4"
 simplelog = "0.10"
 take_mut = "0.2"
+winapi = "0.3"
 
 [build-dependencies]
 anyhow = "1.0"

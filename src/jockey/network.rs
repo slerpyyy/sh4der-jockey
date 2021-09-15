@@ -128,8 +128,12 @@ impl Ndi {
         }
     }
 
-    pub fn connect(&mut self, requested: &[&str]) -> Result<(), ndi::RecvCreateError> {
-        if requested.is_empty() {
+    pub fn connect<I, T>(&mut self, requested: &I) -> Result<(), ndi::RecvCreateError>
+    where
+        I: ExactSizeIterator<Item = T> + Clone,
+        T: AsRef<str>,
+    {
+        if requested.len() == 0 {
             return Ok(());
         }
 
@@ -151,7 +155,8 @@ impl Ndi {
             .iter()
             .filter_map(|src| {
                 let src_name = src.get_name();
-                for &pat in requested {
+                for pat in requested.clone() {
+                    let pat = pat.as_ref();
                     if src_name.contains(pat) {
                         return Some((pat.into(), src));
                     }

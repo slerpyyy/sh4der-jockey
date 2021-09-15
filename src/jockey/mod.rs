@@ -332,18 +332,28 @@ impl Jockey {
 
     fn update_pipeline_incremental(&mut self, timeout: Duration) {
         let start = Instant::now();
-        if let Some(part) = self.pipeline_partial.as_mut() {
+        while let Some(part) = self.pipeline_partial.as_mut() {
             if start.elapsed() > timeout {
                 return;
             }
 
             if let Some(result) = futures::FutureExt::now_or_never(part) {
                 self.pipeline_partial = None;
-                let update = match result {
-                    Ok((pl, update)) => {
-                        self.pipeline = pl;
-                        update
-                    }
+
+                // set waker on current working directory
+                self.ctx.watcher = Some({
+                    let event_fn = |_| unsafe { PIPELINE_STALE.store(true, Ordering::Release) };
+                    let mut watcher = notify::immediate_watcher(event_fn).unwrap();
+                    watcher
+                        .watch(".", notify::RecursiveMode::Recursive)
+                        .unwrap();
+
+                    watcher
+                });
+
+                // unwrap pipeline build result
+                let (new_pipeline, update) = match result {
+                    Ok(t) => t,
                     Err(err) => {
                         self.console = format!("Failed to build pipeline:\n{}", err);
                         log::error!("{}", &self.console);
@@ -351,6 +361,10 @@ impl Jockey {
                     }
                 };
 
+                // set new pipeline
+                self.pipeline = new_pipeline;
+
+                // log build time
                 let build_time = self.last_build.elapsed().as_secs_f64();
                 self.console = format!("Build pipeline over a span of {}s", build_time);
                 log::info!("{}", &self.console);
@@ -362,23 +376,11 @@ impl Jockey {
                     self.audio.resize(update.audio_samples);
                 }
 
-                let requests: Vec<_> = self
-                    .pipeline
-                    .requested_ndi_sources
-                    .values()
-                    .map(|x| x.as_str())
-                    .collect();
-                self.ndi.connect(&requests).unwrap();
-
-                self.ctx.watcher = Some({
-                    let event_fn = |_| unsafe { PIPELINE_STALE.store(true, Ordering::Release) };
-                    let mut watcher = notify::immediate_watcher(event_fn).unwrap();
-                    watcher
-                        .watch(".", notify::RecursiveMode::Recursive)
-                        .unwrap();
-
-                    watcher
-                });
+                // update ndi module
+                let requests = self.pipeline.requested_ndi_sources.values();
+                if let Err(err) = self.ndi.connect(&requests) {
+                    log::error!("Failed to connect to NDI sources: {}", err);
+                }
             }
         }
     }

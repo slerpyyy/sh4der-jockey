@@ -5,7 +5,11 @@
 mod util;
 mod jockey;
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::{
+    path::Path,
+    sync::atomic::{AtomicBool, Ordering},
+    time::Duration,
+};
 
 use clap::{AppSettings, Clap};
 use jockey::Jockey;
@@ -61,8 +65,8 @@ fn main() {
     .unwrap();
 
     if let Some(SubCommand::Init) = args.subcmd {
-        let plf = std::path::Path::new("./pipeline.yaml");
-        let shf = std::path::Path::new("./scene.frag");
+        let plf = Path::new("./pipeline.yaml");
+        let shf = Path::new("./scene.frag");
 
         if plf.exists() || shf.exists() {
             log::error!(
@@ -74,8 +78,12 @@ fn main() {
             return;
         }
 
-        std::fs::write(plf, include_str!("defaults/pipeline.yaml")).unwrap();
-        std::fs::write(shf, include_str!("defaults/scene.frag")).unwrap();
+        let plf_res = std::fs::write(plf, include_str!("defaults/pipeline.yaml"));
+        let shf_res = std::fs::write(shf, include_str!("defaults/scene.frag"));
+
+        if let Err(err) = plf_res.and(shf_res) {
+            log::error!("{}", err);
+        }
 
         return;
     }
@@ -87,7 +95,7 @@ fn main() {
         kill_signal.store(true, Ordering::Release);
 
         // give it a moment to exit peacefully
-        std::thread::sleep(std::time::Duration::from_secs(3));
+        std::thread::sleep(Duration::from_secs(3));
 
         log::info!("Alright, let's kill this thing");
         std::process::exit(0);
@@ -120,24 +128,26 @@ fn main() {
     log::info!("Bye bye!");
 }
 
+// https://github.com/kirillkovalenko/nssm/blob/master/console.cpp
 #[cfg(all(windows, not(debug_assertions)))]
 fn close_console() {
-    let console = unsafe { winapi::um::wincon::GetConsoleWindow() };
+    use winapi::um::{processthreadsapi, wincon, winuser};
+
+    let console = unsafe { wincon::GetConsoleWindow() };
     if console.is_null() {
         return;
     }
 
     let mut console_pid = 0;
-    let status =
-        unsafe { winapi::um::winuser::GetWindowThreadProcessId(console, &mut console_pid) };
+    let status = unsafe { winuser::GetWindowThreadProcessId(console, &mut console_pid) };
     if status == 0 {
         return;
     }
 
-    let self_pid = unsafe { winapi::um::processthreadsapi::GetCurrentProcessId() };
+    let self_pid = unsafe { processthreadsapi::GetCurrentProcessId() };
     if console_pid != self_pid {
         return;
     }
 
-    unsafe { winapi::um::wincon::FreeConsole() };
+    unsafe { wincon::FreeConsole() };
 }

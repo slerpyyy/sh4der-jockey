@@ -1,8 +1,7 @@
-
-<img align="left" style="float: left; height: 9em; margin: 2em" src="docs/logo.png">
+<img align="left" style="height: 9em; margin: 2em" src="docs/logo.png">
 
 # Sh4derJockey
-*A custom VJ tool written by sp4ghet and slerpy*
+*A tool for shader coding and live performances*
 
 <br>
 
@@ -13,6 +12,11 @@ The documentation on how to use this tool can be found in the [docs](docs/) fold
 [Read in English](docs/readme_en.md) | [日本語で読む](docs/readme_jp.md)
 
 ## Setup
+
+To build this project from source, you will need a Rust compiler and the Cargo package manager.
+We highly recommend installing `rustup` which takes care of installing and updating the entire Rust toolchain.
+
+Checkout the [Getting Started](https://www.rust-lang.org/learn/get-started) section on the rust-lang website for more.
 
 ```sh
 # clone the repo
@@ -26,8 +30,11 @@ cargo run
 cargo install --path .
 ```
 
-| ⚠️ | Please note that the tool may drop config files in the folder where the executable is located. |
+| ⚠️ | Please note that the tool drops config files in the folder where the executable is located. |
 |-|-|
+
+It is up to the user to ensure that additional files in the install directory do not interfere with other programs.
+The tool does also work when placed into a read-only directory, but user comfort will suffer.
 
 ## License
 
