@@ -25,7 +25,7 @@ impl Config {
         let reader = std::fs::File::open(file_path)?;
         let object: Value = serde_yaml::from_reader(reader)?;
 
-        let mut midi_devices = vec![];
+        let mut midi_devices = Vec::new();
 
         match object.get("midi_devices") {
             Some(Value::Sequence(xs)) => {
@@ -61,7 +61,7 @@ impl Config {
             }
         };
 
-        let mut ndi_sources = vec![];
+        let mut ndi_sources = Vec::new();
         match object.get("ndi_sources") {
             Some(Value::Sequence(xs)) => {
                 for val in xs {

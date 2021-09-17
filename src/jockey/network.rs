@@ -39,12 +39,12 @@ impl Ndi {
 
                 let locals = match find_local.current_sources(1000) {
                     Ok(s) => s,
-                    Err(FindSourcesTimeout) => vec![],
+                    Err(FindSourcesTimeout) => Vec::new(),
                 };
 
                 let remotes = match find_remote.current_sources(1000) {
                     Ok(s) => s,
-                    Err(FindSourcesTimeout) => vec![],
+                    Err(FindSourcesTimeout) => Vec::new(),
                 };
 
                 let mut sources = sources.lock().unwrap();

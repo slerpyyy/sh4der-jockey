@@ -14,7 +14,7 @@ void main() {
         float x = float(i) / float(iter - 1);
         float s = 1.0 + 0.3 * (sliders[0]) * (x - 0.5);
         vec2 tuv = 0.5 + s * (uv - 0.5);
-        acc += vec4(gay(x), 1) * texture2D(tex, tuv);
+        acc += vec4(rainbow(x), 1) * texture2D(tex, tuv);
     }
 
     acc /= float(iter);

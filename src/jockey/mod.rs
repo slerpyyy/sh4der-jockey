@@ -214,7 +214,7 @@ impl Jockey {
             midi,
             audio,
             ndi,
-            pipeline_files: vec![],
+            pipeline_files: Vec::new(),
             pipeline,
             pipeline_index: 0,
             pipeline_partial: None,

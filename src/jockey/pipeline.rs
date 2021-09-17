@@ -291,7 +291,7 @@ impl Pipeline {
         // parse images section
         let images = match object.get("images") {
             Some(Value::Sequence(s)) => s.clone(),
-            None => vec![],
+            None => Vec::new(),
             s => return Err(format!("Expected \"images\" to be an array, got {:?}", s)),
         };
 
@@ -350,7 +350,7 @@ impl Pipeline {
         //parse ndi section
         let ndi_sources = match object.get("ndi") {
             Some(Value::Sequence(s)) => s.clone(),
-            None => vec![],
+            None => Vec::new(),
             Some(s) => {
                 return Err(format!(
                     "Expected \"ndi\" to be an array, got {:?} instead.",
