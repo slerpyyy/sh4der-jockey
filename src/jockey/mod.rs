@@ -391,10 +391,22 @@ impl Jockey {
         });
 
         let do_update_project = unsafe { PROJECT_STALE.swap(false, Ordering::AcqRel) };
+
+        // reload all things that depend on the project-level config file
         if do_update_project {
             let config = Config::load_or_default();
-            self.audio = Audio::new(AUDIO_SAMPLES, &config);
-            self.midi = Midi::new(&config);
+
+            // the old midi struct must be dropped before the new one is created,
+            // because it fails to connect to any common midi controller otherwise
+            take_mut::take(&mut self.midi, |midi| {
+                drop(midi);
+                Midi::new(&config)
+            });
+
+            take_mut::take(&mut self.audio, |audio| {
+                drop(audio);
+                Audio::new(AUDIO_SAMPLES, &config)
+            });
         }
 
         let platform = &mut self.ctx.platform;

@@ -1506,7 +1506,7 @@ dependencies = [
 [[package]]
 name = "ndi"
 version = "0.1.1"
-source = "git+https://github.com/sp4ghet/ndi-rs?branch=main#5d05703eddc455dad7b60ae862955a19c81f5c34"
+source = "git+https://github.com/sp4ghet/ndi-rs?branch=main#352750b01402dee21da687d97f6e5b8b6cd6911b"
 
 [[package]]
 name = "ndk"
