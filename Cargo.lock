@@ -1505,8 +1505,8 @@ dependencies = [
 
 [[package]]
 name = "ndi"
-version = "0.1.0"
-source = "git+https://github.com/slerpyyy/ndi-rs?branch=main#e4973b1f1d6148370d0d3c0894afb29e8d42c71f"
+version = "0.1.1"
+source = "git+https://github.com/sp4ghet/ndi-rs?branch=main#5d05703eddc455dad7b60ae862955a19c81f5c34"
 
 [[package]]
 name = "ndk"
@@ -2187,7 +2187,7 @@ dependencies = [
 
 [[package]]
 name = "sh4der-jockey"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "alloca",
  "anyhow",
