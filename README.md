@@ -1,4 +1,4 @@
-<img align="left" style="height: 9em; margin: 2em" src="docs/logo.png">
+<img align="left" style="height: 17ch; margin: 1ch" src="docs/logo.png">
 
 # Sh4derJockey
 *A tool for shader coding and live performances*
