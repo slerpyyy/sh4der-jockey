@@ -1,5 +1,4 @@
 use std::{
-    iter::FromIterator,
     sync::{Arc, Mutex},
     thread,
 };
@@ -65,7 +64,7 @@ impl Ndi {
                     }
                 }
 
-                //log::info!("Found NDI sources: {:?}", sources);
+                log::debug!("Found NDI sources: {:?}", sources);
 
                 if blocking {
                     return Ok(());
@@ -75,56 +74,6 @@ impl Ndi {
 
         if blocking {
             handle.join().unwrap().unwrap();
-        }
-    }
-
-    fn convert_format(video: ndi::VideoData) -> image::DynamicImage {
-        let size = video.line_stride_in_bytes().unwrap() * video.height();
-        let slice = unsafe { std::slice::from_raw_parts(video.p_data(), size as _) };
-        let vec = Vec::from_iter(slice.to_owned());
-
-        match video.four_cc() {
-            ndi::FourCCVideoType::BGRA => {
-                let buf = image::ImageBuffer::<image::Bgra<u8>, Vec<_>>::from_vec(
-                    video.width(),
-                    video.height(),
-                    vec,
-                )
-                .unwrap();
-
-                image::DynamicImage::ImageBgra8(buf)
-            }
-            ndi::FourCCVideoType::BGRX => {
-                let buf = image::ImageBuffer::<image::Bgr<u8>, Vec<_>>::from_vec(
-                    video.width(),
-                    video.height(),
-                    vec,
-                )
-                .unwrap();
-
-                image::DynamicImage::ImageBgr8(buf)
-            }
-            ndi::FourCCVideoType::RGBA => {
-                let buf = image::ImageBuffer::<image::Rgba<u8>, Vec<_>>::from_vec(
-                    video.width(),
-                    video.height(),
-                    vec,
-                )
-                .unwrap();
-
-                image::DynamicImage::ImageRgba8(buf)
-            }
-            ndi::FourCCVideoType::RGBX => {
-                let buf = image::ImageBuffer::<image::Rgb<u8>, Vec<_>>::from_vec(
-                    video.width(),
-                    video.height(),
-                    vec,
-                )
-                .unwrap();
-
-                image::DynamicImage::ImageRgb8(buf)
-            }
-            _ => panic!("Failed to convert image"),
         }
     }
 
@@ -207,7 +156,7 @@ impl Ndi {
                     }
 
                     let img = match video_data {
-                        Some(video) => Ndi::convert_format(video).flipv(),
+                        Some(video) => convert_format(video).flipv(),
                         _ => continue,
                     };
 
@@ -242,5 +191,55 @@ impl Ndi {
                 tex.write(video.as_ptr() as _);
             }
         }
+    }
+}
+
+fn convert_format(video: ndi::VideoData) -> image::DynamicImage {
+    let size = video.line_stride_in_bytes().unwrap() * video.height();
+    let slice = unsafe { std::slice::from_raw_parts(video.p_data(), size as _) };
+    let vec = slice.to_owned();
+
+    match video.four_cc() {
+        ndi::FourCCVideoType::BGRA => {
+            let buf = image::ImageBuffer::<image::Bgra<u8>, Vec<_>>::from_vec(
+                video.width(),
+                video.height(),
+                vec,
+            )
+            .unwrap();
+
+            image::DynamicImage::ImageBgra8(buf)
+        }
+        ndi::FourCCVideoType::BGRX => {
+            let buf = image::ImageBuffer::<image::Bgr<u8>, Vec<_>>::from_vec(
+                video.width(),
+                video.height(),
+                vec,
+            )
+            .unwrap();
+
+            image::DynamicImage::ImageBgr8(buf)
+        }
+        ndi::FourCCVideoType::RGBA => {
+            let buf = image::ImageBuffer::<image::Rgba<u8>, Vec<_>>::from_vec(
+                video.width(),
+                video.height(),
+                vec,
+            )
+            .unwrap();
+
+            image::DynamicImage::ImageRgba8(buf)
+        }
+        ndi::FourCCVideoType::RGBX => {
+            let buf = image::ImageBuffer::<image::Rgb<u8>, Vec<_>>::from_vec(
+                video.width(),
+                video.height(),
+                vec,
+            )
+            .unwrap();
+
+            image::DynamicImage::ImageRgb8(buf)
+        }
+        _ => panic!("Failed to convert image"),
     }
 }

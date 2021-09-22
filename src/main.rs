@@ -33,7 +33,7 @@ struct Args {
     subcmd: Option<SubCommand>,
 
     #[clap(short, long, parse(from_occurrences))]
-    #[clap(about = "Use verbose output (can be used multiple times)")]
+    #[clap(about = "Use verbose output (can be applied multiple times)")]
     verbose: u32,
 }
 
@@ -105,7 +105,7 @@ fn main() {
     // create the jockey
     let mut jockey = Jockey::init();
 
-    // close console
+    // close console window
     #[cfg(all(windows, not(debug_assertions)))]
     close_console();
 
