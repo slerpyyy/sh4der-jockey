@@ -73,4 +73,5 @@ void main() {
     }
 
     out_color /= samples;
+    out_color.w = 1;
 }
