@@ -22,6 +22,7 @@ use crate::util::*;
 mod audio;
 mod beatsync;
 mod config;
+mod geometry;
 mod midi;
 mod network;
 mod pipeline;
@@ -31,6 +32,7 @@ mod uniforms;
 pub use audio::*;
 pub use beatsync::*;
 pub use config::*;
+pub use geometry::*;
 pub use midi::*;
 pub use network::*;
 pub use pipeline::*;
@@ -66,6 +68,7 @@ pub struct Jockey {
     pub last_build: Instant,
     pub last_frame: Instant,
     pub last_frame_ui: Instant,
+    pub geometry_fullscreen_rect: Geometry,
     pub midi: Midi,
     pub audio: Audio,
     pub ndi: Ndi,
@@ -196,6 +199,14 @@ impl Jockey {
             platform,
         };
 
+        let mut geometry_fullscreen_rect = Geometry::init(4);
+        geometry_fullscreen_rect.mode = gl::TRIANGLE_STRIP;
+
+        geometry_fullscreen_rect.attributes.insert(0, GeometryAttribute::init(
+            vec![-1.0, -1.0, 1.0, -1.0, -1.0, 1.0, 1.0, 1.0],
+            2,
+        ));
+
         let pipeline = Pipeline::splash_screen();
         let midi = Midi::new(&config);
         let ndi = Ndi::new();
@@ -211,6 +222,7 @@ impl Jockey {
             last_build: now,
             last_frame: now,
             last_frame_ui: now,
+            geometry_fullscreen_rect,
             midi,
             audio,
             ndi,
@@ -894,7 +906,8 @@ impl Jockey {
                         draw_vertices(self.ctx.vao, count, mode);
                         gl_debug_check!();
                     } else {
-                        draw_fullscreen(self.ctx.vao);
+                        let geometry = &mut self.geometry_fullscreen_rect;
+                        draw_vao(geometry.vao(), geometry.count, geometry.mode);
                         gl_debug_check!();
                     }
 

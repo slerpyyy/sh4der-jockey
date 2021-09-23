@@ -66,27 +66,15 @@ macro_rules! gl_debug_ignore {
     };
 }
 
-const FULLSCREEN_RECT: [GLfloat; 12] = [
-    -1.0, -1.0, -1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, -1.0, -1.0, -1.0,
-];
-
-pub fn draw_fullscreen(vao: GLuint) {
+pub fn draw_vao(vao: GLuint, count: GLsizei, mode: GLenum) {
     unsafe {
         gl::BindVertexArray(vao);
-        gl::BindBuffer(gl::ARRAY_BUFFER, vao);
         gl_debug_check!();
 
-        let data_size = FULLSCREEN_RECT.len() * std::mem::size_of::<GLfloat>();
-        gl::BufferData(
-            gl::ARRAY_BUFFER,
-            data_size as _,
-            std::mem::transmute(&FULLSCREEN_RECT[0]),
-            gl::STATIC_DRAW,
-        );
+        gl::DrawArrays(mode, 0, count);
         gl_debug_check!();
 
-        let vert_count = FULLSCREEN_RECT.len() as GLsizei / 2;
-        gl::DrawArrays(gl::TRIANGLES, 0, vert_count);
+        gl::BindVertexArray(0);
         gl_debug_check!();
     }
 }
@@ -101,6 +89,9 @@ pub fn draw_vertices(vao: GLuint, count: GLsizei, mode: GLenum) {
         gl_debug_check!();
 
         gl::DrawArrays(mode, 0, count);
+        gl_debug_check!();
+
+        gl::BindVertexArray(0);
         gl_debug_check!();
     }
 }
