@@ -199,13 +199,7 @@ impl Jockey {
             platform,
         };
 
-        let mut geometry_fullscreen_rect = Geometry::init(4);
-        geometry_fullscreen_rect.mode = gl::TRIANGLE_STRIP;
-
-        geometry_fullscreen_rect.attributes.insert(0, GeometryAttribute::init(
-            vec![-1.0, -1.0, 1.0, -1.0, -1.0, 1.0, 1.0, 1.0],
-            2,
-        ));
+        let geometry_fullscreen_rect = Geometry::fullscreen_rect();
 
         let pipeline = Pipeline::splash_screen();
         let midi = Midi::new(&config);

@@ -157,6 +157,20 @@ impl Geometry {
         }
     }
 
+    /// Make a fullscreen rect geometry.
+    pub fn fullscreen_rect() -> Self {
+        let mut geometry = Geometry::init(4);
+        geometry.mode = gl::TRIANGLE_STRIP;
+
+        let attr_pos = GeometryAttribute::init(
+            vec![-1.0, -1.0, 1.0, -1.0, -1.0, 1.0, 1.0, 1.0],
+            2,
+        );
+        geometry.attributes.insert(0, attr_pos);
+
+        geometry
+    }
+
     /// Make a vertex array object out of this geometry and assign it to its vao field.
     pub fn vao(&mut self) -> GLuint {
         match self._vao {
