@@ -66,12 +66,25 @@ macro_rules! gl_debug_ignore {
     };
 }
 
-pub fn draw_vao(vao: GLuint, count: GLsizei, mode: GLenum) {
+pub fn draw_arrays_vao(vao: GLuint, count: GLsizei, mode: GLenum) {
     unsafe {
         gl::BindVertexArray(vao);
         gl_debug_check!();
 
         gl::DrawArrays(mode, 0, count);
+        gl_debug_check!();
+
+        gl::BindVertexArray(0);
+        gl_debug_check!();
+    }
+}
+
+pub fn draw_elements_vao(vao: GLuint, count: GLsizei, mode: GLenum) {
+    unsafe {
+        gl::BindVertexArray(vao);
+        gl_debug_check!();
+
+        gl::DrawElements(mode, count, gl::UNSIGNED_INT, std::ptr::null());
         gl_debug_check!();
 
         gl::BindVertexArray(0);

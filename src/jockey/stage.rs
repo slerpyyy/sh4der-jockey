@@ -3,7 +3,9 @@ use std::ffi::CString;
 use gl::types::*;
 use serde_yaml::Value;
 
-use crate::util::*;
+use super::geometry_from_gltf::*;
+
+use crate::{jockey::Geometry, util::*};
 
 pub const PASS_VERT: &str = include_str!("shaders/pass.vert");
 pub const PASS_FRAG: &str = include_str!("shaders/pass.frag");
@@ -16,6 +18,7 @@ pub enum StageKind {
     Vert {
         count: GLsizei,
         mode: GLenum,
+        geometries: Option<Vec<Geometry>>,
         thickness: f32,
     },
     Frag {},
@@ -173,6 +176,25 @@ impl Stage {
                     }
                 };
 
+                let gltf = match object.get("gltf") {
+                    Some(s) => match s.as_str() {
+                        Some(value) => {
+                            match geometry_from_gltf(value.to_string()) {
+                                Ok(s) => Some(s),
+                                Err(e) => {
+                                    log::warn!("{}", e);
+                                    None
+                                },
+                            }
+                        },
+                        _ => {
+                            log::warn!("Invalid path detected: {:?}", s);
+                            None
+                        },
+                    },
+                    _ => None,
+                };
+
                 let builder = TextureBuilder::parse(&object, true, true)?;
 
                 if !matches!(builder.resolution.as_slice(), &[] | &[_, _]) {
@@ -182,6 +204,7 @@ impl Stage {
                 let kind = StageKind::Vert {
                     count,
                     mode,
+                    geometries: gltf,
                     thickness,
                 };
 

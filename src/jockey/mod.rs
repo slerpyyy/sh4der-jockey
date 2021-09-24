@@ -22,7 +22,9 @@ use crate::util::*;
 mod audio;
 mod beatsync;
 mod config;
+mod geometry_from_gltf;
 mod geometry;
+mod matrix4;
 mod midi;
 mod network;
 mod pipeline;
@@ -174,6 +176,10 @@ impl Jockey {
 
         let prog_addr = |s| context.get_proc_address(s) as _;
         gl::load_with(prog_addr);
+
+        unsafe {
+            gl::Enable(gl::DEPTH_TEST);
+        }
 
         // setup OpenGL
         let mut vao = 0;
@@ -832,7 +838,9 @@ impl Jockey {
                 }
             }
 
-            match &stage.kind {
+            let kind = &mut stage.kind;
+
+            match kind {
                 StageKind::Comp { dispatch, .. } => unsafe {
                     gl::DispatchCompute(dispatch[0], dispatch[1], dispatch[2]);
                     gl::MemoryBarrier(
@@ -886,22 +894,37 @@ impl Jockey {
                         count,
                         mode,
                         thickness,
+                        geometries,
                         ..
-                    } = stage.kind
+                    } = kind
                     {
                         gl::ClearColor(0.0, 0.0, 0.0, 0.0);
-                        gl::Clear(gl::COLOR_BUFFER_BIT);
+                        gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
                         gl_debug_check!();
 
-                        gl::PointSize(thickness);
-                        gl::LineWidth(thickness);
+                        gl::PointSize(*thickness);
+                        gl::LineWidth(*thickness);
                         gl_debug_check!();
 
-                        draw_vertices(self.ctx.vao, count, mode);
+                        if let Some(s) = geometries {
+                            for geometry in s {
+                                let vao = geometry.vao();
+
+                                if geometry.indices.is_some() {
+                                    draw_elements_vao(vao, geometry.count, geometry.mode);
                         gl_debug_check!();
+                                } else {
+                                    draw_arrays_vao(vao, geometry.count, geometry.mode);
+                                    gl_debug_check!();
+                                }
+                            }
+                        } else {
+                            draw_vertices(self.ctx.vao, *count, *mode);
+                            gl_debug_check!();
+                        };
                     } else {
                         let geometry = &mut self.geometry_fullscreen_rect;
-                        draw_vao(geometry.vao(), geometry.count, geometry.mode);
+                        draw_arrays_vao(geometry.vao(), geometry.count, geometry.mode);
                         gl_debug_check!();
                     }
 

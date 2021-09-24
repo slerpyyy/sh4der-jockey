@@ -5,7 +5,7 @@ use gl::types::*;
 /// A struct represents a single attribute of a Geometry.
 /// You should not use a single GeometryAttribute across multiple Geometries,
 /// since Geometry will delete the gl buffer on drop.
-pub struct GeometryAttribute<T> {
+pub struct GeometryAttribute<T> where T: std::fmt::Debug {
     /// The data of the attribute.
     pub array: Vec<T>,
 
@@ -39,28 +39,30 @@ pub struct Geometry {
     /// Attributes of the geometry. Keys are attribute location.
     pub attributes: HashMap<GLuint, GeometryAttribute<GLfloat>>,
 
+    /// Index buffer of the geometry.
+    pub indices: Option<GeometryAttribute<GLuint>>,
+
     /// A vao object for this geometry.
     _vao: Option<GLuint>,
 }
 
-impl<GLfloat> GeometryAttribute<GLfloat> {
+impl<T> GeometryAttribute<T> where T: std::fmt::Debug {
     pub fn init(
-        array: Vec<GLfloat>,
+        array: Vec<T>,
         size: GLuint,
+        type_: GLenum,
     ) -> Self {
         GeometryAttribute {
             array,
             size,
-            type_: gl::FLOAT,
+            type_,
             normalized: gl::FALSE,
             target: gl::ARRAY_BUFFER,
             usage: gl::STATIC_DRAW,
             _buffer: None,
         }
     }
-}
 
-impl<T> GeometryAttribute<T> {
     /// Make a vertex buffer object out of this attribute and assign it to its buffer field.
     pub fn buffer(&mut self) -> GLuint {
         match self._buffer {
@@ -80,11 +82,6 @@ impl<T> GeometryAttribute<T> {
                         std::mem::transmute(self.array.as_ptr()),
                         self.usage,
                     );
-                    gl_debug_check!();
-                }
-
-                unsafe {
-                    gl::BindBuffer(self.target, 0);
                     gl_debug_check!();
                 }
 
@@ -116,11 +113,6 @@ impl<T> GeometryAttribute<T> {
                     );
                     gl_debug_check!();
                 }
-
-                unsafe {
-                    gl::BindBuffer(self.target, 0);
-                    gl_debug_check!();
-                }
             }
         }
     }
@@ -141,18 +133,35 @@ impl<T> GeometryAttribute<T> {
     }
 }
 
-impl<T> Drop for GeometryAttribute<T> {
+impl<T> std::fmt::Debug for GeometryAttribute<T> where T: std::fmt::Debug {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct(stringify!(Geometry))
+            .field("size", &self.size)
+            .field("type_", &self.type_)
+            .field("normalized", &self.normalized)
+            .field("target", &self.target)
+            .field("usage", &self.usage)
+            .finish()
+    }
+}
+
+impl<T> Drop for GeometryAttribute<T> where T: std::fmt::Debug {
     fn drop(&mut self) {
         self.delete_buffer();
     }
 }
 
 impl Geometry {
+    pub const ATTRIBUTE_POSITION: GLuint = 0;
+    pub const ATTRIBUTE_NORMAL: GLuint = 1;
+    pub const ATTRIBUTE_TEXCOORD0: GLuint = 2;
+
     pub fn init(count: GLsizei) -> Self {
         Geometry {
             count,
             mode: gl::TRIANGLES,
             attributes: HashMap::new(),
+            indices: None,
             _vao: None,
         }
     }
@@ -165,6 +174,7 @@ impl Geometry {
         let attr_pos = GeometryAttribute::init(
             vec![-1.0, -1.0, 1.0, -1.0, -1.0, 1.0, 1.0, 1.0],
             2,
+            gl::FLOAT,
         );
         geometry.attributes.insert(0, attr_pos);
 
@@ -184,6 +194,11 @@ impl Geometry {
                     gl_debug_check!();
                 }
 
+                // indices
+                if let Some(indices) = &mut self.indices {
+                    indices.buffer();
+                }
+
                 // attributes
                 for (index, attribute) in self.attributes.iter_mut() {
                     attribute.buffer();
@@ -194,12 +209,6 @@ impl Geometry {
                     }
 
                     attribute.vertex_attrib_pointer(*index);
-                }
-
-                // ending
-                unsafe {
-                    gl::BindVertexArray(0);
-                    gl_debug_check!();
                 }
 
                 self._vao = Some(vao);
@@ -223,6 +232,16 @@ impl Geometry {
                 self._vao = None;
             }
         }
+    }
+}
+
+impl std::fmt::Debug for Geometry {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct(stringify!(Geometry))
+            .field("count", &self.count)
+            .field("mode", &self.mode)
+            .field("attributes", &self.attributes)
+            .finish()
     }
 }
 
