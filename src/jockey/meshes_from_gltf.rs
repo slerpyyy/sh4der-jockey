@@ -61,10 +61,7 @@ fn geometry_from_primitive(
         };
 
         let count = iter.len();
-        let mut vec: Vec<GLfloat> = Vec::with_capacity(3 * count);
-
-        // TODO: There definitely is a better way to do this
-        for v in iter { for c in v { vec.push(c); } }
+        let vec: Vec<GLfloat> = iter.flatten().collect();
 
         let mut positions = GeometryAttribute::init(vec, 3, gl::FLOAT);
         positions.normalized = match primitive.get(&gltf::Semantic::Positions) {
@@ -83,10 +80,7 @@ fn geometry_from_primitive(
         if let Some(s) = reader.read_indices() {
             let iter = s.into_u32();
             let count = iter.len();
-            let mut vec: Vec<GLuint> = Vec::with_capacity(count);
-
-            // TODO: There definitely is a better way to do this
-            for i in iter { vec.push(i); }
+            let vec: Vec<GLuint> = iter.collect();
 
             let mut indices = GeometryAttribute::init(vec, 1, gl::UNSIGNED_INT);
             indices.target = gl::ELEMENT_ARRAY_BUFFER;
@@ -99,11 +93,7 @@ fn geometry_from_primitive(
     // normals
     {
         if let Some(iter) = reader.read_normals() {
-            let count = iter.len();
-            let mut vec: Vec<GLfloat> = Vec::with_capacity(3 * count);
-
-            // TODO: There definitely is a better way to do this
-            for v in iter { for c in v { vec.push(c); } }
+            let vec: Vec<GLfloat> = iter.flatten().collect();
 
             let mut normals = GeometryAttribute::init(vec, 3, gl::FLOAT);
             normals.normalized = match primitive.get(&gltf::Semantic::Normals) {
@@ -119,11 +109,7 @@ fn geometry_from_primitive(
     {
         if let Some(s) = reader.read_tex_coords(0) {
             let iter = s.into_f32();
-            let count = iter.len();
-            let mut vec: Vec<GLfloat> = Vec::with_capacity(2 * count);
-
-            // TODO: There definitely is a better way to do this
-            for v in iter { for c in v { vec.push(c); } }
+            let vec: Vec<GLfloat> = iter.flatten().collect();
 
             let mut texcoords0 = GeometryAttribute::init(vec, 2, gl::FLOAT);
             texcoords0.normalized = match primitive.get(&gltf::Semantic::TexCoords(0)) {
