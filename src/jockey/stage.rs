@@ -3,9 +3,9 @@ use std::ffi::CString;
 use gl::types::*;
 use serde_yaml::Value;
 
-use super::geometry_from_gltf::*;
+use super::{mesh::Mesh, meshes_from_gltf::*};
 
-use crate::{jockey::Geometry, util::*};
+use crate::{util::*};
 
 pub const PASS_VERT: &str = include_str!("shaders/pass.vert");
 pub const PASS_FRAG: &str = include_str!("shaders/pass.frag");
@@ -18,7 +18,7 @@ pub enum StageKind {
     Vert {
         count: GLsizei,
         mode: GLenum,
-        geometries: Option<Vec<Geometry>>,
+        meshes: Option<Vec<Mesh>>,
         thickness: f32,
     },
     Frag {},
@@ -179,7 +179,7 @@ impl Stage {
                 let gltf = match object.get("gltf") {
                     Some(s) => match s.as_str() {
                         Some(value) => {
-                            match geometry_from_gltf(value.to_string()) {
+                            match meshes_from_gltf(value.to_string()) {
                                 Ok(s) => Some(s),
                                 Err(e) => {
                                     log::warn!("{}", e);
@@ -204,7 +204,7 @@ impl Stage {
                 let kind = StageKind::Vert {
                     count,
                     mode,
-                    geometries: gltf,
+                    meshes: gltf,
                     thickness,
                 };
 

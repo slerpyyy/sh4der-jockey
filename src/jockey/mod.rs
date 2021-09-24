@@ -22,13 +22,15 @@ use crate::util::*;
 mod audio;
 mod beatsync;
 mod config;
-mod geometry_from_gltf;
 mod geometry;
 mod matrix4;
+mod mesh;
+mod meshes_from_gltf;
 mod midi;
 mod network;
 mod pipeline;
 mod stage;
+mod uniformable;
 mod uniforms;
 
 pub use audio::*;
@@ -39,6 +41,7 @@ pub use midi::*;
 pub use network::*;
 pub use pipeline::*;
 pub use stage::*;
+pub use uniformable::*;
 pub use uniforms::*;
 
 static mut PIPELINE_STALE: AtomicBool = AtomicBool::new(false);
@@ -894,7 +897,7 @@ impl Jockey {
                         count,
                         mode,
                         thickness,
-                        geometries,
+                        meshes,
                         ..
                     } = kind
                     {
@@ -906,13 +909,17 @@ impl Jockey {
                         gl::LineWidth(*thickness);
                         gl_debug_check!();
 
-                        if let Some(s) = geometries {
-                            for geometry in s {
+                        if let Some(s) = meshes {
+                            for mesh in s {
+                                mesh.apply_uniforms(stage.prog_id);
+
+                                let geometry = &mut mesh.geometry;
+
                                 let vao = geometry.vao();
 
                                 if geometry.indices.is_some() {
                                     draw_elements_vao(vao, geometry.count, geometry.mode);
-                        gl_debug_check!();
+                                    gl_debug_check!();
                                 } else {
                                     draw_arrays_vao(vao, geometry.count, geometry.mode);
                                     gl_debug_check!();

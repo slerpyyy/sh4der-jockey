@@ -52,6 +52,14 @@ impl Matrix4 {
     }
 }
 
+impl Clone for Matrix4 {
+    fn clone(&self) -> Self {
+        Matrix4::new(self.elements.clone())
+    }
+}
+
+impl Copy for Matrix4 {}
+
 impl std::fmt::Debug for Matrix4 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct(stringify!(Matrix4))

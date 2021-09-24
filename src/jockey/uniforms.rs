@@ -14,6 +14,11 @@ lazy_static! {
     pub static ref POSITION_NAME: CString = CString::new("position").unwrap();
     pub static ref VERTEX_COUNT_NAME: CString = CString::new("vertex_count").unwrap();
     pub static ref NOISE_NAME: CString = CString::new("noise").unwrap();
+    pub static ref MODEL_MATRIX: CString = CString::new("model_matrix").unwrap();
+
+    // gltf material
+    pub static ref MATERIAL_ALPHA_CUTOFF: CString = CString::new("material_alpha_cutoff").unwrap();
+    pub static ref MATERIAL_BASE_COLOR: CString = CString::new("material_base_color").unwrap();
 
     // time tracking
     pub static ref TIME_NAME: CString = CString::new("time").unwrap();
