@@ -28,7 +28,7 @@ log = "0.4"
 midir = "0.7"
 ndi = { git = "https://github.com/slerpyyy/ndi-rs", branch = "main" }
 nfd = { git = "https://github.com/saurvs/nfd-rs.git" }
-notify = "5.0.0-pre.7"
+notify = "=5.0.0-pre.7"
 num-complex = "0.4"
 rand = "0.8"
 regex = "1.4"
