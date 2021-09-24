@@ -18,6 +18,7 @@ cpal = "0.13"
 ctrlc = { version = "3.2", features = ["termination"] }
 futures = { version = "0.3", default-features = false }
 gl = "0.14"
+gltf = "0.16.0"
 glutin = "0.26" # must match version used in imgui forks
 image = "0.23"
 imgui = { git = "https://github.com/sp4ghet/imgui-rs", branch = "master" }
@@ -28,7 +29,7 @@ log = "0.4"
 midir = "0.7"
 ndi = { git = "https://github.com/slerpyyy/ndi-rs", branch = "main" }
 nfd = { git = "https://github.com/saurvs/nfd-rs.git" }
-notify = "5.0.0-pre.7"
+notify = "=5.0.0-pre.7"
 num-complex = "0.4"
 rand = "0.8"
 regex = "1.4"

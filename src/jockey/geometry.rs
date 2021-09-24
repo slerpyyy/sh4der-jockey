@@ -25,7 +25,7 @@ pub struct GeometryAttribute<T> where T: std::fmt::Debug {
     pub usage: GLenum,
 
     /// A buffer object for this attribute.
-    _buffer: Option<GLuint>,
+    buffer: Option<GLuint>,
 }
 
 /// A struct represents a geometry.
@@ -43,7 +43,7 @@ pub struct Geometry {
     pub indices: Option<GeometryAttribute<GLuint>>,
 
     /// A vao object for this geometry.
-    _vao: Option<GLuint>,
+    vao: Option<GLuint>,
 }
 
 impl<T> GeometryAttribute<T> where T: std::fmt::Debug {
@@ -59,13 +59,13 @@ impl<T> GeometryAttribute<T> where T: std::fmt::Debug {
             normalized: gl::FALSE,
             target: gl::ARRAY_BUFFER,
             usage: gl::STATIC_DRAW,
-            _buffer: None,
+            buffer: None,
         }
     }
 
     /// Make a vertex buffer object out of this attribute and assign it to its buffer field.
     pub fn buffer(&mut self) -> GLuint {
-        match self._buffer {
+        match self.buffer {
             None => {
                 let mut buffer = 0;
 
@@ -85,7 +85,7 @@ impl<T> GeometryAttribute<T> where T: std::fmt::Debug {
                     gl_debug_check!();
                 }
 
-                self._buffer = Some(buffer);
+                self.buffer = Some(buffer);
 
                 buffer
             },
@@ -94,7 +94,7 @@ impl<T> GeometryAttribute<T> where T: std::fmt::Debug {
     }
 
     pub fn vertex_attrib_pointer(&mut self, index: GLuint) {
-        match self._buffer {
+        match self.buffer {
             None => (),
             Some(buffer) => {
                 unsafe {
@@ -119,7 +119,7 @@ impl<T> GeometryAttribute<T> where T: std::fmt::Debug {
 
     /// Delete the buffer object.
     pub fn delete_buffer(&mut self) {
-        match self._buffer {
+        match self.buffer {
             None => (),
             Some(buffer) => {
                 unsafe {
@@ -127,7 +127,7 @@ impl<T> GeometryAttribute<T> where T: std::fmt::Debug {
                     // gl_debug_check!();
                 }
 
-                self._buffer = None;
+                self.buffer = None;
             }
         }
     }
@@ -162,7 +162,7 @@ impl Geometry {
             mode: gl::TRIANGLES,
             attributes: HashMap::new(),
             indices: None,
-            _vao: None,
+            vao: None,
         }
     }
 
@@ -183,7 +183,7 @@ impl Geometry {
 
     /// Make a vertex array object out of this geometry and assign it to its vao field.
     pub fn vao(&mut self) -> GLuint {
-        match self._vao {
+        match self.vao {
             None => {
                 // vao
                 let mut vao = 0;
@@ -211,7 +211,7 @@ impl Geometry {
                     attribute.vertex_attrib_pointer(*index);
                 }
 
-                self._vao = Some(vao);
+                self.vao = Some(vao);
 
                 vao
             },
@@ -221,7 +221,7 @@ impl Geometry {
 
     /// Delete the vertex array object.
     pub fn delete_vao(&mut self) {
-        match self._vao {
+        match self.vao {
             None => (),
             Some(vao) => {
                 unsafe {
@@ -229,7 +229,7 @@ impl Geometry {
                     // gl_debug_check!();
                 }
 
-                self._vao = None;
+                self.vao = None;
             }
         }
     }
