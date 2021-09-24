@@ -3,3 +3,5 @@ stages:
     target: "tex"
 
   - fs: "post.glsl"
+    uniforms:
+      tint: [0.8, 0.9, 1.2]

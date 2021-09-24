@@ -1,5 +1,7 @@
 use std::ffi::CString;
 
+use anyhow::{bail, Result};
+use gl::types::*;
 use lazy_static::lazy_static;
 
 lazy_static! {
@@ -54,4 +56,88 @@ lazy_static! {
     pub static ref HIGH_SMOOTH_NAME: CString = CString::new("high_smooth").unwrap();
     pub static ref HIGH_INTEGRATED_NAME: CString = CString::new("high_integrated").unwrap();
     pub static ref HIGH_SMOOTH_INTEGRATED_NAME: CString = CString::new("high_smooth_integrated").unwrap();
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Uniform {
+    Float(GLfloat),
+    Vec2(GLfloat, GLfloat),
+    Vec3(GLfloat, GLfloat, GLfloat),
+    Vec4(GLfloat, GLfloat, GLfloat, GLfloat),
+    Mat2([GLfloat; 4]),
+    Mat3([GLfloat; 9]),
+    Mat4([GLfloat; 16]),
+    Mat2x3([GLfloat; 6]),
+    Mat3x2([GLfloat; 6]),
+    Mat2x4([GLfloat; 8]),
+    Mat4x2([GLfloat; 8]),
+    Mat3x4([GLfloat; 12]),
+    Mat4x3([GLfloat; 12]),
+}
+
+impl Uniform {
+    pub fn from_yaml(value: &serde_yaml::Value) -> Result<Self> {
+        let this = match value {
+            serde_yaml::Value::Bool(b) => Self::Float(*b as u8 as _),
+            serde_yaml::Value::Number(n) => Self::Float(n.as_f64().unwrap() as _),
+            serde_yaml::Value::Sequence(s) => {
+                let seq_len = s.len();
+
+                if seq_len > 4 {
+                    bail!("Uniform has too many components");
+                }
+
+                // handle matrix
+                if s.iter().any(|v| v.is_sequence()) {
+                    todo!();
+                }
+
+                let mut arr = [0_f32; 4];
+                for (index, value) in s.into_iter().enumerate() {
+                    match value.as_f64() {
+                        Some(comp) => arr[index] = comp as _,
+                        None => bail!(
+                            "Expected vector component to be a number, got \"{:?}\"",
+                            value
+                        ),
+                    }
+                }
+
+                match &arr[..seq_len] {
+                    &[x] => Self::Float(x),
+                    &[x, y] => Self::Vec2(x, y),
+                    &[x, y, z] => Self::Vec3(x, y, z),
+                    &[x, y, z, w] => Self::Vec4(x, y, z, w),
+                    _ => unreachable!(),
+                }
+            }
+
+            value => bail!(
+                "Expected uniform to be a bool, number, vector or matrix, got \"{:?}\"",
+                value
+            ),
+        };
+
+        Ok(this)
+    }
+
+    pub fn bind(&self, location: GLint) {
+        unsafe {
+            match self {
+                Uniform::Float(v0) => gl::Uniform1f(location, *v0),
+                Uniform::Vec2(v0, v1) => gl::Uniform2f(location, *v0, *v1),
+                Uniform::Vec3(v0, v1, v2) => gl::Uniform3f(location, *v0, *v1, *v2),
+                Uniform::Vec4(v0, v1, v2, v3) => gl::Uniform4f(location, *v0, *v1, *v2, *v3),
+                Uniform::Mat2(vs) => gl::UniformMatrix2fv(location, 1, gl::FALSE, vs as _),
+                Uniform::Mat3(vs) => gl::UniformMatrix3fv(location, 1, gl::FALSE, vs as _),
+                Uniform::Mat4(vs) => gl::UniformMatrix4fv(location, 1, gl::FALSE, vs as _),
+                Uniform::Mat2x3(vs) => gl::UniformMatrix2x3fv(location, 1, gl::FALSE, vs as _),
+                Uniform::Mat3x2(vs) => gl::UniformMatrix3x2fv(location, 1, gl::FALSE, vs as _),
+                Uniform::Mat2x4(vs) => gl::UniformMatrix2x4fv(location, 1, gl::FALSE, vs as _),
+                Uniform::Mat4x2(vs) => gl::UniformMatrix4x2fv(location, 1, gl::FALSE, vs as _),
+                Uniform::Mat3x4(vs) => gl::UniformMatrix3x4fv(location, 1, gl::FALSE, vs as _),
+                Uniform::Mat4x3(vs) => gl::UniformMatrix4x3fv(location, 1, gl::FALSE, vs as _),
+            }
+        }
+    }
 }

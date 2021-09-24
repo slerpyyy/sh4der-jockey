@@ -780,6 +780,13 @@ impl Jockey {
                     gl_debug_check!();
                 }
 
+                // Add custom uniforms
+                for (name, uniform) in &stage.unis {
+                    let loc = gl::GetUniformLocation(stage.prog_id, name.as_ptr());
+                    uniform.bind(loc);
+                    gl_debug_check!();
+                }
+
                 // Add vertex count uniform
                 if let StageKind::Vert { count, .. } = stage.kind {
                     let loc = gl::GetUniformLocation(stage.prog_id, VERTEX_COUNT_NAME.as_ptr());

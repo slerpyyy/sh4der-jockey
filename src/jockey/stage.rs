@@ -1,8 +1,9 @@
-use std::ffi::CString;
+use std::{collections::HashMap, ffi::CString};
 
 use gl::types::*;
 use serde_yaml::Value;
 
+use super::Uniform;
 use crate::util::*;
 
 pub const PASS_VERT: &str = include_str!("shaders/pass.vert");
@@ -36,6 +37,7 @@ pub struct Stage {
     pub kind: StageKind,
     pub sh_ids: Vec<GLuint>,
     pub deps: Vec<CString>,
+    pub unis: HashMap<CString, Uniform>,
     pub perf: RunningAverage<f32, 128>,
     pub builder: TextureBuilder,
 }
@@ -56,6 +58,34 @@ impl Stage {
             }
             None => None,
         };
+
+        // parse uniforms
+        let mut unis = HashMap::new();
+        match object.get("uniforms") {
+            Some(Value::Mapping(m)) => {
+                for (key, value) in m {
+                    let name = match key.as_str() {
+                        Some(s) => CString::new(s).unwrap(),
+                        None => {
+                            return Err(format!(
+                                "Expected uniform name to be a string, got \"{:?}\"",
+                                key
+                            ))
+                        }
+                    };
+
+                    let uniform = Uniform::from_yaml(value).map_err(|e| e.to_string())?;
+                    unis.insert(name, uniform);
+                }
+            }
+            Some(s) => {
+                return Err(format!(
+                    "Expected field \"uniforms\" to be a mapping, got {:?}",
+                    s
+                ))
+            }
+            None => (),
+        }
 
         // read all shaders to strings
         let mut lut = Vec::new();
@@ -108,6 +138,7 @@ impl Stage {
                     kind,
                     sh_ids,
                     deps,
+                    unis,
                     perf,
                     builder,
                 })
@@ -191,6 +222,7 @@ impl Stage {
                     kind,
                     sh_ids,
                     deps,
+                    unis,
                     perf,
                     builder,
                 })
@@ -273,6 +305,7 @@ impl Stage {
                     kind,
                     sh_ids,
                     deps,
+                    unis,
                     perf,
                     builder,
                 })

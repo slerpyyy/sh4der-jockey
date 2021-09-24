@@ -68,6 +68,7 @@ impl Pipeline {
             kind: StageKind::Frag {},
             sh_ids,
             deps: Vec::new(),
+            unis: HashMap::new(),
             perf: RunningAverage::new(),
             builder: TextureBuilder::new(),
         }];
