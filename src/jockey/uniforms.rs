@@ -114,7 +114,7 @@ impl Uniform {
                     let slice = matrix.mat_slice_mut().unwrap();
                     for (y, row) in seq.iter().enumerate() {
                         let row = match row {
-                            s @ Value::Number(_) => vec![s.clone()],
+                            s @ Value::Number(_) => vec![s.clone(); width],
                             Value::Sequence(row) => row.clone(),
                             s => bail!("Matrix row must be a vector or number, got \"{:?}\"", s),
                         };
@@ -244,7 +244,7 @@ mod test {
         #[rustfmt::skip]
         assert_eq!(uniform, Uniform::Mat3x4([
             1.0, -2.0, 0.0,
-            5.2, 0.0, 0.0,
+            5.2, 5.2, 5.2,
             0.0, 0.0, 0.0,
             0.0, 0.0, 4.0
         ]));
