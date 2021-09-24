@@ -69,6 +69,7 @@ impl Pipeline {
             sh_ids,
             deps: Vec::new(),
             unis: HashMap::new(),
+            blend: None,
             perf: RunningAverage::new(),
             builder: TextureBuilder::new(),
         }];

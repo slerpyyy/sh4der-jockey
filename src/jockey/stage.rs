@@ -38,6 +38,7 @@ pub struct Stage {
     pub sh_ids: Vec<GLuint>,
     pub deps: Vec<CString>,
     pub unis: HashMap<CString, Uniform>,
+    pub blend: Option<(GLenum, GLenum)>,
     pub perf: RunningAverage<f32, 128>,
     pub builder: TextureBuilder,
 }
@@ -86,6 +87,50 @@ impl Stage {
             }
             None => (),
         }
+
+        // parse blend mode
+        let blend = match object.get("blend_mode").or(object.get("blend")) {
+            Some(Value::Sequence(s)) => {
+                fn parse_blend_mode(name: &str) -> Result<GLenum, String> {
+                    match name {
+                        "ZERO" => Ok(gl::ZERO),
+                        "ONE" => Ok(gl::ONE),
+                        "SRC_COLOR" => Ok(gl::SRC_COLOR),
+                        "DST_COLOR" => Ok(gl::DST_COLOR),
+                        "SRC_ALPHA" => Ok(gl::SRC_ALPHA),
+                        "DST_ALPHA" => Ok(gl::DST_ALPHA),
+                        "SRC1_COLOR" => Ok(gl::SRC1_COLOR),
+                        "SRC1_ALPHA" => Ok(gl::SRC1_ALPHA),
+                        "CONSTANT_COLOR" => Ok(gl::CONSTANT_COLOR),
+                        "CONSTANT_ALPHA" => Ok(gl::CONSTANT_ALPHA),
+                        "SRC_ALPHA_SATURATE" => Ok(gl::SRC_ALPHA_SATURATE),
+                        "ONE_MINUS_SRC_COLOR" => Ok(gl::ONE_MINUS_SRC_COLOR),
+                        "ONE_MINUS_DST_COLOR" => Ok(gl::ONE_MINUS_DST_COLOR),
+                        "ONE_MINUS_SRC_ALPHA" => Ok(gl::ONE_MINUS_SRC_ALPHA),
+                        "ONE_MINUS_DST_ALPHA" => Ok(gl::ONE_MINUS_DST_ALPHA),
+                        "ONE_MINUS_SRC1_COLOR" => Ok(gl::ONE_MINUS_SRC1_COLOR),
+                        "ONE_MINUS_SRC1_ALPHA" => Ok(gl::ONE_MINUS_SRC1_ALPHA),
+                        "ONE_MINUS_CONSTANT_COLOR" => Ok(gl::ONE_MINUS_CONSTANT_COLOR),
+                        "ONE_MINUS_CONSTANT_ALPHA" => Ok(gl::ONE_MINUS_CONSTANT_ALPHA),
+                        s => Err(format!("Expected blend mode, got \"{:?}\"", s)),
+                    }
+                }
+
+                match s.as_slice() {
+                    &[Value::String(ref src), Value::String(ref dst)] => {
+                        Some((parse_blend_mode(src)?, parse_blend_mode(dst)?))
+                    }
+                    s => {
+                        return Err(format!(
+                        "Expected field \"blend_mode\" to be a list of two strings, got \"{:?}\"",
+                        s
+                    ))
+                    }
+                }
+            }
+            Some(s) => todo!(),
+            None => None,
+        };
 
         // read all shaders to strings
         let mut lut = Vec::new();
@@ -139,6 +184,7 @@ impl Stage {
                     sh_ids,
                     deps,
                     unis,
+                    blend,
                     perf,
                     builder,
                 })
@@ -223,6 +269,7 @@ impl Stage {
                     sh_ids,
                     deps,
                     unis,
+                    blend,
                     perf,
                     builder,
                 })
@@ -306,6 +353,7 @@ impl Stage {
                     sh_ids,
                     deps,
                     unis,
+                    blend,
                     perf,
                     builder,
                 })

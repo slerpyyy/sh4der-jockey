@@ -180,6 +180,9 @@ impl Jockey {
             gl::GenVertexArrays(1, &mut vao);
             gl::GenBuffers(1, &mut vbo);
             gl_debug_check!();
+
+            gl::Enable(gl::BLEND);
+            gl_debug_check!();
         }
 
         let frame_perf = RunningAverage::new();
@@ -881,6 +884,10 @@ impl Jockey {
                         );
                     }
                     gl_debug_check!();
+
+                    // Set blend mode
+                    let (sfactor, dfactor) = stage.blend.unwrap_or((gl::ONE, gl::ZERO));
+                    gl::BlendFunc(sfactor, dfactor);
 
                     // Draw stuff
                     if let StageKind::Vert {
