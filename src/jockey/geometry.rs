@@ -3,8 +3,6 @@ use std::collections::HashMap;
 use gl::types::*;
 
 /// A struct represents a single attribute of a Geometry.
-/// You should not use a single GeometryAttribute across multiple Geometries,
-/// since Geometry will delete the gl buffer on drop.
 #[derive(std::fmt::Debug)]
 pub struct GeometryAttribute<T> where T: std::fmt::Debug {
     /// The data of the attribute.
