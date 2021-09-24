@@ -1,3 +1,4 @@
+#[derive(std::fmt::Debug)]
 pub struct Matrix4 {
     pub elements: [[f32; 4]; 4],
 }
@@ -59,11 +60,3 @@ impl Clone for Matrix4 {
 }
 
 impl Copy for Matrix4 {}
-
-impl std::fmt::Debug for Matrix4 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct(stringify!(Matrix4))
-            .field("elements", &self.elements)
-            .finish()
-    }
-}

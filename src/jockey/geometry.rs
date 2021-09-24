@@ -5,6 +5,7 @@ use gl::types::*;
 /// A struct represents a single attribute of a Geometry.
 /// You should not use a single GeometryAttribute across multiple Geometries,
 /// since Geometry will delete the gl buffer on drop.
+#[derive(std::fmt::Debug)]
 pub struct GeometryAttribute<T> where T: std::fmt::Debug {
     /// The data of the attribute.
     pub array: Vec<T>,
@@ -29,6 +30,7 @@ pub struct GeometryAttribute<T> where T: std::fmt::Debug {
 }
 
 /// A struct represents a geometry.
+#[derive(std::fmt::Debug)]
 pub struct Geometry {
     /// Count of vertices.
     pub count: GLsizei,
@@ -133,18 +135,6 @@ impl<T> GeometryAttribute<T> where T: std::fmt::Debug {
     }
 }
 
-impl<T> std::fmt::Debug for GeometryAttribute<T> where T: std::fmt::Debug {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct(stringify!(Geometry))
-            .field("size", &self.size)
-            .field("type_", &self.type_)
-            .field("normalized", &self.normalized)
-            .field("target", &self.target)
-            .field("usage", &self.usage)
-            .finish()
-    }
-}
-
 impl<T> Drop for GeometryAttribute<T> where T: std::fmt::Debug {
     fn drop(&mut self) {
         self.delete_buffer();
@@ -232,16 +222,6 @@ impl Geometry {
                 self.vao = None;
             }
         }
-    }
-}
-
-impl std::fmt::Debug for Geometry {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct(stringify!(Geometry))
-            .field("count", &self.count)
-            .field("mode", &self.mode)
-            .field("attributes", &self.attributes)
-            .finish()
     }
 }
 
