@@ -1,0 +1,4 @@
+stages:
+  - vs: "shader.vert"
+    fs: "shader.frag"
+    gltf: "suzanne.glb"
