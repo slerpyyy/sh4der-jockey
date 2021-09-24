@@ -3,6 +3,7 @@ use std::ffi::CString;
 use anyhow::{bail, Result};
 use gl::types::*;
 use lazy_static::lazy_static;
+use serde_yaml::Value;
 
 lazy_static! {
     // slerpys golf coding stuff
@@ -58,7 +59,7 @@ lazy_static! {
     pub static ref HIGH_SMOOTH_INTEGRATED_NAME: CString = CString::new("high_smooth_integrated").unwrap();
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Uniform {
     Float(GLfloat),
     Vec2(GLfloat, GLfloat),
@@ -76,24 +77,66 @@ pub enum Uniform {
 }
 
 impl Uniform {
-    pub fn from_yaml(value: &serde_yaml::Value) -> Result<Self> {
+    pub fn from_yaml(value: &Value) -> Result<Self> {
         let this = match value {
-            serde_yaml::Value::Bool(b) => Self::Float(*b as u8 as _),
-            serde_yaml::Value::Number(n) => Self::Float(n.as_f64().unwrap() as _),
-            serde_yaml::Value::Sequence(s) => {
-                let seq_len = s.len();
-
-                if seq_len > 4 {
-                    bail!("Uniform has too many components");
+            Value::Bool(b) => Self::Float(*b as u8 as _),
+            Value::Number(n) => Self::Float(n.as_f64().unwrap() as _),
+            Value::Sequence(seq) => {
+                let seq_len = seq.len();
+                if seq_len > 4 || seq_len == 0 {
+                    bail!(
+                        "Uniform must have between 1 and 4 components, got \"{:?}\"",
+                        seq
+                    );
                 }
 
                 // handle matrix
-                if s.iter().any(|v| v.is_sequence()) {
-                    todo!();
+                if let Some(width) = seq
+                    .iter()
+                    .filter_map(Value::as_sequence)
+                    .map(Vec::len)
+                    .max()
+                {
+                    let mut matrix = match (width, seq_len) {
+                        (2, 2) => Self::Mat2([0.0; 4]),
+                        (3, 3) => Self::Mat3([0.0; 9]),
+                        (4, 4) => Self::Mat4([0.0; 16]),
+                        (2, 3) => Self::Mat2x3([0.0; 6]),
+                        (3, 2) => Self::Mat3x2([0.0; 6]),
+                        (2, 4) => Self::Mat2x4([0.0; 8]),
+                        (4, 2) => Self::Mat4x2([0.0; 8]),
+                        (3, 4) => Self::Mat3x4([0.0; 12]),
+                        (4, 3) => Self::Mat4x3([0.0; 12]),
+                        _ => bail!("Invalid uniform matrix format, got \"{:?}\"", seq),
+                    };
+
+                    // fill matrix
+                    let slice = matrix.mat_slice_mut().unwrap();
+                    for (y, row) in seq.iter().enumerate() {
+                        let row = match row {
+                            s @ Value::Number(_) => vec![s.clone()],
+                            Value::Sequence(row) => row.clone(),
+                            s => bail!("Matrix row must be a vector or number, got \"{:?}\"", s),
+                        };
+
+                        for (x, val) in row.into_iter().enumerate() {
+                            let val = match val.as_f64() {
+                                Some(s) => s as _,
+                                None => bail!(
+                                    "Uniform matrix component must be a number, got \"{:?}\"",
+                                    val
+                                ),
+                            };
+
+                            slice[x + width * y] = val;
+                        }
+                    }
+
+                    return Ok(matrix);
                 }
 
                 let mut arr = [0_f32; 4];
-                for (index, value) in s.into_iter().enumerate() {
+                for (index, value) in seq.into_iter().enumerate() {
                     match value.as_f64() {
                         Some(comp) => arr[index] = comp as _,
                         None => bail!(
@@ -139,5 +182,71 @@ impl Uniform {
                 Uniform::Mat4x3(vs) => gl::UniformMatrix4x3fv(location, 1, gl::FALSE, vs as _),
             }
         }
+    }
+
+    fn mat_slice_mut(&mut self) -> Option<&mut [GLfloat]> {
+        match self {
+            Uniform::Mat2(vs) => Some(vs),
+            Uniform::Mat3(vs) => Some(vs),
+            Uniform::Mat4(vs) => Some(vs),
+            Uniform::Mat2x3(vs) => Some(vs),
+            Uniform::Mat3x2(vs) => Some(vs),
+            Uniform::Mat2x4(vs) => Some(vs),
+            Uniform::Mat4x2(vs) => Some(vs),
+            Uniform::Mat3x4(vs) => Some(vs),
+            Uniform::Mat4x3(vs) => Some(vs),
+            _ => None,
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn parse_float() {
+        let value = serde_yaml::from_str("2.3").unwrap();
+        let uniform = Uniform::from_yaml(&value).unwrap();
+
+        assert_eq!(uniform, Uniform::Float(2.3));
+    }
+
+    #[test]
+    fn parse_vec_simple() {
+        let value = serde_yaml::from_str("[1, 2, 3]").unwrap();
+        let uniform = Uniform::from_yaml(&value).unwrap();
+
+        assert_eq!(uniform, Uniform::Vec3(1.0, 2.0, 3.0));
+    }
+
+    #[test]
+    fn parse_vec_mixed() {
+        let value = serde_yaml::from_str("[2.3, -5, 0, 7]").unwrap();
+        let uniform = Uniform::from_yaml(&value).unwrap();
+
+        assert_eq!(uniform, Uniform::Vec4(2.3, -5.0, 0.0, 7.0));
+    }
+
+    #[test]
+    fn parse_matrix_simple() {
+        let value = serde_yaml::from_str("[[1, 2], [3, 4]]").unwrap();
+        let uniform = Uniform::from_yaml(&value).unwrap();
+
+        assert_eq!(uniform, Uniform::Mat2([1.0, 2.0, 3.0, 4.0]));
+    }
+
+    #[test]
+    fn parse_matrix_chaotic() {
+        let value = serde_yaml::from_str("[[1, -2], 5.2, [], [0, 0, 4]]").unwrap();
+        let uniform = Uniform::from_yaml(&value).unwrap();
+
+        #[rustfmt::skip]
+        assert_eq!(uniform, Uniform::Mat3x4([
+            1.0, -2.0, 0.0,
+            5.2, 0.0, 0.0,
+            0.0, 0.0, 0.0,
+            0.0, 0.0, 4.0
+        ]));
     }
 }
