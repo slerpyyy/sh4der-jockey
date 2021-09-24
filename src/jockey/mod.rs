@@ -180,9 +180,6 @@ impl Jockey {
             gl::GenVertexArrays(1, &mut vao);
             gl::GenBuffers(1, &mut vbo);
             gl_debug_check!();
-
-            gl::Enable(gl::BLEND);
-            gl_debug_check!();
         }
 
         let frame_perf = RunningAverage::new();
@@ -371,6 +368,15 @@ impl Jockey {
                 let build_time = self.last_build.elapsed().as_secs_f64();
                 self.console = format!("Build pipeline over a span of {}s", build_time);
                 log::info!("{}", &self.console);
+
+                // toggle blend modes
+                unsafe {
+                    match self.pipeline.blending {
+                        true => gl::Enable(gl::BLEND),
+                        false => gl::Disable(gl::BLEND),
+                    }
+                    gl_debug_check!();
+                }
 
                 // copy audio configs
                 self.audio.attack = update.smoothing_attack;
@@ -886,8 +892,10 @@ impl Jockey {
                     gl_debug_check!();
 
                     // Set blend mode
-                    let (sfactor, dfactor) = stage.blend.unwrap_or((gl::ONE, gl::ZERO));
-                    gl::BlendFunc(sfactor, dfactor);
+                    if self.pipeline.blending {
+                        let (src, dst) = stage.blend.unwrap_or((gl::ONE, gl::ZERO));
+                        gl::BlendFunc(src, dst);
+                    }
 
                     // Draw stuff
                     if let StageKind::Vert {
