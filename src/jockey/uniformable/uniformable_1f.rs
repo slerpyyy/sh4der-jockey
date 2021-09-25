@@ -15,6 +15,8 @@ impl Uniformable1f {
 
 impl Uniformable for Uniformable1f {
     fn uniform(&self, location: GLint) {
-        unsafe { gl::Uniform1f(location, self.value); }
+        unsafe {
+            gl::Uniform1f(location, self.value);
+        }
     }
 }

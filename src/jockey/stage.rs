@@ -5,7 +5,7 @@ use serde_yaml::Value;
 
 use super::{mesh::Mesh, meshes_from_gltf::*};
 
-use crate::{util::*};
+use crate::util::*;
 
 pub const PASS_VERT: &str = include_str!("shaders/pass.vert");
 pub const PASS_FRAG: &str = include_str!("shaders/pass.frag");
@@ -178,19 +178,11 @@ impl Stage {
 
                 let gltf = match object.get("gltf") {
                     Some(s) => match s.as_str() {
-                        Some(value) => {
-                            match meshes_from_gltf(value.to_string()) {
-                                Ok(s) => Some(s),
-                                Err(e) => {
-                                    log::warn!("{}", e);
-                                    None
-                                },
-                            }
+                        Some(value) => match meshes_from_gltf(value.to_string()) {
+                            Ok(s) => Some(s),
+                            Err(e) => return Err(e),
                         },
-                        _ => {
-                            log::warn!("Invalid path detected: {:?}", s);
-                            None
-                        },
+                        _ => return Err(format!("Invalid path detected: {:?}", s)),
                     },
                     _ => None,
                 };

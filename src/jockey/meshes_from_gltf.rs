@@ -2,31 +2,37 @@ use std::collections::HashMap;
 
 use gl::types::*;
 
-use super::mesh::Mesh;
-use super::{Geometry, GeometryAttribute};
-use super::uniformable::*;
-use super::{MODEL_MATRIX, MATERIAL_ALPHA_CUTOFF, MATERIAL_BASE_COLOR};
 use super::matrix4::Matrix4;
+use super::mesh::Mesh;
+use super::uniformable::*;
+use super::{Geometry, GeometryAttribute};
+use super::{MATERIAL_ALPHA_CUTOFF, MATERIAL_BASE_COLOR, MODEL_MATRIX};
 
-fn traverse_node<F, R>(node: &gltf::Node, world_matrix: &Matrix4, f: &F) -> Vec<R> where
-    F: Fn(&gltf::Node, &Matrix4) -> R {
+fn traverse_node<F, R>(node: &gltf::Node, world_matrix: &Matrix4, f: &F) -> Vec<R>
+where
+    F: Fn(&gltf::Node, &Matrix4) -> R,
+{
     let mut vec: Vec<R> = Vec::new();
 
     let this_matrix = world_matrix.multiply(Matrix4::new(node.transform().matrix()));
 
     vec.push(f(&node, &this_matrix));
 
-    let result: &mut Vec<_> = &mut node.children().map(|child| {
-        traverse_node(&child, &this_matrix, f)
-    }).flatten().collect();
+    let result: &mut Vec<_> = &mut node
+        .children()
+        .map(|child| traverse_node(&child, &this_matrix, f))
+        .flatten()
+        .collect();
 
     vec.append(result);
 
     vec
 }
 
-fn traverse_primitives<F, R>(root_node: &gltf::Node, world_matrix: &Matrix4, f: &F) -> Vec<R> where
-    F: Fn(&gltf::Primitive, &Matrix4) -> R {
+fn traverse_primitives<F, R>(root_node: &gltf::Node, world_matrix: &Matrix4, f: &F) -> Vec<R>
+where
+    F: Fn(&gltf::Primitive, &Matrix4) -> R,
+{
     let result: Vec<_> = traverse_node(&root_node, &world_matrix, &|node, world_matrix| {
         let mut vec: Vec<R> = Vec::new();
 
@@ -38,10 +44,13 @@ fn traverse_primitives<F, R>(root_node: &gltf::Node, world_matrix: &Matrix4, f: 
         for primitive in mesh.primitives() {
             let result = f(&primitive, &world_matrix);
             vec.push(result);
-        };
+        }
 
         vec
-    }).into_iter().flatten().collect();
+    })
+    .into_iter()
+    .flatten()
+    .collect();
 
     result
 }
@@ -51,13 +60,17 @@ fn geometry_from_primitive(
     buffers: &Vec<gltf::buffer::Data>,
 ) -> Result<Geometry, String> {
     // See: https://github.com/bwasty/gltf-viewer/blob/1cb99cb51c04ddf7af3f2b4488757f6f4f498787/src/render/primitive.rs#L104
-    let reader = primitive.reader(|buffer| Some(&buffers[buffer.index()]) );
+    let reader = primitive.reader(|buffer| Some(&buffers[buffer.index()]));
 
     // position
     let (positions, count) = {
         let iter = match reader.read_positions() {
             Some(s) => s,
-            None => return Err("Primitive must have POSITION attribute. Ignoring the primitive".to_string()),
+            None => {
+                return Err(
+                    "Primitive must have POSITION attribute. Ignoring the primitive".to_string(),
+                )
+            }
         };
 
         let count = iter.len();
@@ -65,7 +78,13 @@ fn geometry_from_primitive(
 
         let mut positions = GeometryAttribute::init(vec, 3, gl::FLOAT);
         positions.normalized = match primitive.get(&gltf::Semantic::Positions) {
-            Some(s) => if s.normalized() { 1 } else { 0 },
+            Some(s) => {
+                if s.normalized() {
+                    1
+                } else {
+                    0
+                }
+            }
             None => 0,
         };
 
@@ -73,7 +92,9 @@ fn geometry_from_primitive(
     };
 
     let mut geometry = Geometry::init(count as _);
-    geometry.attributes.insert(Geometry::ATTRIBUTE_POSITION, positions);
+    geometry
+        .attributes
+        .insert(Geometry::ATTRIBUTE_POSITION, positions);
 
     // indices
     {
@@ -97,11 +118,19 @@ fn geometry_from_primitive(
 
             let mut normals = GeometryAttribute::init(vec, 3, gl::FLOAT);
             normals.normalized = match primitive.get(&gltf::Semantic::Normals) {
-                Some(s) => if s.normalized() { 1 } else { 0 },
+                Some(s) => {
+                    if s.normalized() {
+                        1
+                    } else {
+                        0
+                    }
+                }
                 None => 0,
             };
 
-            geometry.attributes.insert(Geometry::ATTRIBUTE_NORMAL, normals);
+            geometry
+                .attributes
+                .insert(Geometry::ATTRIBUTE_NORMAL, normals);
         }
     };
 
@@ -113,11 +142,19 @@ fn geometry_from_primitive(
 
             let mut texcoords0 = GeometryAttribute::init(vec, 2, gl::FLOAT);
             texcoords0.normalized = match primitive.get(&gltf::Semantic::TexCoords(0)) {
-                Some(s) => if s.normalized() { 1 } else { 0 },
+                Some(s) => {
+                    if s.normalized() {
+                        1
+                    } else {
+                        0
+                    }
+                }
                 None => 0,
             };
 
-            geometry.attributes.insert(Geometry::ATTRIBUTE_TEXCOORD0, texcoords0);
+            geometry
+                .attributes
+                .insert(Geometry::ATTRIBUTE_TEXCOORD0, texcoords0);
         }
     };
 
@@ -135,48 +172,59 @@ pub fn meshes_from_gltf(path: String) -> Result<Vec<Mesh>, String> {
         None => return Err("No default scene provided.".to_string()),
     };
 
-    let vec: Vec<_> = scene.nodes().map(|scene_root_node| {
-        let fu: Vec<_> = traverse_primitives(&scene_root_node, &Matrix4::identity(), &|primitive, world_matrix| {
-            match geometry_from_primitive(&primitive, &buffers) {
-                Ok(geometry) => {
-                    let material = primitive.material();
-                    let pbr = material.pbr_metallic_roughness();
+    let vec: Vec<_> = scene
+        .nodes()
+        .map(|scene_root_node| {
+            let fu: Vec<_> = traverse_primitives(
+                &scene_root_node,
+                &Matrix4::identity(),
+                &|primitive, world_matrix| {
+                    match geometry_from_primitive(&primitive, &buffers) {
+                        Ok(geometry) => {
+                            let material = primitive.material();
+                            let pbr = material.pbr_metallic_roughness();
 
-                    let mut uniforms: HashMap<*const GLchar, Box<dyn Uniformable>> = HashMap::new();
+                            let mut uniforms: HashMap<*const GLchar, Box<dyn Uniformable>> =
+                                HashMap::new();
 
-                    // matrix
-                    uniforms.insert(
-                        MODEL_MATRIX.as_ptr(),
-                        Box::new(UniformableMatrix4fv::new(world_matrix.elements.clone())),
-                    );
+                            // matrix
+                            uniforms.insert(
+                                MODEL_MATRIX.as_ptr(),
+                                Box::new(UniformableMatrix4fv::new(world_matrix.elements.clone())),
+                            );
 
-                    // materials
-                    uniforms.insert(
-                        MATERIAL_ALPHA_CUTOFF.as_ptr(),
-                        Box::new(Uniformable1f::new(material.alpha_cutoff().unwrap_or(0.5))),
-                    );
-                    uniforms.insert(
-                        MATERIAL_BASE_COLOR.as_ptr(),
-                        Box::new(Uniformable4f::new(pbr.base_color_factor())),
-                    );
+                            // materials
+                            uniforms.insert(
+                                MATERIAL_ALPHA_CUTOFF.as_ptr(),
+                                Box::new(Uniformable1f::new(
+                                    material.alpha_cutoff().unwrap_or(0.5),
+                                )),
+                            );
+                            uniforms.insert(
+                                MATERIAL_BASE_COLOR.as_ptr(),
+                                Box::new(Uniformable4f::new(pbr.base_color_factor())),
+                            );
 
-                    // mesh
-                    let mesh = Mesh {
-                        geometry,
-                        uniforms,
-                    };
+                            // mesh
+                            let mesh = Mesh { geometry, uniforms };
 
-                    Some(mesh)
+                            Some(mesh)
+                        }
+                        Err(e) => {
+                            log::warn!("{}", e);
+                            None
+                        }
+                    }
                 },
-                Err(e) => {
-                    log::warn!("{}", e);
-                    None
-                },
-            }
-        }).into_iter().filter_map(|e| e).collect();
+            )
+            .into_iter()
+            .filter_map(|e| e)
+            .collect();
 
-        fu
-    }).flatten().collect();
+            fu
+        })
+        .flatten()
+        .collect();
 
     Ok(vec)
 }

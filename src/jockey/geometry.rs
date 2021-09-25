@@ -4,7 +4,10 @@ use gl::types::*;
 
 /// A struct represents a single attribute of a Geometry.
 #[derive(std::fmt::Debug)]
-pub struct GeometryAttribute<T> where T: std::fmt::Debug {
+pub struct GeometryAttribute<T>
+where
+    T: std::fmt::Debug,
+{
     /// The data of the attribute.
     pub array: Vec<T>,
 
@@ -46,12 +49,11 @@ pub struct Geometry {
     vao: Option<GLuint>,
 }
 
-impl<T> GeometryAttribute<T> where T: std::fmt::Debug {
-    pub fn init(
-        array: Vec<T>,
-        size: GLuint,
-        type_: GLenum,
-    ) -> Self {
+impl<T> GeometryAttribute<T>
+where
+    T: std::fmt::Debug,
+{
+    pub fn init(array: Vec<T>, size: GLuint, type_: GLenum) -> Self {
         GeometryAttribute {
             array,
             size,
@@ -88,7 +90,7 @@ impl<T> GeometryAttribute<T> where T: std::fmt::Debug {
                 self.buffer = Some(buffer);
 
                 buffer
-            },
+            }
             Some(buffer) => buffer,
         }
     }
@@ -133,7 +135,10 @@ impl<T> GeometryAttribute<T> where T: std::fmt::Debug {
     }
 }
 
-impl<T> Drop for GeometryAttribute<T> where T: std::fmt::Debug {
+impl<T> Drop for GeometryAttribute<T>
+where
+    T: std::fmt::Debug,
+{
     fn drop(&mut self) {
         self.delete_buffer();
     }
@@ -202,7 +207,7 @@ impl Geometry {
                 self.vao = Some(vao);
 
                 vao
-            },
+            }
             Some(vao) => vao,
         }
     }
