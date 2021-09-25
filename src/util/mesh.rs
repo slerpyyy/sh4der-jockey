@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use gl::types::*;
 
-use super::{Geometry, Uniformable};
+use crate::util::{Geometry, Uniformable};
 
 #[derive(std::fmt::Debug)]
 pub struct Mesh {

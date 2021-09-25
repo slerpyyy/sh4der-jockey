@@ -3,7 +3,7 @@ use std::ffi::CString;
 use gl::types::*;
 use serde_yaml::Value;
 
-use super::{mesh::Mesh, meshes_from_gltf::*};
+use super::meshes_from_gltf::*;
 
 use crate::util::*;
 

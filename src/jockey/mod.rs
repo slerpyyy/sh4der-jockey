@@ -22,26 +22,20 @@ use crate::util::*;
 mod audio;
 mod beatsync;
 mod config;
-mod geometry;
-mod matrix4;
-mod mesh;
 mod meshes_from_gltf;
 mod midi;
 mod network;
 mod pipeline;
 mod stage;
-mod uniformable;
 mod uniforms;
 
 pub use audio::*;
 pub use beatsync::*;
 pub use config::*;
-pub use geometry::*;
 pub use midi::*;
 pub use network::*;
 pub use pipeline::*;
 pub use stage::*;
-pub use uniformable::*;
 pub use uniforms::*;
 
 static mut PIPELINE_STALE: AtomicBool = AtomicBool::new(false);

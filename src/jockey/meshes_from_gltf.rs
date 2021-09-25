@@ -2,9 +2,8 @@ use std::collections::HashMap;
 
 use gl::types::*;
 
-use super::matrix4::Matrix4;
-use super::mesh::Mesh;
-use super::uniformable::*;
+use crate::util::*;
+
 use super::{Geometry, GeometryAttribute};
 use super::{MATERIAL_ALPHA_CUTOFF, MATERIAL_BASE_COLOR, MODEL_MATRIX};
 
