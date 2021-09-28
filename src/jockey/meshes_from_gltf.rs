@@ -160,6 +160,25 @@ fn geometry_from_primitive(
     Ok(geometry)
 }
 
+fn set_material_props_to_uniforms(
+    uniforms: &mut HashMap<*const GLchar, Uniform>,
+    material: &gltf::Material,
+) {
+    let pbr = material.pbr_metallic_roughness();
+
+    uniforms.insert(
+        MATERIAL_ALPHA_CUTOFF.as_ptr(),
+        Uniform::Float(material.alpha_cutoff().unwrap_or(0.5)),
+    );
+    {
+        let a = pbr.base_color_factor();
+        uniforms.insert(
+            MATERIAL_BASE_COLOR.as_ptr(),
+            Uniform::Vec4(a[0], a[1], a[2], a[3]),
+        );
+    };
+}
+
 pub fn meshes_from_gltf(path: String) -> Result<Vec<Mesh>, String> {
     let (doc, buffers, _images) = match gltf::import(path) {
         Ok(s) => s,
@@ -181,7 +200,6 @@ pub fn meshes_from_gltf(path: String) -> Result<Vec<Mesh>, String> {
                     match geometry_from_primitive(&primitive, &buffers) {
                         Ok(geometry) => {
                             let material = primitive.material();
-                            let pbr = material.pbr_metallic_roughness();
 
                             let mut uniforms: HashMap<*const GLchar, Uniform> =
                                 HashMap::new();
@@ -193,17 +211,7 @@ pub fn meshes_from_gltf(path: String) -> Result<Vec<Mesh>, String> {
                             );
 
                             // materials
-                            uniforms.insert(
-                                MATERIAL_ALPHA_CUTOFF.as_ptr(),
-                                Uniform::Float(material.alpha_cutoff().unwrap_or(0.5)),
-                            );
-                            {
-                                let a = pbr.base_color_factor();
-                                uniforms.insert(
-                                    MATERIAL_BASE_COLOR.as_ptr(),
-                                    Uniform::Vec4(a[0], a[1], a[2], a[3]),
-                                );
-                            };
+                            set_material_props_to_uniforms(&mut uniforms, &material);
 
                             // mesh
                             let mesh = Mesh { geometry, uniforms };
