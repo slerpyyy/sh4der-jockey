@@ -6,7 +6,7 @@ use gl::types::*;
 use crate::util::*;
 
 use super::{Geometry, GeometryAttribute, Uniform};
-use super::{POSITION_NAME, NORMAL_NAME, TEXCOORD0_NAME, MATERIAL_ALPHA_CUTOFF, MATERIAL_BASE_COLOR, MODEL_MATRIX, MATERIAL_BASE_TEXTURE};
+use super::*;
 
 /// Ref: https://github.com/bwasty/gltf-viewer/blob/master/src/importdata.rs#L4-L9
 struct GltfImportData {
@@ -231,9 +231,27 @@ fn set_material_props_to_uniforms(
     let pbr = material.pbr_metallic_roughness();
 
     uniforms.insert(
+        MATERIAL_ALPHA_MODE_BLEND.as_ptr(),
+        Uniform::Int((material.alpha_mode() == gltf::material::AlphaMode::Blend) as _),
+    );
+
+    uniforms.insert(
+        MATERIAL_ALPHA_MODE_MASK.as_ptr(),
+        Uniform::Int((material.alpha_mode() == gltf::material::AlphaMode::Mask) as _),
+    );
+
+    uniforms.insert(
         MATERIAL_ALPHA_CUTOFF.as_ptr(),
         Uniform::Float(material.alpha_cutoff().unwrap_or(0.5)),
     );
+
+    {
+        let a = pbr.base_color_factor();
+        uniforms.insert(
+            MATERIAL_BASE_COLOR.as_ptr(),
+            Uniform::Vec4(a[0], a[1], a[2], a[3]),
+        );
+    };
 
     match pbr.base_color_texture() {
         Some(s) => {
@@ -248,13 +266,71 @@ fn set_material_props_to_uniforms(
         None => (),
     }
 
+    uniforms.insert(
+        MATERIAL_METALLIC.as_ptr(),
+        Uniform::Float(pbr.metallic_factor()),
+    );
+
+    uniforms.insert(
+        MATERIAL_ROUGHNESS.as_ptr(),
+        Uniform::Float(pbr.roughness_factor()),
+    );
+
+    match pbr.metallic_roughness_texture() {
+        Some(s) => {
+            let texture = s.texture();
+            let rc_texture = texture_from_gltf_texture(&texture, imp);
+
+            textures.insert(
+                MATERIAL_METALLIC_ROUGHNESS_TEXTURE.as_ptr(),
+                rc_texture,
+            );
+        },
+        None => (),
+    }
+
+    match material.normal_texture() {
+        Some(s) => {
+            let texture = s.texture();
+            let rc_texture = texture_from_gltf_texture(&texture, imp);
+
+            textures.insert(
+                MATERIAL_NORMAL_TEXTURE.as_ptr(),
+                rc_texture,
+            );
+            uniforms.insert(MATERIAL_NORMAL_TEXTURE_SCALE.as_ptr(), Uniform::Float(s.scale()));
+        },
+        None => (),
+    }
+
+    match material.occlusion_texture() {
+        Some(s) => {
+            let texture = s.texture();
+            let rc_texture = texture_from_gltf_texture(&texture, imp);
+
+            textures.insert(MATERIAL_OCCLUSION_TEXTURE.as_ptr(), rc_texture);
+            uniforms.insert(MATERIAL_OCCLUSION_TEXTURE_STRENGTH.as_ptr(), Uniform::Float(s.strength()));
+        },
+        None => (),
+    }
+
     {
-        let a = pbr.base_color_factor();
+        let a = material.emissive_factor();
         uniforms.insert(
-            MATERIAL_BASE_COLOR.as_ptr(),
-            Uniform::Vec4(a[0], a[1], a[2], a[3]),
+            MATERIAL_EMISSIVE.as_ptr(),
+            Uniform::Vec3(a[0], a[1], a[2]),
         );
-    };
+    }
+
+    match material.emissive_texture() {
+        Some(s) => {
+            let texture = s.texture();
+            let rc_texture = texture_from_gltf_texture(&texture, imp);
+
+            textures.insert(MATERIAL_EMISSIVE_TEXTURE.as_ptr(), rc_texture);
+        },
+        None => (),
+    }
 }
 
 pub fn meshes_from_gltf(path: String) -> Result<Vec<Mesh>, String> {
@@ -289,6 +365,14 @@ pub fn meshes_from_gltf(path: String) -> Result<Vec<Mesh>, String> {
                                 MODEL_MATRIX.as_ptr(),
                                 Uniform::Mat4(world_matrix.elements_flattened()),
                             );
+
+                            {
+                                let normal_matrix = Matrix3::from(*world_matrix).invert().transpose();
+                                uniforms.insert(
+                                    NORMAL_MATRIX.as_ptr(),
+                                    Uniform::Mat3(normal_matrix.elements_flattened()),
+                                );
+                            }
 
                             // materials
                             set_material_props_to_uniforms(&mut uniforms, &mut textures, &material, &imp);

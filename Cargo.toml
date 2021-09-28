@@ -39,6 +39,10 @@ simplelog = "0.10"
 take_mut = "0.2"
 winapi = "0.3"
 
+[dependencies.nearly_eq]
+version = "0.2.4"
+features = ["ndarray"]
+
 [build-dependencies]
 anyhow = "1.0"
 vergen = { version = "5.1", default-features = false, features = ["build", "git"] }

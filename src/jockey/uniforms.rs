@@ -17,6 +17,7 @@ lazy_static! {
     pub static ref VERTEX_COUNT_NAME: CString = CString::new("vertex_count").unwrap();
     pub static ref NOISE_NAME: CString = CString::new("noise").unwrap();
     pub static ref MODEL_MATRIX: CString = CString::new("model_matrix").unwrap();
+    pub static ref NORMAL_MATRIX: CString = CString::new("normal_matrix").unwrap();
 
     // vertex input
     pub static ref POSITION_NAME: CString = CString::new("position").unwrap();
@@ -24,9 +25,20 @@ lazy_static! {
     pub static ref TEXCOORD0_NAME: CString = CString::new("texcoord0").unwrap();
 
     // gltf material
+    pub static ref MATERIAL_ALPHA_MODE_BLEND: CString = CString::new("material_alpha_mode_blend").unwrap();
+    pub static ref MATERIAL_ALPHA_MODE_MASK: CString = CString::new("material_alpha_mode_mask").unwrap();
     pub static ref MATERIAL_ALPHA_CUTOFF: CString = CString::new("material_alpha_cutoff").unwrap();
     pub static ref MATERIAL_BASE_COLOR: CString = CString::new("material_base_color").unwrap();
     pub static ref MATERIAL_BASE_TEXTURE: CString = CString::new("material_base_texture").unwrap();
+    pub static ref MATERIAL_METALLIC: CString = CString::new("material_metallic").unwrap();
+    pub static ref MATERIAL_ROUGHNESS: CString = CString::new("material_roughness").unwrap();
+    pub static ref MATERIAL_METALLIC_ROUGHNESS_TEXTURE: CString = CString::new("material_metallic_roughness_texture").unwrap();
+    pub static ref MATERIAL_NORMAL_TEXTURE: CString = CString::new("material_normal_texture").unwrap();
+    pub static ref MATERIAL_NORMAL_TEXTURE_SCALE: CString = CString::new("material_normal_texture_scale").unwrap();
+    pub static ref MATERIAL_OCCLUSION_TEXTURE: CString = CString::new("material_occlusion_texture").unwrap();
+    pub static ref MATERIAL_OCCLUSION_TEXTURE_STRENGTH: CString = CString::new("material_occlusion_texture_strength").unwrap();
+    pub static ref MATERIAL_EMISSIVE: CString = CString::new("material_emissive").unwrap();
+    pub static ref MATERIAL_EMISSIVE_TEXTURE: CString = CString::new("material_emissive_texture").unwrap();
 
     // time tracking
     pub static ref TIME_NAME: CString = CString::new("time").unwrap();
@@ -71,6 +83,7 @@ lazy_static! {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Uniform {
+    Int(GLint),
     Float(GLfloat),
     Vec2(GLfloat, GLfloat),
     Vec3(GLfloat, GLfloat, GLfloat),
@@ -177,6 +190,7 @@ impl Uniform {
     pub fn bind(&self, location: GLint) {
         unsafe {
             match self {
+                Uniform::Int(v0) => gl::Uniform1i(location, *v0),
                 Uniform::Float(v0) => gl::Uniform1f(location, *v0),
                 Uniform::Vec2(v0, v1) => gl::Uniform2f(location, *v0, *v1),
                 Uniform::Vec3(v0, v1, v2) => gl::Uniform3f(location, *v0, *v1, *v2),
