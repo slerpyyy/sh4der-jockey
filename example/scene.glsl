@@ -13,12 +13,12 @@ void main() {
 
         if(p.x < cut) {
             p.x /= cut;
-			t = 1.1 + t * 1.1;
+            t = 1.1 + t * 1.1;
         } else {
             p.x -= cut;
             p.x /= 1.0 - cut;
             t += 0.5;
-		}
+        }
 
         p = p.yx;
     }

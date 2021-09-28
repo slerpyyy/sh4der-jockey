@@ -64,6 +64,9 @@ fn main() {
     )
     .unwrap();
 
+    log::info!("Version: {}", VERSION.as_str());
+    log::info!("Log level: {}", log_level);
+
     if let Some(SubCommand::Init) = args.subcmd {
         let plf = Path::new("./pipeline.yaml");
         let shf = Path::new("./scene.frag");
