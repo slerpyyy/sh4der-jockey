@@ -174,10 +174,6 @@ impl Jockey {
         let prog_addr = |s| context.get_proc_address(s) as _;
         gl::load_with(prog_addr);
 
-        unsafe {
-            gl::Enable(gl::DEPTH_TEST);
-        }
-
         // setup OpenGL
         let mut vao = 0;
         let mut vbo = 0;
@@ -917,7 +913,10 @@ impl Jockey {
                         ..
                     } = kind
                     {
+                        gl::Enable(gl::DEPTH_TEST);
+
                         gl::ClearColor(0.0, 0.0, 0.0, 0.0);
+                        gl::ClearDepth(1.0);
                         gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
                         gl_debug_check!();
 
@@ -946,6 +945,8 @@ impl Jockey {
                             gl_debug_check!();
                         };
                     } else {
+                        gl::Disable(gl::DEPTH_TEST);
+
                         let geometry = &mut self.geometry_fullscreen_rect;
                         draw_arrays_vao(geometry.vao(), geometry.count, geometry.mode);
                         gl_debug_check!();
