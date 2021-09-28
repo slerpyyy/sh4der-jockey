@@ -19,6 +19,30 @@ impl Matrix4 {
         };
     }
 
+    pub fn elements_flattened(self: &Matrix4) -> [f32; 16] {
+        return [
+            self.elements[0][0],
+            self.elements[0][1],
+            self.elements[0][2],
+            self.elements[0][3],
+
+            self.elements[1][0],
+            self.elements[1][1],
+            self.elements[1][2],
+            self.elements[1][3],
+
+            self.elements[2][0],
+            self.elements[2][1],
+            self.elements[2][2],
+            self.elements[2][3],
+
+            self.elements[3][0],
+            self.elements[3][1],
+            self.elements[3][2],
+            self.elements[3][3],
+        ];
+    }
+
     /// Multiply this Matrix4 by one or more Matrix4s.
     pub fn multiply(self: &Matrix4, matrix: Matrix4) -> Matrix4 {
         let a = self.elements;

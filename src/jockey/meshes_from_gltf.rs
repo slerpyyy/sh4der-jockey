@@ -4,7 +4,7 @@ use gl::types::*;
 
 use crate::util::*;
 
-use super::{Geometry, GeometryAttribute};
+use super::{Geometry, GeometryAttribute, Uniform};
 use super::{POSITION_NAME, NORMAL_NAME, TEXCOORD0_NAME, MATERIAL_ALPHA_CUTOFF, MATERIAL_BASE_COLOR, MODEL_MATRIX};
 
 fn traverse_node<F, R>(node: &gltf::Node, world_matrix: &Matrix4, f: &F) -> Vec<R>
@@ -183,26 +183,27 @@ pub fn meshes_from_gltf(path: String) -> Result<Vec<Mesh>, String> {
                             let material = primitive.material();
                             let pbr = material.pbr_metallic_roughness();
 
-                            let mut uniforms: HashMap<*const GLchar, Box<dyn Uniformable>> =
+                            let mut uniforms: HashMap<*const GLchar, Uniform> =
                                 HashMap::new();
 
                             // matrix
                             uniforms.insert(
                                 MODEL_MATRIX.as_ptr(),
-                                Box::new(UniformableMatrix4fv::new(world_matrix.elements.clone())),
+                                Uniform::Mat4(world_matrix.elements_flattened()),
                             );
 
                             // materials
                             uniforms.insert(
                                 MATERIAL_ALPHA_CUTOFF.as_ptr(),
-                                Box::new(Uniformable1f::new(
-                                    material.alpha_cutoff().unwrap_or(0.5),
-                                )),
+                                Uniform::Float(material.alpha_cutoff().unwrap_or(0.5)),
                             );
-                            uniforms.insert(
-                                MATERIAL_BASE_COLOR.as_ptr(),
-                                Box::new(Uniformable4f::new(pbr.base_color_factor())),
-                            );
+                            {
+                                let a = pbr.base_color_factor();
+                                uniforms.insert(
+                                    MATERIAL_BASE_COLOR.as_ptr(),
+                                    Uniform::Vec4(a[0], a[1], a[2], a[3]),
+                                );
+                            };
 
                             // mesh
                             let mesh = Mesh { geometry, uniforms };

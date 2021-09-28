@@ -15,7 +15,6 @@ mod matrix4;
 mod mesh;
 mod ringbuffer;
 mod texture;
-mod uniformable;
 
 pub use average::*;
 pub use cache::*;
@@ -25,7 +24,6 @@ pub use matrix4::*;
 pub use mesh::*;
 pub use ringbuffer::*;
 pub use texture::*;
-pub use uniformable::*;
 
 #[macro_export]
 macro_rules! gl_check {
