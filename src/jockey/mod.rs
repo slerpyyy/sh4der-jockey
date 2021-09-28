@@ -883,21 +883,6 @@ impl Jockey {
                     gl::BindFragDataLocation(stage.prog_id, 0, OUT_COLOR_NAME.as_ptr());
                     gl_debug_check!();
 
-                    // Specify the layout of the vertex data
-                    let pos_attr = gl::GetAttribLocation(stage.prog_id, POSITION_NAME.as_ptr());
-                    if pos_attr != -1 {
-                        gl::EnableVertexAttribArray(pos_attr as GLuint);
-                        gl::VertexAttribPointer(
-                            pos_attr as GLuint,
-                            2,
-                            gl::FLOAT,
-                            gl::FALSE as GLboolean,
-                            0,
-                            std::ptr::null(),
-                        );
-                    }
-                    gl_debug_check!();
-
                     // Set blend mode
                     if self.pipeline.blending {
                         let (src, dst) = stage.blend.unwrap_or((gl::ONE, gl::ZERO));
@@ -930,6 +915,8 @@ impl Jockey {
 
                                 let geometry = &mut mesh.geometry;
 
+                                geometry.attribute(stage.prog_id);
+
                                 let vao = geometry.vao();
 
                                 if geometry.indices.is_some() {
@@ -948,6 +935,9 @@ impl Jockey {
                         gl::Disable(gl::DEPTH_TEST);
 
                         let geometry = &mut self.geometry_fullscreen_rect;
+
+                        geometry.attribute(stage.prog_id);
+
                         draw_arrays_vao(geometry.vao(), geometry.count, geometry.mode);
                         gl_debug_check!();
                     }

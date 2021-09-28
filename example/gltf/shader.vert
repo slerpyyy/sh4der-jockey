@@ -1,6 +1,6 @@
 #version 430
 
-layout(location = 0) in vec3 position;
+in vec3 position;
 
 out vec4 v_model_pos;
 out vec4 v_view_pos;

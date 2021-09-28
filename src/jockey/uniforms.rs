@@ -14,10 +14,14 @@ lazy_static! {
     pub static ref RESOLUTION_NAME: CString = CString::new("resolution").unwrap();
     pub static ref PASS_INDEX_NAME: CString = CString::new("pass_index").unwrap();
     pub static ref OUT_COLOR_NAME: CString = CString::new("out_color").unwrap();
-    pub static ref POSITION_NAME: CString = CString::new("position").unwrap();
     pub static ref VERTEX_COUNT_NAME: CString = CString::new("vertex_count").unwrap();
     pub static ref NOISE_NAME: CString = CString::new("noise").unwrap();
     pub static ref MODEL_MATRIX: CString = CString::new("model_matrix").unwrap();
+
+    // vertex input
+    pub static ref POSITION_NAME: CString = CString::new("position").unwrap();
+    pub static ref NORMAL_NAME: CString = CString::new("normal").unwrap();
+    pub static ref TEXCOORD0_NAME: CString = CString::new("texcoord0").unwrap();
 
     // gltf material
     pub static ref MATERIAL_ALPHA_CUTOFF: CString = CString::new("material_alpha_cutoff").unwrap();

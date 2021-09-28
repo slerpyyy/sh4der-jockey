@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use gl::types::*;
 
 use crate::*;
+use crate::jockey::POSITION_NAME;
 
 use super::GeometryAttribute;
 
@@ -16,7 +17,7 @@ pub struct Geometry {
     pub mode: GLenum,
 
     /// Attributes of the geometry. Keys are attribute location.
-    pub attributes: HashMap<GLuint, GeometryAttribute<GLfloat>>,
+    pub attributes: HashMap<*const GLchar, GeometryAttribute<GLfloat>>,
 
     /// Index buffer of the geometry.
     pub indices: Option<GeometryAttribute<GLuint>>,
@@ -26,10 +27,6 @@ pub struct Geometry {
 }
 
 impl Geometry {
-    pub const ATTRIBUTE_POSITION: GLuint = 0;
-    pub const ATTRIBUTE_NORMAL: GLuint = 1;
-    pub const ATTRIBUTE_TEXCOORD0: GLuint = 2;
-
     pub fn init(count: GLsizei) -> Self {
         Geometry {
             count,
@@ -50,7 +47,7 @@ impl Geometry {
             2,
             gl::FLOAT,
         );
-        geometry.attributes.insert(0, attr_pos);
+        geometry.attributes.insert(POSITION_NAME.as_ptr(), attr_pos);
 
         geometry
     }
@@ -73,23 +70,42 @@ impl Geometry {
                     indices.buffer();
                 }
 
-                // attributes
-                for (index, attribute) in self.attributes.iter_mut() {
-                    attribute.buffer();
-
-                    unsafe {
-                        gl::EnableVertexAttribArray(*index);
-                        gl_debug_check!();
-                    }
-
-                    attribute.vertex_attrib_pointer(*index);
-                }
-
                 self.vao = Some(vao);
 
                 vao
             }
             Some(vao) => vao,
+        }
+    }
+
+    /// Assign attributes to given program.
+    pub fn attribute(&mut self, prog_id: GLuint) {
+        match self.vao {
+            None => (),
+            Some(vao) => {
+                unsafe {
+                    gl::BindVertexArray(vao);
+                    gl_debug_check!();
+                }
+
+                for (name, attribute) in self.attributes.iter_mut() {
+                    attribute.buffer();
+
+                    let index = unsafe { gl::GetAttribLocation(prog_id, *name) };
+
+                    match index {
+                        -1 => (),
+                        _ => {
+                            unsafe {
+                                gl::EnableVertexAttribArray(index as _);
+                                gl_debug_check!();
+                            }
+
+                            attribute.vertex_attrib_pointer(index as _);
+                        }
+                    }
+                }
+            },
         }
     }
 

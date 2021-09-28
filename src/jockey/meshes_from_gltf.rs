@@ -5,7 +5,7 @@ use gl::types::*;
 use crate::util::*;
 
 use super::{Geometry, GeometryAttribute};
-use super::{MATERIAL_ALPHA_CUTOFF, MATERIAL_BASE_COLOR, MODEL_MATRIX};
+use super::{POSITION_NAME, NORMAL_NAME, TEXCOORD0_NAME, MATERIAL_ALPHA_CUTOFF, MATERIAL_BASE_COLOR, MODEL_MATRIX};
 
 fn traverse_node<F, R>(node: &gltf::Node, world_matrix: &Matrix4, f: &F) -> Vec<R>
 where
@@ -93,7 +93,7 @@ fn geometry_from_primitive(
     let mut geometry = Geometry::init(count as _);
     geometry
         .attributes
-        .insert(Geometry::ATTRIBUTE_POSITION, positions);
+        .insert(POSITION_NAME.as_ptr(), positions);
 
     // indices
     {
@@ -129,7 +129,7 @@ fn geometry_from_primitive(
 
             geometry
                 .attributes
-                .insert(Geometry::ATTRIBUTE_NORMAL, normals);
+                .insert(NORMAL_NAME.as_ptr(), normals);
         }
     };
 
@@ -153,7 +153,7 @@ fn geometry_from_primitive(
 
             geometry
                 .attributes
-                .insert(Geometry::ATTRIBUTE_TEXCOORD0, texcoords0);
+                .insert(TEXCOORD0_NAME.as_ptr(), texcoords0);
         }
     };
 
