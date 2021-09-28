@@ -1,11 +1,19 @@
 use std::collections::HashMap;
+use std::rc::Rc;
 
 use gl::types::*;
 
 use crate::util::*;
 
 use super::{Geometry, GeometryAttribute, Uniform};
-use super::{POSITION_NAME, NORMAL_NAME, TEXCOORD0_NAME, MATERIAL_ALPHA_CUTOFF, MATERIAL_BASE_COLOR, MODEL_MATRIX};
+use super::{POSITION_NAME, NORMAL_NAME, TEXCOORD0_NAME, MATERIAL_ALPHA_CUTOFF, MATERIAL_BASE_COLOR, MODEL_MATRIX, MATERIAL_BASE_TEXTURE};
+
+/// Ref: https://github.com/bwasty/gltf-viewer/blob/master/src/importdata.rs#L4-L9
+struct GltfImportData {
+    pub doc: gltf::Document,
+    pub buffers: Vec<gltf::buffer::Data>,
+    pub images: Vec<gltf::image::Data>,
+}
 
 fn traverse_node<F, R>(node: &gltf::Node, world_matrix: &Matrix4, f: &F) -> Vec<R>
 where
@@ -56,8 +64,10 @@ where
 
 fn geometry_from_primitive(
     primitive: &gltf::Primitive,
-    buffers: &Vec<gltf::buffer::Data>,
+    imp: &GltfImportData,
 ) -> Result<Geometry, String> {
+    let buffers = &imp.buffers;
+
     // See: https://github.com/bwasty/gltf-viewer/blob/1cb99cb51c04ddf7af3f2b4488757f6f4f498787/src/render/primitive.rs#L104
     let reader = primitive.reader(|buffer| Some(&buffers[buffer.index()]));
 
@@ -160,9 +170,63 @@ fn geometry_from_primitive(
     Ok(geometry)
 }
 
+fn texture_from_gltf_texture(
+    texture: &gltf::texture::Texture,
+    imp: &GltfImportData,
+) -> Rc<dyn Texture> {
+    let images = &imp.images;
+
+    let sampler = texture.sampler();
+    let image = texture.source();
+    let data = &images[image.index()];
+
+    let mut builder = TextureBuilder::new();
+
+    builder.set_resolution(vec![data.width, data.height]);
+    builder.channels = match data.format {
+        gltf::image::Format::R8 => 1,
+        gltf::image::Format::R8G8 => 2,
+        gltf::image::Format::R8G8B8 => 3,
+        gltf::image::Format::R8G8B8A8 => 4,
+        _ => unreachable!(),
+    };
+    builder.min_filter = match sampler.min_filter() {
+        Some(gltf::texture::MinFilter::Nearest) => gl::NEAREST,
+        Some(gltf::texture::MinFilter::NearestMipmapNearest) => gl::NEAREST_MIPMAP_NEAREST,
+        Some(gltf::texture::MinFilter::NearestMipmapLinear) => gl::NEAREST_MIPMAP_LINEAR,
+        Some(gltf::texture::MinFilter::Linear) => gl::LINEAR,
+        Some(gltf::texture::MinFilter::LinearMipmapNearest) => gl::LINEAR_MIPMAP_NEAREST,
+        Some(gltf::texture::MinFilter::LinearMipmapLinear) => gl::LINEAR_MIPMAP_LINEAR,
+        _ => builder.min_filter, // use default value
+    };
+    builder.mag_filter = match sampler.mag_filter() {
+        Some(gltf::texture::MagFilter::Nearest) => gl::NEAREST,
+        Some(gltf::texture::MagFilter::Linear) => gl::LINEAR,
+        _ => builder.mag_filter, // use default value
+    };
+    builder.wrap_mode = match sampler.wrap_s() {
+        gltf::texture::WrappingMode::ClampToEdge => gl::CLAMP_TO_EDGE,
+        gltf::texture::WrappingMode::MirroredRepeat => gl::MIRRORED_REPEAT,
+        gltf::texture::WrappingMode::Repeat => gl::REPEAT,
+    };
+    builder.mipmap = match sampler.min_filter() {
+        Some(gltf::texture::MinFilter::Nearest) => false,
+        Some(gltf::texture::MinFilter::NearestMipmapNearest) => true,
+        Some(gltf::texture::MinFilter::NearestMipmapLinear) => true,
+        Some(gltf::texture::MinFilter::Linear) => false,
+        Some(gltf::texture::MinFilter::LinearMipmapNearest) => true,
+        Some(gltf::texture::MinFilter::LinearMipmapLinear) => true,
+        _ => builder.mipmap, // use default value
+    };
+
+    builder.build_texture_with_data(data.pixels.as_ptr() as _)
+}
+
 fn set_material_props_to_uniforms(
     uniforms: &mut HashMap<*const GLchar, Uniform>,
+    textures: &mut HashMap<*const GLchar, Rc<dyn Texture>>,
     material: &gltf::Material,
+    imp: &GltfImportData,
 ) {
     let pbr = material.pbr_metallic_roughness();
 
@@ -170,6 +234,20 @@ fn set_material_props_to_uniforms(
         MATERIAL_ALPHA_CUTOFF.as_ptr(),
         Uniform::Float(material.alpha_cutoff().unwrap_or(0.5)),
     );
+
+    match pbr.base_color_texture() {
+        Some(s) => {
+            let texture = s.texture();
+            let rc_texture = texture_from_gltf_texture(&texture, imp);
+
+            textures.insert(
+                MATERIAL_BASE_TEXTURE.as_ptr(),
+                rc_texture,
+            );
+        },
+        None => (),
+    }
+
     {
         let a = pbr.base_color_factor();
         uniforms.insert(
@@ -180,12 +258,13 @@ fn set_material_props_to_uniforms(
 }
 
 pub fn meshes_from_gltf(path: String) -> Result<Vec<Mesh>, String> {
-    let (doc, buffers, _images) = match gltf::import(path) {
+    let (doc, buffers, images) = match gltf::import(path) {
         Ok(s) => s,
         Err(error) => return Err(error.to_string()),
     };
+    let imp = GltfImportData { doc, buffers, images };
 
-    let scene = match doc.default_scene() {
+    let scene = match imp.doc.default_scene() {
         Some(s) => s,
         None => return Err("No default scene provided.".to_string()),
     };
@@ -197,12 +276,13 @@ pub fn meshes_from_gltf(path: String) -> Result<Vec<Mesh>, String> {
                 &scene_root_node,
                 &Matrix4::identity(),
                 &|primitive, world_matrix| {
-                    match geometry_from_primitive(&primitive, &buffers) {
+                    match geometry_from_primitive(&primitive, &imp) {
                         Ok(geometry) => {
                             let material = primitive.material();
 
                             let mut uniforms: HashMap<*const GLchar, Uniform> =
                                 HashMap::new();
+                            let mut textures: HashMap<*const GLchar, Rc<dyn Texture>> = HashMap::new();
 
                             // matrix
                             uniforms.insert(
@@ -211,10 +291,10 @@ pub fn meshes_from_gltf(path: String) -> Result<Vec<Mesh>, String> {
                             );
 
                             // materials
-                            set_material_props_to_uniforms(&mut uniforms, &material);
+                            set_material_props_to_uniforms(&mut uniforms, &mut textures, &material, &imp);
 
                             // mesh
-                            let mesh = Mesh { geometry, uniforms };
+                            let mesh = Mesh { geometry, uniforms, textures };
 
                             Some(mesh)
                         }

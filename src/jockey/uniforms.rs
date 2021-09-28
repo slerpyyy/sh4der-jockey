@@ -26,6 +26,7 @@ lazy_static! {
     // gltf material
     pub static ref MATERIAL_ALPHA_CUTOFF: CString = CString::new("material_alpha_cutoff").unwrap();
     pub static ref MATERIAL_BASE_COLOR: CString = CString::new("material_base_color").unwrap();
+    pub static ref MATERIAL_BASE_TEXTURE: CString = CString::new("material_base_texture").unwrap();
 
     // time tracking
     pub static ref TIME_NAME: CString = CString::new("time").unwrap();

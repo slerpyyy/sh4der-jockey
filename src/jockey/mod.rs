@@ -633,6 +633,9 @@ impl Jockey {
                 _ => [width, height, 0],
             };
 
+            // current texture units being used
+            let mut texture_unit = 0;
+
             unsafe {
                 // Use shader program
                 gl::UseProgram(stage.prog_id);
@@ -809,18 +812,18 @@ impl Jockey {
                 }
 
                 // Add and bind uniform texture dependencies
-                for (k, name) in stage.deps.iter().enumerate() {
+                for name in stage.deps.iter() {
                     let tex = self.pipeline.buffers.get(name).unwrap();
                     let loc = gl::GetUniformLocation(stage.prog_id, name.as_ptr());
                     debug_assert_ne!(loc, -1);
 
-                    gl::ActiveTexture(gl::TEXTURE0 + k as GLenum);
+                    gl::ActiveTexture(gl::TEXTURE0 + texture_unit as GLenum);
                     gl_debug_check!();
 
-                    tex.bind(k as _);
+                    tex.bind(texture_unit as _);
                     gl_debug_check!();
 
-                    gl::Uniform1i(loc, k as _);
+                    gl::Uniform1i(loc, texture_unit as _);
                     gl_debug_check!();
 
                     let name_len = name.as_bytes().len();
@@ -844,6 +847,8 @@ impl Jockey {
                         res[0] as f32 / res[1] as f32,
                     );
                     gl_debug_check!();
+
+                    texture_unit += 1;
                 }
             }
 
@@ -911,7 +916,7 @@ impl Jockey {
 
                         if let Some(s) = meshes {
                             for mesh in s {
-                                mesh.apply_uniforms(stage.prog_id);
+                                mesh.apply_uniforms(stage.prog_id, &mut texture_unit);
 
                                 let geometry = &mut mesh.geometry;
 
