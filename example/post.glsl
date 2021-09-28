@@ -4,6 +4,8 @@ out vec4 color;
 
 #pragma include "common.glsl"
 
+uniform vec3 tint;
+
 void main() {
     vec2 uv = gl_FragCoord.xy / resolution.xy;
 
@@ -18,6 +20,8 @@ void main() {
     }
 
     acc /= float(iter);
+
+    acc.rgb *= tint;
 
     color = pow(acc, vec4(1) / 2.2);
 }

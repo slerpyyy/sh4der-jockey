@@ -1,10 +1,11 @@
-use std::ffi::CString;
+use std::{collections::HashMap, ffi::CString};
 
 use gl::types::*;
 use serde_yaml::Value;
 
 use super::meshes_from_gltf::*;
 
+use super::Uniform;
 use crate::util::*;
 
 pub const PASS_VERT: &str = include_str!("shaders/pass.vert");
@@ -39,6 +40,8 @@ pub struct Stage {
     pub kind: StageKind,
     pub sh_ids: Vec<GLuint>,
     pub deps: Vec<CString>,
+    pub unis: HashMap<CString, Uniform>,
+    pub blend: Option<(GLenum, GLenum)>,
     pub perf: RunningAverage<f32, 128>,
     pub builder: TextureBuilder,
 }
@@ -57,6 +60,78 @@ impl Stage {
                     s
                 ))
             }
+            None => None,
+        };
+
+        // parse uniforms
+        let mut unis = HashMap::new();
+        match object.get("uniforms") {
+            Some(Value::Mapping(m)) => {
+                for (key, value) in m {
+                    let name = match key.as_str() {
+                        Some(s) => CString::new(s).unwrap(),
+                        None => {
+                            return Err(format!(
+                                "Expected uniform name to be a string, got \"{:?}\"",
+                                key
+                            ))
+                        }
+                    };
+
+                    let uniform = Uniform::from_yaml(value).map_err(|e| e.to_string())?;
+                    unis.insert(name, uniform);
+                }
+            }
+            Some(s) => {
+                return Err(format!(
+                    "Expected field \"uniforms\" to be a mapping, got {:?}",
+                    s
+                ))
+            }
+            None => (),
+        }
+
+        // parse blend mode
+        let blend = match object.get("blend_mode").or(object.get("blend")) {
+            Some(Value::Sequence(s)) => {
+                fn parse_blend_mode(name: &str) -> Result<GLenum, String> {
+                    match name {
+                        "ZERO" => Ok(gl::ZERO),
+                        "ONE" => Ok(gl::ONE),
+                        "SRC_COLOR" => Ok(gl::SRC_COLOR),
+                        "DST_COLOR" => Ok(gl::DST_COLOR),
+                        "SRC_ALPHA" => Ok(gl::SRC_ALPHA),
+                        "DST_ALPHA" => Ok(gl::DST_ALPHA),
+                        "SRC1_COLOR" => Ok(gl::SRC1_COLOR),
+                        "SRC1_ALPHA" => Ok(gl::SRC1_ALPHA),
+                        "CONSTANT_COLOR" => Ok(gl::CONSTANT_COLOR),
+                        "CONSTANT_ALPHA" => Ok(gl::CONSTANT_ALPHA),
+                        "SRC_ALPHA_SATURATE" => Ok(gl::SRC_ALPHA_SATURATE),
+                        "ONE_MINUS_SRC_COLOR" => Ok(gl::ONE_MINUS_SRC_COLOR),
+                        "ONE_MINUS_DST_COLOR" => Ok(gl::ONE_MINUS_DST_COLOR),
+                        "ONE_MINUS_SRC_ALPHA" => Ok(gl::ONE_MINUS_SRC_ALPHA),
+                        "ONE_MINUS_DST_ALPHA" => Ok(gl::ONE_MINUS_DST_ALPHA),
+                        "ONE_MINUS_SRC1_COLOR" => Ok(gl::ONE_MINUS_SRC1_COLOR),
+                        "ONE_MINUS_SRC1_ALPHA" => Ok(gl::ONE_MINUS_SRC1_ALPHA),
+                        "ONE_MINUS_CONSTANT_COLOR" => Ok(gl::ONE_MINUS_CONSTANT_COLOR),
+                        "ONE_MINUS_CONSTANT_ALPHA" => Ok(gl::ONE_MINUS_CONSTANT_ALPHA),
+                        s => Err(format!("Expected blend mode, got \"{:?}\"", s)),
+                    }
+                }
+
+                match s.as_slice() {
+                    &[Value::String(ref src), Value::String(ref dst)] => {
+                        Some((parse_blend_mode(src)?, parse_blend_mode(dst)?))
+                    }
+                    s => {
+                        return Err(format!(
+                        "Expected field \"blend_mode\" to be a list of two strings, got \"{:?}\"",
+                        s
+                    ))
+                    }
+                }
+            }
+            Some(s) => todo!(),
             None => None,
         };
 
@@ -111,6 +186,8 @@ impl Stage {
                     kind,
                     sh_ids,
                     deps,
+                    unis,
+                    blend,
                     perf,
                     builder,
                 })
@@ -206,6 +283,8 @@ impl Stage {
                     kind,
                     sh_ids,
                     deps,
+                    unis,
+                    blend,
                     perf,
                     builder,
                 })
@@ -288,6 +367,8 @@ impl Stage {
                     kind,
                     sh_ids,
                     deps,
+                    unis,
+                    blend,
                     perf,
                     builder,
                 })

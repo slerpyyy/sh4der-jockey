@@ -1,0 +1,7 @@
+stages:
+  - fs: "draw.frag"
+    target: accumulatorTex
+    blend_mode: [ONE, ONE]
+    float: true
+
+  - fs: "present.frag"

@@ -378,6 +378,15 @@ impl Jockey {
                 self.console = format!("Build pipeline over a span of {}s", build_time);
                 log::info!("{}", &self.console);
 
+                // toggle blend modes
+                unsafe {
+                    match self.pipeline.blending {
+                        true => gl::Enable(gl::BLEND),
+                        false => gl::Disable(gl::BLEND),
+                    }
+                    gl_debug_check!();
+                }
+
                 // copy audio configs
                 self.audio.attack = update.smoothing_attack;
                 self.audio.decay = update.smoothing_decay;
@@ -789,6 +798,13 @@ impl Jockey {
                     gl_debug_check!();
                 }
 
+                // Add custom uniforms
+                for (name, uniform) in &stage.unis {
+                    let loc = gl::GetUniformLocation(stage.prog_id, name.as_ptr());
+                    uniform.bind(loc);
+                    gl_debug_check!();
+                }
+
                 // Add vertex count uniform
                 if let StageKind::Vert { count, .. } = stage.kind {
                     let loc = gl::GetUniformLocation(stage.prog_id, VERTEX_COUNT_NAME.as_ptr());
@@ -885,6 +901,12 @@ impl Jockey {
                         );
                     }
                     gl_debug_check!();
+
+                    // Set blend mode
+                    if self.pipeline.blending {
+                        let (src, dst) = stage.blend.unwrap_or((gl::ONE, gl::ZERO));
+                        gl::BlendFunc(src, dst);
+                    }
 
                     // Draw stuff
                     if let StageKind::Vert {

@@ -11,6 +11,7 @@ use serde_yaml::Value;
 use super::uniforms::*;
 use crate::{jockey::*, util::Cache};
 
+/// Type alias for box containing a partially build pipeline
 pub type PipelinePartial = Box<dyn Future<Output = Result<(Pipeline, UpdateRequest), String>>>;
 
 #[derive(Debug, Clone)]
@@ -40,18 +41,10 @@ pub struct Pipeline {
     pub stages: Vec<Stage>,
     pub buffers: HashMap<CString, Rc<dyn Texture>>,
     pub requested_ndi_sources: HashMap<CString, String>,
+    pub blending: bool,
 }
 
 impl Pipeline {
-    #[allow(dead_code)]
-    pub fn new() -> Self {
-        Self {
-            stages: Vec::new(),
-            buffers: HashMap::new(),
-            requested_ndi_sources: HashMap::new(),
-        }
-    }
-
     pub fn splash_screen() -> Self {
         const SPLASH_FRAG: &str = include_str!("shaders/splash.frag");
 
@@ -68,6 +61,8 @@ impl Pipeline {
             kind: StageKind::Frag {},
             sh_ids,
             deps: Vec::new(),
+            unis: HashMap::new(),
+            blend: None,
             perf: RunningAverage::new(),
             builder: TextureBuilder::new(),
         }];
@@ -76,6 +71,7 @@ impl Pipeline {
             stages,
             buffers: HashMap::new(),
             requested_ndi_sources: HashMap::new(),
+            blending: false,
         }
     }
 
@@ -474,6 +470,9 @@ impl Pipeline {
             yield_now().await;
         }
 
+        // check for blend modes
+        let blending = stages.iter().any(|s| s.blend.is_some());
+
         // remove unnecessary buffers
         buffers.retain(|name, _| {
             let needed = used_buffers.contains(name);
@@ -488,6 +487,7 @@ impl Pipeline {
                 stages,
                 buffers,
                 requested_ndi_sources,
+                blending,
             },
             UpdateRequest {
                 audio_samples,
