@@ -143,6 +143,29 @@ fn geometry_from_primitive(
         }
     };
 
+    // tangent
+    {
+        if let Some(iter) = reader.read_tangents() {
+            let vec: Vec<GLfloat> = iter.flatten().collect();
+
+            let mut tangents = GeometryAttribute::init(vec, 4, gl::FLOAT);
+            tangents.normalized = match primitive.get(&gltf::Semantic::Tangents) {
+                Some(s) => {
+                    if s.normalized() {
+                        1
+                    } else {
+                        0
+                    }
+                }
+                None => 0,
+            };
+
+            geometry
+                .attributes
+                .insert(TANGENT_NAME.as_ptr(), tangents);
+        }
+    };
+
     // texcoord0
     {
         if let Some(s) = reader.read_tex_coords(0) {

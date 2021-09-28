@@ -22,6 +22,7 @@ lazy_static! {
     // vertex input
     pub static ref POSITION_NAME: CString = CString::new("position").unwrap();
     pub static ref NORMAL_NAME: CString = CString::new("normal").unwrap();
+    pub static ref TANGENT_NAME: CString = CString::new("tangent").unwrap();
     pub static ref TEXCOORD0_NAME: CString = CString::new("texcoord0").unwrap();
 
     // gltf material
