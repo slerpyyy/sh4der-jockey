@@ -1,4 +1,4 @@
-use std::ffi::CString;
+use std::{ffi::CString, mem::MaybeUninit};
 
 use anyhow::{bail, Result};
 use gl::types::*;
@@ -97,7 +97,8 @@ impl Uniform {
                     .map(Vec::len)
                     .max()
                 {
-                    let mut matrix = match (width, seq_len) {
+                    let height = seq_len;
+                    let mut matrix = match (width, height) {
                         (2, 2) => Self::Mat2([0.0; 4]),
                         (3, 3) => Self::Mat3([0.0; 9]),
                         (4, 4) => Self::Mat4([0.0; 16]),
@@ -128,7 +129,8 @@ impl Uniform {
                                 ),
                             };
 
-                            slice[x + width * y] = val;
+                            // implicitely transpose matrix
+                            slice[x * height + y] = val;
                         }
                     }
 
@@ -184,6 +186,39 @@ impl Uniform {
         }
     }
 
+    pub fn transpose(&mut self) -> Result<(), ()> {
+        fn helper<const W: usize, const N: usize>(vs: [GLfloat; N]) -> [GLfloat; N] {
+            let mut out: [GLfloat; N] = unsafe { MaybeUninit::uninit().assume_init() };
+            for (index, &val) in vs.iter().enumerate() {
+                let y = index % W;
+                let x = index / W;
+                let i = x + (N / W) * y;
+                out[i] = val;
+
+                dbg!(i, &out);
+            }
+
+            out
+        }
+
+        match self {
+            Uniform::Mat2(vs) => *vs = helper::<2, 4>(*vs),
+            Uniform::Mat3(vs) => *vs = helper::<3, 9>(*vs),
+            Uniform::Mat4(vs) => *vs = helper::<4, 16>(*vs),
+
+            Uniform::Mat2x3(vs) => *self = Uniform::Mat3x2(helper::<3, 6>(*vs)),
+            Uniform::Mat3x2(vs) => *self = Uniform::Mat2x3(helper::<2, 6>(*vs)),
+            Uniform::Mat2x4(vs) => *self = Uniform::Mat4x2(helper::<4, 8>(*vs)),
+            Uniform::Mat4x2(vs) => *self = Uniform::Mat2x4(helper::<2, 8>(*vs)),
+            Uniform::Mat3x4(vs) => *self = Uniform::Mat4x3(helper::<4, 12>(*vs)),
+            Uniform::Mat4x3(vs) => *self = Uniform::Mat3x4(helper::<3, 12>(*vs)),
+
+            _ => return Err(()),
+        };
+
+        Ok(())
+    }
+
     fn mat_slice_mut(&mut self) -> Option<&mut [GLfloat]> {
         match self {
             Uniform::Mat2(vs) => Some(vs),
@@ -231,22 +266,35 @@ mod test {
     #[test]
     fn parse_matrix_simple() {
         let value = serde_yaml::from_str("[[1, 2], [3, 4]]").unwrap();
-        let uniform = Uniform::from_yaml(&value).unwrap();
+        let mut uniform = Uniform::from_yaml(&value).unwrap();
+
+        assert_eq!(uniform, Uniform::Mat2([1.0, 3.0, 2.0, 4.0]));
+
+        uniform.transpose().unwrap();
 
         assert_eq!(uniform, Uniform::Mat2([1.0, 2.0, 3.0, 4.0]));
     }
 
     #[test]
     fn parse_matrix_chaotic() {
-        let value = serde_yaml::from_str("[[1, -2], 5.2, [], [0, 0, 4]]").unwrap();
-        let uniform = Uniform::from_yaml(&value).unwrap();
+        let value = serde_yaml::from_str("[[1, 2], 5.2, [], [0, 0, -4]]").unwrap();
+        let mut uniform = Uniform::from_yaml(&value).unwrap();
 
         #[rustfmt::skip]
         assert_eq!(uniform, Uniform::Mat3x4([
-            1.0, -2.0, 0.0,
+            1.0, 5.2, 0.0, 0.0,
+            2.0, 5.2, 0.0, 0.0,
+            0.0, 5.2, 0.0, -4.0,
+        ]));
+
+        uniform.transpose().unwrap();
+
+        #[rustfmt::skip]
+        assert_eq!(uniform, Uniform::Mat4x3([
+            1.0, 2.0, 0.0,
             5.2, 5.2, 5.2,
             0.0, 0.0, 0.0,
-            0.0, 0.0, 4.0
+            0.0, 0.0, -4.0
         ]));
     }
 }

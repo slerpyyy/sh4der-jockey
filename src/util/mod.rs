@@ -515,7 +515,8 @@ mod test {
 
     #[test]
     fn preprocess_include_pragma_once() {
-        let original = "#version 123\n#pragma include \"foo.glsl\"\n#pragma include \"foo.glsl\"\nmain(){}";
+        let original =
+            "#version 123\n#pragma include \"foo.glsl\"\n#pragma include \"foo.glsl\"\nmain(){}";
         let expected = "#version 123\n#define SH4DERJOCKEY 1\n#line 1 1\n#pragma once\nint hoge = 0;\n#line 4 0\nmain(){}";
         let mut lut = Vec::new();
         let result = preprocess(original, "test", &mut lut).unwrap();

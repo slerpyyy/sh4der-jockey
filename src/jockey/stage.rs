@@ -65,8 +65,27 @@ impl Stage {
         match object.get("uniforms") {
             Some(Value::Mapping(m)) => {
                 for (key, value) in m {
+                    let mut transpose = false;
+
+                    // get uniform name
                     let name = match key.as_str() {
-                        Some(s) => CString::new(s).unwrap(),
+                        Some(s) => {
+                            let mut name = s;
+
+                            // check for transpose suffix
+                            if s.len() > 2 {
+                                let (prefix, suffix) = s.split_at(s.len() - 2);
+                                let suffix = suffix.as_bytes();
+                                if matches!(suffix[0], b'_' | b'-' | b'^')
+                                    && matches!(suffix[1], b't' | b'T')
+                                {
+                                    name = prefix;
+                                    transpose = true;
+                                }
+                            }
+
+                            CString::new(name).unwrap()
+                        }
                         None => {
                             return Err(format!(
                                 "Expected uniform name to be a string, got \"{:?}\"",
@@ -75,7 +94,12 @@ impl Stage {
                         }
                     };
 
-                    let uniform = Uniform::from_yaml(value).map_err(|e| e.to_string())?;
+                    // parse uniform value
+                    let mut uniform = Uniform::from_yaml(value).map_err(|e| e.to_string())?;
+                    if transpose && uniform.transpose().is_err() {
+                        return Err(format!("Failed to transpose value \"{:?}\"", uniform));
+                    }
+
                     unis.insert(name, uniform);
                 }
             }
