@@ -50,6 +50,8 @@ stages:
     mipmap: true
 
   - fs: "post_process.frag"
+    uniforms:
+      - chromab: 0.4
 
 ndi:
   - source: "source substring"
@@ -325,6 +327,31 @@ uniform vec3 high_smooth_integrated;
 uniform vec3 volume;
 uniform vec3 volume_integrated;
 ```
+
+Additionally, custom uniforms can be added to any shader stage using the `uniforms` field in the pipeline file.
+
+```yaml
+stages:
+  - fs: "scene.frag"
+    uniforms:
+      - strength: 2.3
+      - iter: 20
+      - color: [1, 0.4, 0.7]
+      - rotation^T: [[0.9, 0.2], [-0.2, 0.9]]
+```
+
+These can be accessed in the shader as follows.
+Note that all numbers in custom uniforms are represented as floats, to make the type of a uniform easy to infer.
+
+```glsl
+uniform float strength;
+uniform float iter;
+uniform vec3 color;
+uniform mat2 rotation;
+```
+
+Also note that the `rotation` matrix is transposed here.
+By default, a matrix is interpreted in row major order. If they are transposed, they are interpreted in column major order.
 
 ## Hotkeys
 

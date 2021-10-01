@@ -56,6 +56,8 @@ stages:
     mipmap: true
 
   - fs: "post_process.frag"
+    uniforms:
+      - chromab: 0.4
 
 ndi:
   - source: "source substring"
@@ -333,6 +335,31 @@ uniform vec3 high_smooth_integrated;
 uniform vec3 volume;
 uniform vec3 volume_integrated;
 ```
+
+さらに、パイプラインファイルの`uniforms`フィールドを使用して、カスタムuniformsを任意のシェーダーステージに追加できます。
+
+```yaml
+stages:
+  - fs: "scene.frag"
+    uniforms:
+      - strength: 2.3
+      - iter: 20
+      - color: [1, 0.4, 0.7]
+      - rotation^T: [[0.9, 0.2], [-0.2, 0.9]]
+```
+
+これらは、次のようにシェーダーでアクセスできます。
+uniformのすべての数字は、型を簡単に推測できるように、floatとして解釈されることに注意してください。
+
+```glsl
+uniform float strength;
+uniform float iter;
+uniform vec3 color;
+uniform mat2 rotation;
+```
+
+また、ここでは`rotation`という行列がtransposeされていることに注意してください。
+普通では、行列はrow-majorに解釈されます。 それらがtransposeされる場合、それらはcolumn-majorです。
 
 ## Hotkeys
 
