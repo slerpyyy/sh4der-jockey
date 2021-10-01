@@ -128,7 +128,11 @@ impl Stage {
                     }
                 }
             }
-            Some(s) => todo!(),
+            Some(Value::String(_)) => {
+                // TODO: Fix this
+                return Err("Aliases for common blend modes are currently unimplemented".into());
+            }
+            Some(s) => return Err(format!("Invalid blend mode value, got \"{:?}\"", s)),
             None => None,
         };
 

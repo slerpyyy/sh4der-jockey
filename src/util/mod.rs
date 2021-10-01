@@ -270,6 +270,7 @@ pub fn preprocess(
         mut cycle_seen: HashSet<String>,
         once_ignore: &mut HashSet<String>,
         lut: &mut Vec<String>,
+        need_def: &mut bool,
     ) -> Result<Vec<String>, String> {
         let mut lines = Vec::<String>::new();
         let mut need_ln = true;
@@ -337,8 +338,14 @@ pub fn preprocess(
                     let file = "#pragma once\nint hoge = 0;\n".to_string();
 
                     // recursively process file
-                    let mut file_lines =
-                        recurse(&file, file_name, cycle_seen.clone(), once_ignore, lut)?;
+                    let mut file_lines = recurse(
+                        &file,
+                        file_name,
+                        cycle_seen.clone(),
+                        once_ignore,
+                        lut,
+                        need_def,
+                    )?;
                     lines.append(&mut file_lines);
 
                     // put line directive above next line
@@ -351,6 +358,11 @@ pub fn preprocess(
 
             // add line directive
             if need_ln && !line.starts_with("#version") {
+                if *need_def {
+                    lines.push("#define SH4DERJOCKEY 1".into());
+                    *need_def = false;
+                }
+
                 lines.push(format!("#line {} {}", k + 1, file_id));
                 need_ln = false;
             }
@@ -369,6 +381,7 @@ pub fn preprocess(
         HashSet::new(),
         &mut HashSet::new(),
         file_name_lut,
+        &mut true,
     )?;
 
     Ok(lines.join("\n"))
@@ -467,7 +480,7 @@ mod test {
     #[test]
     fn preprocess_line_number() {
         let original = "#version 123\nmain(){}";
-        let expected = "#version 123\n#line 2 0\nmain(){}";
+        let expected = "#version 123\n#define SH4DERJOCKEY 1\n#line 2 0\nmain(){}";
         let mut lut = Vec::new();
         let result = preprocess(original, "test", &mut lut).unwrap();
         assert_eq!(result, expected);
@@ -476,7 +489,7 @@ mod test {
     #[test]
     fn preprocess_include_simple() {
         let original = "#version 123\n#pragma include \"foo.glsl\"\nmain(){}";
-        let expected = "#version 123\n#line 1 1\n#pragma once\nint hoge = 0;\n#line 3 0\nmain(){}";
+        let expected = "#version 123\n#define SH4DERJOCKEY 1\n#line 1 1\n#pragma once\nint hoge = 0;\n#line 3 0\nmain(){}";
         let mut lut = Vec::new();
         let result = preprocess(original, "test", &mut lut).unwrap();
         assert_eq!(result, expected);
@@ -485,7 +498,7 @@ mod test {
     #[test]
     fn preprocess_include_in_comment_single() {
         let original = "#version 123\n//#pragma include \"foo.glsl\"\nmain(){}";
-        let expected = "#version 123\n#line 2 0\n//#pragma include \"foo.glsl\"\nmain(){}";
+        let expected = "#version 123\n#define SH4DERJOCKEY 1\n#line 2 0\n//#pragma include \"foo.glsl\"\nmain(){}";
         let mut lut = Vec::new();
         let result = preprocess(original, "test", &mut lut).unwrap();
         assert_eq!(result, expected);
@@ -494,7 +507,7 @@ mod test {
     #[test]
     fn preprocess_include_in_comment_block() {
         let original = "#version 123\n/*#pragma include \"foo.glsl\"*/\nmain(){}";
-        let expected = "#version 123\n#line 2 0\n/*#pragma include \"foo.glsl\"*/\nmain(){}";
+        let expected = "#version 123\n#define SH4DERJOCKEY 1\n#line 2 0\n/*#pragma include \"foo.glsl\"*/\nmain(){}";
         let mut lut = Vec::new();
         let result = preprocess(original, "test", &mut lut).unwrap();
         assert_eq!(result, expected);
@@ -502,9 +515,8 @@ mod test {
 
     #[test]
     fn preprocess_include_pragma_once() {
-        let original =
-            "#version 123\n#pragma include \"foo.glsl\"\n#pragma include \"foo.glsl\"\nmain(){}";
-        let expected = "#version 123\n#line 1 1\n#pragma once\nint hoge = 0;\n#line 4 0\nmain(){}";
+        let original = "#version 123\n#pragma include \"foo.glsl\"\n#pragma include \"foo.glsl\"\nmain(){}";
+        let expected = "#version 123\n#define SH4DERJOCKEY 1\n#line 1 1\n#pragma once\nint hoge = 0;\n#line 4 0\nmain(){}";
         let mut lut = Vec::new();
         let result = preprocess(original, "test", &mut lut).unwrap();
         assert_eq!(result, expected);

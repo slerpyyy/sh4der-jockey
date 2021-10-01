@@ -1,15 +1,23 @@
 #version 430
 
-#if 0
-    // Blossom header
-    layout(location = 0) uniform vec4 iResolution;
-    layout(location = 1) uniform int iFrame;
-#else
-    // Sh4derJockey header
+// Once this file has been moved to the framework
+// you can remove everything but the Blossom header
+// from this section in both shaders
+
+#ifdef SH4DERJOCKEY
+
+    // compatibility header
     uniform vec4 resolution;
     uniform int frame_count;
     #define iResolution resolution
     #define iFrame frame_count
+
+#else
+
+    // Blossom header
+    layout(location = 0) uniform vec4 iResolution;
+    layout(location = 1) uniform int iFrame;
+
 #endif
 
 /////////////////////////////////
