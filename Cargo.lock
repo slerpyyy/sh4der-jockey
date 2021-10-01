@@ -2214,7 +2214,7 @@ dependencies = [
 
 [[package]]
 name = "sh4der-jockey"
-version = "0.2.2"
+version = "0.3.0"
 dependencies = [
  "alloca",
  "anyhow",
