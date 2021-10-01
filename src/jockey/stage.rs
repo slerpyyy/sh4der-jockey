@@ -76,7 +76,7 @@ impl Stage {
                             if s.len() > 2 {
                                 let (prefix, suffix) = s.split_at(s.len() - 2);
                                 let suffix = suffix.as_bytes();
-                                if matches!(suffix[0], b'_' | b'-' | b'^')
+                                if matches!(suffix[0], b'-' | b'^')
                                     && matches!(suffix[1], b't' | b'T')
                                 {
                                     name = prefix;
