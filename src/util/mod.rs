@@ -9,11 +9,21 @@ use regex::Regex;
 
 mod average;
 mod cache;
+mod geometry;
+mod geometry_attribute;
+mod matrix3;
+mod matrix4;
+mod mesh;
 mod ringbuffer;
 mod texture;
 
 pub use average::*;
 pub use cache::*;
+pub use geometry::*;
+pub use geometry_attribute::*;
+pub use matrix3::*;
+pub use matrix4::*;
+pub use mesh::*;
 pub use ringbuffer::*;
 pub use texture::*;
 
@@ -66,27 +76,28 @@ macro_rules! gl_debug_ignore {
     };
 }
 
-const FULLSCREEN_RECT: [GLfloat; 12] = [
-    -1.0, -1.0, -1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, -1.0, -1.0, -1.0,
-];
-
-pub fn draw_fullscreen(vao: GLuint) {
+pub fn draw_arrays_vao(vao: GLuint, count: GLsizei, mode: GLenum) {
     unsafe {
         gl::BindVertexArray(vao);
-        gl::BindBuffer(gl::ARRAY_BUFFER, vao);
         gl_debug_check!();
 
-        let data_size = FULLSCREEN_RECT.len() * std::mem::size_of::<GLfloat>();
-        gl::BufferData(
-            gl::ARRAY_BUFFER,
-            data_size as _,
-            std::mem::transmute(&FULLSCREEN_RECT[0]),
-            gl::STATIC_DRAW,
-        );
+        gl::DrawArrays(mode, 0, count);
         gl_debug_check!();
 
-        let vert_count = FULLSCREEN_RECT.len() as GLsizei / 2;
-        gl::DrawArrays(gl::TRIANGLES, 0, vert_count);
+        gl::BindVertexArray(0);
+        gl_debug_check!();
+    }
+}
+
+pub fn draw_elements_vao(vao: GLuint, count: GLsizei, mode: GLenum) {
+    unsafe {
+        gl::BindVertexArray(vao);
+        gl_debug_check!();
+
+        gl::DrawElements(mode, count, gl::UNSIGNED_INT, std::ptr::null());
+        gl_debug_check!();
+
+        gl::BindVertexArray(0);
         gl_debug_check!();
     }
 }
@@ -101,6 +112,9 @@ pub fn draw_vertices(vao: GLuint, count: GLsizei, mode: GLenum) {
         gl_debug_check!();
 
         gl::DrawArrays(mode, 0, count);
+        gl_debug_check!();
+
+        gl::BindVertexArray(0);
         gl_debug_check!();
     }
 }

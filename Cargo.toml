@@ -18,6 +18,7 @@ cpal = "0.13"
 ctrlc = { version = "3.2", features = ["termination"] }
 futures = { version = "0.3", default-features = false }
 gl = "0.14"
+gltf = "0.16.0"
 glutin = "0.26" # must match version used in imgui forks
 image = "0.23"
 imgui = { git = "https://github.com/sp4ghet/imgui-rs", branch = "master" }
@@ -37,6 +38,10 @@ serde_yaml = "0.8"
 simplelog = "0.10"
 take_mut = "0.2"
 winapi = "0.3"
+
+[dependencies.nearly_eq]
+version = "0.2.4"
+features = ["ndarray"]
 
 [build-dependencies]
 anyhow = "1.0"

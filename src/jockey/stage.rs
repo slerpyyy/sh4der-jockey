@@ -3,6 +3,8 @@ use std::{collections::HashMap, ffi::CString};
 use gl::types::*;
 use serde_yaml::Value;
 
+use super::meshes_from_gltf::*;
+
 use super::Uniform;
 use crate::util::*;
 
@@ -17,6 +19,7 @@ pub enum StageKind {
     Vert {
         count: GLsizei,
         mode: GLenum,
+        meshes: Option<Vec<Mesh>>,
         thickness: f32,
     },
     Frag {},
@@ -278,6 +281,17 @@ impl Stage {
                     }
                 };
 
+                let gltf = match object.get("gltf") {
+                    Some(s) => match s.as_str() {
+                        Some(value) => match meshes_from_gltf(value.to_string()) {
+                            Ok(s) => Some(s),
+                            Err(e) => return Err(e),
+                        },
+                        _ => return Err(format!("Invalid path detected: {:?}", s)),
+                    },
+                    _ => None,
+                };
+
                 let builder = TextureBuilder::parse(&object, true, true)?;
 
                 if !matches!(builder.resolution.as_slice(), &[] | &[_, _]) {
@@ -287,6 +301,7 @@ impl Stage {
                 let kind = StageKind::Vert {
                     count,
                     mode,
+                    meshes: gltf,
                     thickness,
                 };
 

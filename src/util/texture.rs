@@ -645,6 +645,11 @@ macro_rules! impl_texture {
                         gl_debug_check!();
                     }
 
+                    if mipmap {
+                        gl::GenerateMipmap($enum_type);
+                    }
+                    gl_debug_check!();
+
                     Self {
                         id: tex_id,
                         format,

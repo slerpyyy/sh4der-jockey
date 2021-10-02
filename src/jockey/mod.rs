@@ -22,6 +22,7 @@ use crate::util::*;
 mod audio;
 mod beatsync;
 mod config;
+mod meshes_from_gltf;
 mod midi;
 mod network;
 mod pipeline;
@@ -66,6 +67,7 @@ pub struct Jockey {
     pub last_build: Instant,
     pub last_frame: Instant,
     pub last_frame_ui: Instant,
+    pub geometry_fullscreen_rect: Geometry,
     pub midi: Midi,
     pub audio: Audio,
     pub ndi: Ndi,
@@ -196,6 +198,8 @@ impl Jockey {
             platform,
         };
 
+        let geometry_fullscreen_rect = Geometry::fullscreen_rect();
+
         let pipeline = Pipeline::splash_screen();
         let midi = Midi::new(&config);
         let ndi = Ndi::new();
@@ -211,6 +215,7 @@ impl Jockey {
             last_build: now,
             last_frame: now,
             last_frame_ui: now,
+            geometry_fullscreen_rect,
             midi,
             audio,
             ndi,
@@ -628,6 +633,9 @@ impl Jockey {
                 _ => [width, height, 0],
             };
 
+            // current texture units being used
+            let mut texture_unit = 0;
+
             unsafe {
                 // Use shader program
                 gl::UseProgram(stage.prog_id);
@@ -804,18 +812,18 @@ impl Jockey {
                 }
 
                 // Add and bind uniform texture dependencies
-                for (k, name) in stage.deps.iter().enumerate() {
+                for name in stage.deps.iter() {
                     let tex = self.pipeline.buffers.get(name).unwrap();
                     let loc = gl::GetUniformLocation(stage.prog_id, name.as_ptr());
                     debug_assert_ne!(loc, -1);
 
-                    gl::ActiveTexture(gl::TEXTURE0 + k as GLenum);
+                    gl::ActiveTexture(gl::TEXTURE0 + texture_unit as GLenum);
                     gl_debug_check!();
 
-                    tex.bind(k as _);
+                    tex.bind(texture_unit as _);
                     gl_debug_check!();
 
-                    gl::Uniform1i(loc, k as _);
+                    gl::Uniform1i(loc, texture_unit as _);
                     gl_debug_check!();
 
                     let name_len = name.as_bytes().len();
@@ -839,10 +847,14 @@ impl Jockey {
                         res[0] as f32 / res[1] as f32,
                     );
                     gl_debug_check!();
+
+                    texture_unit += 1;
                 }
             }
 
-            match &stage.kind {
+            let kind = &mut stage.kind;
+
+            match kind {
                 StageKind::Comp { dispatch, .. } => unsafe {
                     gl::DispatchCompute(dispatch[0], dispatch[1], dispatch[2]);
                     gl::MemoryBarrier(
@@ -876,21 +888,6 @@ impl Jockey {
                     gl::BindFragDataLocation(stage.prog_id, 0, OUT_COLOR_NAME.as_ptr());
                     gl_debug_check!();
 
-                    // Specify the layout of the vertex data
-                    let pos_attr = gl::GetAttribLocation(stage.prog_id, POSITION_NAME.as_ptr());
-                    if pos_attr != -1 {
-                        gl::EnableVertexAttribArray(pos_attr as GLuint);
-                        gl::VertexAttribPointer(
-                            pos_attr as GLuint,
-                            2,
-                            gl::FLOAT,
-                            gl::FALSE as GLboolean,
-                            0,
-                            std::ptr::null(),
-                        );
-                    }
-                    gl_debug_check!();
-
                     // Set blend mode
                     if self.pipeline.blending {
                         let (src, dst) = stage.blend.unwrap_or((gl::ONE, gl::ZERO));
@@ -902,21 +899,51 @@ impl Jockey {
                         count,
                         mode,
                         thickness,
+                        meshes,
                         ..
-                    } = stage.kind
+                    } = kind
                     {
+                        gl::Enable(gl::DEPTH_TEST);
+
                         gl::ClearColor(0.0, 0.0, 0.0, 0.0);
-                        gl::Clear(gl::COLOR_BUFFER_BIT);
+                        gl::ClearDepth(1.0);
+                        gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
                         gl_debug_check!();
 
-                        gl::PointSize(thickness);
-                        gl::LineWidth(thickness);
+                        gl::PointSize(*thickness);
+                        gl::LineWidth(*thickness);
                         gl_debug_check!();
 
-                        draw_vertices(self.ctx.vao, count, mode);
-                        gl_debug_check!();
+                        if let Some(s) = meshes {
+                            for mesh in s {
+                                mesh.apply_uniforms(stage.prog_id, &mut texture_unit);
+
+                                let geometry = &mut mesh.geometry;
+
+                                geometry.attribute(stage.prog_id);
+
+                                let vao = geometry.vao();
+
+                                if geometry.indices.is_some() {
+                                    draw_elements_vao(vao, geometry.count, geometry.mode);
+                                    gl_debug_check!();
+                                } else {
+                                    draw_arrays_vao(vao, geometry.count, geometry.mode);
+                                    gl_debug_check!();
+                                }
+                            }
+                        } else {
+                            draw_vertices(self.ctx.vao, *count, *mode);
+                            gl_debug_check!();
+                        };
                     } else {
-                        draw_fullscreen(self.ctx.vao);
+                        gl::Disable(gl::DEPTH_TEST);
+
+                        let geometry = &mut self.geometry_fullscreen_rect;
+
+                        geometry.attribute(stage.prog_id);
+
+                        draw_arrays_vao(geometry.vao(), geometry.count, geometry.mode);
                         gl_debug_check!();
                     }
 
