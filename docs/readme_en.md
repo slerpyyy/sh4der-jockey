@@ -1,11 +1,11 @@
 # Sh4der Jockey
-*A custom VJ tool written by sp4ghet and slerpy*
+*A tool for shader coding and live performances*
 
 ## Getting started
 
 First put the executable in a place where it is allowed to create new files. It currently generates only a single file to store the window layout of the control panel, but this might change in the future.
 
-Then run the tool in your project folder with the `-i` flag. This will instruct the tool to set up a simple example project.
+Then run the tool in your project folder with the `init` flag. This will instruct the tool to set up a simple example project.
 
 ## UI
 

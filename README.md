@@ -5,6 +5,14 @@
 
 <br>
 
+Sh4derJockey lets you design custom render pipelines in yaml files,
+supports as many fragment, vertex, and compute shader stages as your machine can handle,
+provides 20+ audio textures and uniforms for audio-reactive effects,
+offers plenty of buttons and sliders which can be hooked up to midi controllers,
+allows for quick prototyping and live shader coding with automatic pipeline reloading,
+includes support for live NDI® video input,
+and so much more!
+
 ## Documentation
 
 The documentation on how to use this tool can be found in the [docs](docs/) folder or using the links below:
