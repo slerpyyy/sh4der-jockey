@@ -14,14 +14,22 @@ pub struct Ndi {
     sources: Arc<Mutex<Vec<ndi::Source>>>,
     videos: HashMap<String, Arc<Mutex<image::DynamicImage>>>,
     searching: bool,
+    disabled: bool,
 }
 
 impl Ndi {
     pub fn new() -> Self {
+        let result = ndi::load_library_default();
+        if let Err(err) = &result {
+            log::error!("Failed to load NDI library: {:?}", err);
+            log::info!("The program will continue to run without NDI functionality");
+        }
+
         Self {
             sources: Default::default(),
             videos: HashMap::new(),
             searching: false,
+            disabled: result.is_err(),
         }
     }
 
@@ -82,7 +90,7 @@ impl Ndi {
         I: ExactSizeIterator<Item = T> + Clone,
         T: AsRef<str>,
     {
-        if requested.len() == 0 {
+        if self.disabled || requested.len() == 0 {
             return Ok(());
         }
 
