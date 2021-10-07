@@ -180,7 +180,7 @@ impl Midi {
                 tx.send(out).unwrap();
             },
             (),
-        )?;
+        ).map_err(|x| anyhow::format_err!("{}", x))?;
         Ok((conn, rx))
     }
 

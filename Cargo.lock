@@ -1525,7 +1525,7 @@ dependencies = [
 [[package]]
 name = "ndi"
 version = "0.1.1"
-source = "git+https://github.com/slerpyyy/ndi-rs?branch=main#14c8a9ba5673a148df2e46ec57f4e62012fd01d8"
+source = "git+https://github.com/slerpyyy/ndi-rs?branch=main#b418056c357d954e583506e08b9c38d31f627c9f"
 dependencies = [
  "lazy_static",
  "libloading 0.7.0",
