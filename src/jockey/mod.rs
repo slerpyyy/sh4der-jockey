@@ -879,7 +879,9 @@ impl Jockey {
                     // Specify the layout of the vertex data
                     let pos_attr = gl::GetAttribLocation(stage.prog_id, POSITION_NAME.as_ptr());
                     if pos_attr != -1 {
+                        gl_debug_check!();
                         gl::EnableVertexAttribArray(pos_attr as GLuint);
+                        gl_debug_check!();
                         gl::VertexAttribPointer(
                             pos_attr as GLuint,
                             2,
@@ -895,6 +897,7 @@ impl Jockey {
                     if self.pipeline.blending {
                         let (src, dst) = stage.blend.unwrap_or((gl::ONE, gl::ZERO));
                         gl::BlendFunc(src, dst);
+                        gl_debug_check!();
                     }
 
                     // Draw stuff
