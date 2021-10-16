@@ -260,12 +260,18 @@ impl Audio {
         }
 
         let left_iter = self.l_signal.iter().map(|&x| Complex::new(x, 0.0));
-
         let right_iter = self.r_signal.iter().map(|&x| Complex::new(x, 0.0));
 
-        fn fill_iter<T>(slice: &mut [T], iter: impl Iterator<Item = T>) {
-            for (k, value) in iter.take(slice.len()).enumerate() {
-                slice[k] = value;
+        fn fill_iter<T>(slice: &mut [T], mut iter: impl ExactSizeIterator<Item = T>) {
+            debug_assert!(iter.len() >= slice.len());
+
+            for element in slice {
+                // This can be simplified as follows once `unwrap_unchecked` is stable:
+                // *element = unsafe { iter.next().unwrap_unchecked() };
+                match iter.next() {
+                    Some(item) => *element = item,
+                    None => unsafe { std::hint::unreachable_unchecked() },
+                }
             }
         }
 

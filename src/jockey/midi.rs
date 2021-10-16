@@ -168,19 +168,21 @@ impl Midi {
         log::info!("Connecting to input port: {}", port_name);
 
         let (tx, rx) = channel();
-        let conn = midi_input.connect(
-            in_port,
-            format!("sh4der-jockey-read-input-{}", port_name).as_str(),
-            move |_, message, _| {
-                if message.len() != 3 {
-                    return;
-                }
-                let mut out = [0; 3];
-                out.copy_from_slice(message);
-                tx.send(out).unwrap();
-            },
-            (),
-        ).map_err(|x| anyhow::format_err!("{}", x))?;
+        let conn = midi_input
+            .connect(
+                in_port,
+                format!("sh4der-jockey-read-input-{}", port_name).as_str(),
+                move |_, message, _| {
+                    if message.len() != 3 {
+                        return;
+                    }
+                    let mut out = [0; 3];
+                    out.copy_from_slice(message);
+                    tx.send(out).unwrap();
+                },
+                (),
+            )
+            .map_err(|x| anyhow::format_err!("{}", x))?;
         Ok((conn, rx))
     }
 
