@@ -7,5 +7,5 @@ uniform sampler2D img_output;
 
 void main() {
     vec2 uv = gl_FragCoord.xy / resolution.xy;
-    color = texture2D(img_output, uv);
+    color = texture(img_output, uv);
 }
