@@ -7,10 +7,12 @@
 #ifdef SH4DERJOCKEY
 
     // compatibility header
+    out vec4 fragColor;
     uniform vec4 resolution;
     uniform int frame_count;
     #define iResolution resolution
     #define iFrame frame_count
+    #define gl_FragColor fragColor
 
 #else
 

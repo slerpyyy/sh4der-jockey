@@ -7,9 +7,11 @@
 #ifdef SH4DERJOCKEY
 
     // compatibility header
+    out vec4 fragColor;
     uniform sampler2D accumulatorTex;
     uniform vec4 resolution;
     #define iResolution resolution
+    #define gl_FragColor fragColor
 
 #else
 
