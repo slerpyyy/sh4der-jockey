@@ -164,7 +164,7 @@ impl Stage {
         let mut lut = Vec::new();
         let shaders: [Option<(String, String)>; 3] = {
             let mut out = [None, None, None];
-            for (k, name) in ["vs", "fs", "cs"].into_iter().enumerate() {
+            for (k, &name) in ["vs", "fs", "cs"].iter().enumerate() {
                 out[k] = match object.get(name) {
                     Some(Value::String(f)) => match std::fs::read_to_string(f) {
                         Ok(s) => Some((s, f.into())),
