@@ -33,56 +33,49 @@ impl Ndi {
         }
     }
 
-    fn search_sources(&self, blocking: bool) {
+    fn search_sources(&self, blocking: bool) -> Result<(), FindCreateError> {
         let sources = self.sources.clone();
-        let handle = thread::spawn(move || -> Result<(), FindCreateError> {
-            let find_local = ndi::FindBuilder::new().show_local_sources(true).build()?;
-            let find_remote = ndi::FindBuilder::new().show_local_sources(false).build()?;
 
-            loop {
-                if !blocking {
-                    thread::sleep(Duration::from_secs(2));
+        let find_local = ndi::FindBuilder::new().show_local_sources(true).build()?;
+        let find_remote = ndi::FindBuilder::new().show_local_sources(false).build()?;
+
+        let search = move || {
+            let locals = match find_local.current_sources(1000) {
+                Ok(s) => s,
+                Err(FindSourcesTimeout) => Vec::new(),
+            };
+
+            let remotes = match find_remote.current_sources(1000) {
+                Ok(s) => s,
+                Err(FindSourcesTimeout) => Vec::new(),
+            };
+
+            let mut sources = sources.lock().unwrap();
+            for source in locals.into_iter().chain(remotes) {
+                let name = source.get_name();
+                if name.chars().any(|c| c == std::char::REPLACEMENT_CHARACTER) {
+                    continue;
                 }
 
-                let locals = match find_local.current_sources(1000) {
-                    Ok(s) => s,
-                    Err(FindSourcesTimeout) => Vec::new(),
-                };
-
-                let remotes = match find_remote.current_sources(1000) {
-                    Ok(s) => s,
-                    Err(FindSourcesTimeout) => Vec::new(),
-                };
-
-                let mut sources = sources.lock().unwrap();
-                for source in locals.into_iter().chain(remotes) {
-                    let name = source.get_name();
-                    if name
-                        .chars()
-                        .filter(|&c| c != std::char::REPLACEMENT_CHARACTER)
-                        .next()
-                        .is_none()
-                    {
-                        continue;
-                    }
-
-                    let pos = sources.binary_search_by_key(&name, |s| s.get_name());
-                    if let Err(index) = pos {
-                        sources.insert(index, source);
-                    }
-                }
-
-                log::debug!("Found NDI sources: {:?}", sources);
-
-                if blocking {
-                    return Ok(());
+                let pos = sources.binary_search_by_key(&name, |s| s.get_name());
+                if let Err(index) = pos {
+                    sources.insert(index, source);
                 }
             }
-        });
+
+            log::debug!("Found NDI sources: {:?}", sources);
+        };
 
         if blocking {
-            handle.join().unwrap().unwrap();
+            search();
+        } else {
+            thread::spawn(move || loop {
+                thread::sleep(Duration::from_secs(2));
+                search();
+            });
         }
+
+        Ok(())
     }
 
     pub fn connect<I, T>(&mut self, requested: &I) -> Result<(), ndi::RecvCreateError>
@@ -97,11 +90,11 @@ impl Ndi {
         let sources = if self.searching {
             self.sources.lock().unwrap()
         } else {
-            self.search_sources(true);
+            self.search_sources(true).unwrap();
 
             // take lock before spawning the search thread
             let res = self.sources.lock().unwrap();
-            self.search_sources(false);
+            self.search_sources(false).unwrap();
             self.searching = true;
             res
         };

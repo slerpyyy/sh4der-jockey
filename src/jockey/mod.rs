@@ -594,7 +594,6 @@ impl Jockey {
                 &self.audio.l_spectrum_smooth,
                 &self.audio.r_spectrum_smooth,
             );
-
             audio_tex_update(
                 &mut self.pipeline.buffers,
                 &SPECTRUM_SMOOTH_INTEGRATED_NAME,
