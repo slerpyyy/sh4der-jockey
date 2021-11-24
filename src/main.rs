@@ -11,7 +11,7 @@ use std::{
     time::Duration,
 };
 
-use clap::{AppSettings, Clap};
+use clap::Parser;
 use jockey::Jockey;
 use lazy_static::lazy_static;
 use simplelog::*;
@@ -24,10 +24,9 @@ lazy_static! {
     );
 }
 
-#[derive(Clap)]
+#[derive(Parser)]
 #[clap(name = "Sh4derJockey", about)]
 #[clap(version = VERSION.as_str())]
-#[clap(setting = AppSettings::ColoredHelp)]
 struct Args {
     #[clap(subcommand)]
     subcmd: Option<SubCommand>,
@@ -37,7 +36,7 @@ struct Args {
     verbose: u32,
 }
 
-#[derive(Clap)]
+#[derive(Parser)]
 enum SubCommand {
     #[clap(about = "Create a new project in an existing directory")]
     Init,

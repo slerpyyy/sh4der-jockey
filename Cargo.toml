@@ -13,7 +13,7 @@ alloca = { git = "https://github.com/slerpyyy/alloca-rs", branch = "v2" }
 anyhow = "1.0"
 as-any = "0.2"
 async-std = { version = "1.9", default-features = false, features = ["std"] }
-clap = "3.0.0-beta"
+clap = "=3.0.0-beta.5"
 cpal = "0.13"
 ctrlc = { version = "3.2", features = ["termination"] }
 futures = { version = "0.3", default-features = false }
@@ -34,7 +34,7 @@ rand = "0.8"
 regex = "1.4"
 rustfft = "6.0"
 serde_yaml = "0.8"
-simplelog = "0.10"
+simplelog = "0.11"
 take_mut = "0.2"
 winapi = "0.3"
 
