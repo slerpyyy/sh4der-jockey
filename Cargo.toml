@@ -1,6 +1,6 @@
 [package]
 name = "sh4der-jockey"
-version = "0.3.0"
+version = "0.3.1"
 description = "A tool for shader coding and live performances"
 edition = "2018"
 build = "build.rs"
