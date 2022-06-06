@@ -24,7 +24,7 @@ lazy_static! {
     );
 }
 
-#[derive(Parser)]
+#[derive(clap::Parser)]
 #[clap(name = "Sh4derJockey", about)]
 #[clap(version = VERSION.as_str())]
 struct Args {
@@ -32,7 +32,7 @@ struct Args {
     subcmd: Option<SubCommand>,
 
     #[clap(short, long, parse(from_occurrences))]
-    #[clap(about = "Use verbose output (can be applied multiple times)")]
+    #[clap(help = "Use verbose output (can be applied multiple times)")]
     verbose: u32,
 }
 

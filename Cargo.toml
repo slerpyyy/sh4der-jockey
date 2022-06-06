@@ -11,9 +11,9 @@ lto = "fat"
 [dependencies]
 alloca = { git = "https://github.com/slerpyyy/alloca-rs", branch = "v2" }
 anyhow = "1.0"
-as-any = "0.2"
+as-any = "0.3"
 async-std = { version = "1.9", default-features = false, features = ["std"] }
-clap = "=3.0.0-beta.5"
+clap = { version = "3.1.18", features = ["derive"] }
 cpal = "0.13"
 ctrlc = { version = "3.2", features = ["termination"] }
 futures = { version = "0.3", default-features = false }
@@ -34,10 +34,10 @@ rand = "0.8"
 regex = "1.4"
 rustfft = "6.0"
 serde_yaml = "0.8"
-simplelog = "0.11"
+simplelog = "0.12"
 take_mut = "0.2"
 winapi = "0.3"
 
 [build-dependencies]
 anyhow = "1.0"
-vergen = { version = "5.1", default-features = false, features = ["build", "git"] }
+vergen = { version = "7.2", default-features = false, features = ["build", "git"] }
