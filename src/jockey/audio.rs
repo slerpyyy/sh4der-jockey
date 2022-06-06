@@ -7,7 +7,7 @@ use rustfft::{Fft, FftPlanner};
 use super::Config;
 use crate::util::RingBuffer;
 
-pub const AUDIO_SAMPLES: usize = 8192;
+pub const AUDIO_SAMPLES: usize = 512;
 pub const FFT_ATTACK: f32 = 0.5;
 pub const FFT_DECAY: f32 = 0.5;
 

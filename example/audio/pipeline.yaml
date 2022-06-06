@@ -11,3 +11,6 @@ stages:
     thickness: 2
 
   - fs: "scene.frag"
+
+audio:
+  audio_samples: 8192

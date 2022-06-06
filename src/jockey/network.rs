@@ -140,11 +140,11 @@ impl Ndi {
                 image::ImageBuffer::new(1, 1),
             )));
 
-            self.videos.insert(req, Arc::clone(&video));
+            let weak = Arc::downgrade(&video);
+            self.videos.insert(req, video);
 
             log::info!("Connected to NDI source: {}", source.get_name());
 
-            let weak = Arc::downgrade(&video);
             thread::spawn(move || {
                 loop {
                     if weak.strong_count() == 0 {
