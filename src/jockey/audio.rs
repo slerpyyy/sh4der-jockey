@@ -53,6 +53,7 @@ pub struct Audio {
     stream: Option<cpal::Stream>,
     channels: Channels,
     sample_freq: usize,
+    mel_matrix: Vec<Vec<f32>>,
     pub attack: f32,
     pub decay: f32,
     fft: Arc<dyn Fft<f32>>,
@@ -103,6 +104,7 @@ impl Audio {
             stream: None,
             channels: Channels::None,
             fft,
+            mel_matrix: vec![vec![0_f32; size]; bands],
             attack: 0.5,
             decay: 0.5,
             sample_freq: 0,
@@ -130,6 +132,8 @@ impl Audio {
         self.r_raw_spectrum = vec![0.0; spec_size];
         *self.l_samples.lock().unwrap() = RingBuffer::new(new_size);
         *self.r_samples.lock().unwrap() = RingBuffer::new(new_size);
+
+        self.mel_matrix = self.calculate_mel_filters((20., (self.sample_freq / 2) as _));
     }
 
     pub fn connect(&mut self, config: &Config) -> Result<(), String> {
@@ -219,6 +223,8 @@ impl Audio {
         let sample_freq = config.sample_rate.0;
         self.sample_freq = sample_freq as _;
 
+        self.mel_matrix = self.calculate_mel_filters((20., (self.sample_freq / 2) as _));
+
         self.stream = Some(stream);
         Ok(())
     }
@@ -301,57 +307,60 @@ impl Audio {
         }
         let n = self.l_raw_spectrum.len() * 2;
         let bins = self.l_spectrum.len();
+        let mut max_left: f32 = 0.0;
+        let mut max_right: f32 = 0.0;
 
         self.l_spectrum.fill(0.0);
         self.r_spectrum.fill(0.0);
-        self.bass = [0.0; 3];
-        self.mid = [0.0; 3];
-        self.high = [0.0; 3];
 
-        let fs_over_n = self.sample_freq as f32 / n as f32;
-
-        let half_n = self.l_raw_spectrum.len() as f32;
-        let inv_half_n = 1.0 / half_n;
-
-        let mut max_left: f32 = 0.0;
-        let mut max_right: f32 = 0.0;
-        for (i, (l, r)) in self
-            .l_raw_spectrum
-            .iter()
-            .zip(self.r_raw_spectrum.iter())
-            .enumerate()
-        {
-            let freq = i as f64 * fs_over_n as f64;
-
-            // https://www.wikiwand.com/en/Piano_key_frequencies
-            let bin = (12f64 * (freq / 440f64).log2()) as i32 + 49;
-            let bi = if bin >= bins as _ {
-                bins - 1
-            } else if bin < 0 {
-                0
-            } else {
-                bin as usize
-            };
-
-            // https://github.com/jberg/butterchurn/blob/master/src/audio/fft.js#L20
-            let eq = -0.02 * ((half_n - i as f32) * inv_half_n).log10();
-            let l_int = l * eq;
-            let r_int = r * eq;
-            max_left = max_left.max(l_int);
-            max_right = max_right.max(r_int);
-
-            self.l_spectrum[bi] = self.l_spectrum[bi].max(l_int);
-            self.r_spectrum[bi] = self.r_spectrum[bi].max(r_int);
+        self.calculate_mel_spectrum();
+        for i in 0..bins {
+            max_left = max_left.max(self.l_spectrum[i]);
+            max_right = max_right.max(self.r_spectrum[i]);
         }
 
-        for i in 1..(bins - 1) {
-            if self.l_spectrum[i] == 0.0 {
-                self.l_spectrum[i] = (self.l_spectrum[i - 1] + self.l_spectrum[i + 1]) / 2.0;
-            }
-            if self.r_spectrum[i] == 0.0 {
-                self.r_spectrum[i] = (self.r_spectrum[i - 1] + self.r_spectrum[i + 1]) / 2.0;
-            }
-        }
+        // let fs_over_n = self.sample_freq as f32 / n as f32;
+
+        // let half_n = self.l_raw_spectrum.len() as f32;
+        // let inv_half_n = 1.0 / half_n;
+
+        // for (i, (l, r)) in self
+        //     .l_raw_spectrum
+        //     .iter()
+        //     .zip(self.r_raw_spectrum.iter())
+        //     .enumerate()
+        // {
+        //     let freq = i as f64 * fs_over_n as f64;
+
+        //     // https://www.wikiwand.com/en/Piano_key_frequencies
+        //     let bin = (12f64 * (freq / 440f64).log2()) as i32 + 49;
+        //     let bi = if bin >= bins as _ {
+        //         bins - 1
+        //     } else if bin < 0 {
+        //         0
+        //     } else {
+        //         bin as usize
+        //     };
+
+        //     // https://github.com/jberg/butterchurn/blob/master/src/audio/fft.js#L20
+        //     let eq = -0.02 * ((half_n - i as f32) * inv_half_n).log10();
+        //     let l_int = l * eq;
+        //     let r_int = r * eq;
+        //     max_left = max_left.max(l_int);
+        //     max_right = max_right.max(r_int);
+
+        //     self.l_spectrum[bi] = self.l_spectrum[bi].max(l_int);
+        //     self.r_spectrum[bi] = self.r_spectrum[bi].max(r_int);
+        // }
+
+        // for i in 1..(bins - 1) {
+        //     if self.l_spectrum[i] == 0.0 {
+        //         self.l_spectrum[i] = (self.l_spectrum[i - 1] + self.l_spectrum[i + 1]) / 2.0;
+        //     }
+        //     if self.r_spectrum[i] == 0.0 {
+        //         self.r_spectrum[i] = (self.r_spectrum[i - 1] + self.r_spectrum[i + 1]) / 2.0;
+        //     }
+        // }
 
         for i in 0..bins {
             self.l_spectrum[i] /= if max_left == 0.0 { 1.0 } else { max_left };
@@ -475,6 +484,74 @@ impl Audio {
         self.update_samples();
         left.copy_from_slice(&self.l_signal);
         right.copy_from_slice(&self.r_signal);
+    }
+
+    #[allow(dead_code)]
+    // https://developer.apple.com/documentation/accelerate/computing_the_mel_spectrum_using_linear_algebra
+    fn calculate_mel_filters(&self, frequency_range: (f32, f32)) -> Vec<Vec<f32>> {
+        fn freq_to_mel(frequency: f64) -> f64 {
+            return 2595. * (1. + frequency / 700.).log10();
+        }
+        fn mel_to_freq(mel: f64) -> f64 {
+            return 700. * (10_f64.powf(mel / 2595.) - 1.);
+        }
+
+        let sample_count = self.size / 2;
+        let (min_frequency, max_frequency) = frequency_range;
+        let min_mel = freq_to_mel(min_frequency as _);
+        let max_mel = freq_to_mel(max_frequency as _);
+        let filterbank_count = self.nice_size;
+        let bank_width = (max_mel - min_mel) / (filterbank_count as f64 - 1.);
+        let mut filter_frequencies = vec![0; self.nice_size];
+        for i in 0..filterbank_count {
+            let mel = min_mel + i as f64 * bank_width;
+            filter_frequencies[i] =
+                (mel_to_freq(mel) * ((sample_count - 1) as f64) / max_frequency as f64) as usize;
+        }
+
+        // `in` x `out` matrix where `in` is raw sample count and `out` is nice_fft size
+        let mut filterbank = vec![vec![0_f32; sample_count]; filterbank_count];
+
+        for i in 0..filterbank_count {
+            let start_freq = filter_frequencies[(i as i32 - 1_i32).max(0_i32) as usize];
+            let center_freq = filter_frequencies[i];
+            let end_freq = if i + 1 < filterbank_count {
+                filter_frequencies[i + 1]
+            } else {
+                sample_count - 1
+            };
+
+            // 1 / area of triangle
+            let normalization_constant = 2. / (end_freq - start_freq).max(1) as f32;
+
+            let attack_denom = (center_freq - start_freq).max(1) as f32;
+            for j in start_freq..(center_freq + 1) {
+                let x = ((j - start_freq) as f32 / attack_denom) * normalization_constant;
+                filterbank[i][j] = x;
+            }
+
+            let decay_denom = (end_freq as i32 - center_freq as i32 - 1_i32).max(1) as f32;
+            for j in center_freq..end_freq {
+                let x = (1. - (j - center_freq) as f32 / decay_denom) * normalization_constant;
+                filterbank[i][j] = x;
+            }
+        }
+
+        return filterbank;
+    }
+
+    #[allow(dead_code)]
+    fn calculate_mel_spectrum(&mut self) {
+        let sample_count = self.size / 2;
+        // can precalculate matrix and store it
+        let mel_matrix = self.calculate_mel_filters((20., (self.sample_freq / 2) as f32));
+        // replace with better matrix multiplication
+        for i in 0..self.nice_size {
+            for j in 0..sample_count {
+                self.l_spectrum[i] += mel_matrix[i][j] * self.l_raw_spectrum[j];
+                self.r_spectrum[i] += mel_matrix[i][j] * self.r_raw_spectrum[j];
+            }
+        }
     }
 }
 
