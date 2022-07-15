@@ -446,13 +446,16 @@ impl Jockey {
                     if window_id == ui_id {
                         platform.handle_event(imgui.io_mut(), ui_window, &e);
                     }
+
                     match event {
                         glutin::event::WindowEvent::CloseRequested => done = true,
+
                         glutin::event::WindowEvent::Resized(size) if window_id == main_id => {
                             let width = size.width as u32;
                             let height = size.height as u32;
                             pipeline.resize_buffers(width, height);
                         }
+
                         #[allow(deprecated)]
                         glutin::event::WindowEvent::KeyboardInput { input, .. } => {
                             let shift = input.modifiers.shift();
@@ -468,13 +471,19 @@ impl Jockey {
                                     do_update_pipeline = true;
                                 }
 
+                                // toggle fullscreen mode
                                 if alt && !(shift || ctrl || logo) && window.id() == window_id {
-                                    let monitor =
-                                        window.current_monitor().or(window.primary_monitor());
-                                    let handle =
-                                        Some(glutin::window::Fullscreen::Borderless(monitor));
+                                    if window.fullscreen().is_some() {
+                                        window.set_fullscreen(None);
+                                    } else {
+                                        let monitor =
+                                            window.current_monitor().or(window.primary_monitor());
 
-                                    window.set_fullscreen(handle);
+                                        let handle =
+                                            Some(glutin::window::Fullscreen::Borderless(monitor));
+
+                                        window.set_fullscreen(handle);
+                                    }
                                 }
                             }
 
@@ -486,6 +495,7 @@ impl Jockey {
                                 }
                             }
                         }
+
                         _ => (),
                     }
                 }
