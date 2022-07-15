@@ -12,7 +12,7 @@ use std::{
 };
 
 use gl::types::*;
-use glutin::platform::run_return::EventLoopExtRunReturn;
+use glutin::{dpi::PhysicalSize, platform::run_return::EventLoopExtRunReturn};
 use imgui::im_str;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 use notify::Watcher;
@@ -76,6 +76,7 @@ pub struct Jockey {
     pub time: f32,
     pub speed: f32,
     pub time_range: (f32, f32),
+    pub custom_res: (i32, i32),
     pub frame: u32,
     pub alt_pressed: bool,
     pub console: String,
@@ -221,6 +222,7 @@ impl Jockey {
             time: 0.0,
             speed: 1.0,
             time_range: (0.0, 60.0),
+            custom_res: (512, 512),
             frame: 0,
             alt_pressed: false,
             console,
@@ -1023,6 +1025,64 @@ impl Jockey {
                         }
                     }
                 }
+            }
+
+            window.end();
+        }
+
+        if let Some(window) = imgui::Window::new(im_str!("Resolution")).begin(&ui) {
+            let mut new_size = None;
+
+            if ui.button_with_size(im_str!("auto"), [64.0, 18.0]) {
+                new_size = self
+                    .pipeline
+                    .stages
+                    .iter()
+                    .filter(|stage| stage.target.is_none())
+                    .flat_map(|stage| stage.resolution())
+                    .map(|[w, h, _]| (w, h))
+                    .max();
+            }
+
+            ui.same_line();
+            if ui.button_with_size(im_str!("480p"), [64.0, 18.0]) {
+                new_size = Some((640, 480));
+            }
+
+            ui.same_line();
+            if ui.button_with_size(im_str!("720p"), [64.0, 18.0]) {
+                new_size = Some((1280, 720));
+            }
+
+            ui.same_line();
+            if ui.button_with_size(im_str!("1080p"), [64.0, 18.0]) {
+                new_size = Some((1920, 1080));
+            }
+
+            if ui.button_with_size(im_str!("custom"), [64.0, 18.0]) {
+                let (width, height) = self.custom_res;
+
+                if width < 0 || height < 0 {
+                    log::warn!("Invalid custom resolution: {width} x {height}");
+                }
+
+                new_size = Some((width.max(0) as _, height.max(0) as _));
+            }
+
+            ui.same_line();
+            ui.set_next_item_width(100.0);
+            ui.input_int(im_str!("x##custom-width"), &mut self.custom_res.0).build();
+
+            ui.same_line();
+            ui.set_next_item_width(100.0);
+            ui.input_int(im_str!("##custom-height"), &mut self.custom_res.1).build();
+
+            if let Some((width, height)) = new_size {
+                // Note: We do not need to resize buffers here.
+                // This window resize emits a window event, which is handled
+                // by the event loop and causes buffers to be resized.
+                let size = PhysicalSize { width, height };
+                self.ctx.context.window().set_inner_size(size);
             }
 
             window.end();
