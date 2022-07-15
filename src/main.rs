@@ -55,9 +55,12 @@ fn main() {
         _ => LevelFilter::Trace,
     };
 
+    let mut config = ConfigBuilder::new();
+    let log_utc = config.set_time_offset_to_local().is_err();
+
     TermLogger::init(
         log_level,
-        Default::default(),
+        config.build(),
         TerminalMode::Mixed,
         ColorChoice::Always,
     )
@@ -65,6 +68,10 @@ fn main() {
 
     log::info!("Version: {}", VERSION.as_str());
     log::info!("Log level: {}", log_level);
+
+    if log_utc {
+        log::warn!("Failed to resolve local time, logging in UTC");
+    }
 
     if let Some(SubCommand::Init) = args.subcmd {
         let plf = Path::new("./pipeline.yaml");
