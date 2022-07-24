@@ -74,6 +74,7 @@ pub struct Jockey {
     pub pipeline: Pipeline,
     pub pipeline_partial: Option<Pin<PipelinePartial>>,
     pub time: f32,
+    pub time_since_build: f32,
     pub speed: f32,
     pub time_range: (f32, f32),
     pub custom_res: (i32, i32),
@@ -516,6 +517,7 @@ impl Jockey {
         if do_update_pipeline {
             self.update_pipeline();
             self.last_build = Instant::now();
+            self.time_since_build = 0;
         }
     }
 
@@ -538,9 +540,11 @@ impl Jockey {
         let beat = self.beat_sync.beat();
         let now = Instant::now();
         let time = self.time;
-        let delta = now.duration_since(self.last_frame).as_secs_f32();
+        let time_since_build = self.time_since_build;
+        let delta = self.speed * now.duration_since(self.last_frame).as_secs_f32();
         let frame = self.frame;
-        self.time += delta * self.speed;
+        self.time += delta;
+        self.time_since_build += delta;
         self.last_frame = now;
         self.frame = self.frame.wrapping_add(1);
 
@@ -651,6 +655,8 @@ impl Jockey {
                     let res_loc = gl::GetUniformLocation(stage.prog_id, RESOLUTION_NAME.as_ptr());
                     let pass_loc = gl::GetUniformLocation(stage.prog_id, PASS_INDEX_NAME.as_ptr());
                     let time_loc = gl::GetUniformLocation(stage.prog_id, TIME_NAME.as_ptr());
+                    let time_since_build_loc =
+                        gl::GetUniformLocation(stage.prog_id, TIME_SINCE_BUILD_NAME.as_ptr());
                     let frame_loc =
                         gl::GetUniformLocation(stage.prog_id, FRAME_COUNT_NAME.as_ptr());
                     let delta_loc = gl::GetUniformLocation(stage.prog_id, TIME_DELTA_NAME.as_ptr());
@@ -777,6 +783,7 @@ impl Jockey {
                     gl::Uniform1i(pass_loc, pass_num as _);
                     gl::Uniform1i(frame_loc, frame as _);
                     gl::Uniform1f(time_loc, time);
+                    gl::Uniform1f(time_since_build_loc, time_since_build);
                     gl::Uniform1f(beat_loc, beat);
                     gl::Uniform1f(delta_loc, delta);
                     gl_debug_check!();
@@ -1063,7 +1070,7 @@ impl Jockey {
                 let (width, height) = self.custom_res;
 
                 if width < 0 || height < 0 {
-                    log::warn!("Invalid custom resolution: {width} x {height}");
+                    log::warn!("Invalid custom resolution: {:?} x {:?}", width, height);
                 }
 
                 new_size = Some((width.max(0) as _, height.max(0) as _));
@@ -1071,11 +1078,13 @@ impl Jockey {
 
             ui.same_line();
             ui.set_next_item_width(100.0);
-            ui.input_int(im_str!("x##custom-width"), &mut self.custom_res.0).build();
+            ui.input_int(im_str!("x##custom-width"), &mut self.custom_res.0)
+                .build();
 
             ui.same_line();
             ui.set_next_item_width(100.0);
-            ui.input_int(im_str!("##custom-height"), &mut self.custom_res.1).build();
+            ui.input_int(im_str!("##custom-height"), &mut self.custom_res.1)
+                .build();
 
             if let Some((width, height)) = new_size {
                 // Note: We do not need to resize buffers here.

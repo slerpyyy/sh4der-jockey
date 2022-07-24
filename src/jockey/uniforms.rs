@@ -20,6 +20,7 @@ lazy_static! {
 
     // time tracking
     pub static ref TIME_NAME: CString = CString::new("time").unwrap();
+    pub static ref TIME_SINCE_BUILD_NAME: CString = CString::new("time_since_build").unwrap();
     pub static ref TIME_DELTA_NAME: CString = CString::new("time_delta").unwrap();
     pub static ref FRAME_COUNT_NAME: CString = CString::new("frame_count").unwrap();
 
