@@ -12,7 +12,7 @@ lto = "fat"
 alloca = { git = "https://github.com/slerpyyy/alloca-rs", branch = "v2" }
 anyhow = "1.0"
 as-any = "0.3"
-async-std = { version = "1.9", default-features = false, features = ["std"] }
+async-std = { version = "1.12", default-features = false, features = ["std"] }
 clap = { version = "3.1.18", features = ["derive"] }
 cpal = "0.13"
 ctrlc = { version = "3.2", features = ["termination"] }
@@ -25,7 +25,7 @@ imgui-opengl-renderer = { git = "https://github.com/sp4ghet/rust-imgui-opengl-re
 imgui-winit-support = { git = "https://github.com/sp4ghet/imgui-rs", branch = "master" }
 lazy_static = "1.4"
 log = "0.4"
-midir = "0.7"
+midir = "0.8"
 ndi = { git = "https://github.com/slerpyyy/ndi-rs", branch = "main" }
 nfd = { git = "https://github.com/saurvs/nfd-rs.git" }
 notify = "=5.0.0-pre.7"

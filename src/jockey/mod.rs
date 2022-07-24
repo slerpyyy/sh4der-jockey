@@ -1049,7 +1049,7 @@ impl Jockey {
                     .filter(|stage| stage.target.is_none())
                     .flat_map(|stage| stage.resolution())
                     .map(|[w, h, _]| (w, h))
-                    .max();
+                    .last();
             }
 
             ui.same_line();
@@ -1071,7 +1071,7 @@ impl Jockey {
                 let (width, height) = self.custom_res;
 
                 if width < 0 || height < 0 {
-                    log::warn!("Invalid custom resolution: {:?} x {:?}", width, height);
+                    log::error!("Invalid custom resolution: {} x {}", width, height);
                 }
 
                 new_size = Some((width.max(0) as _, height.max(0) as _));
