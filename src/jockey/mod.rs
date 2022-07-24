@@ -221,6 +221,7 @@ impl Jockey {
             pipeline_index: 0,
             pipeline_partial: None,
             time: 0.0,
+            time_since_build: 0.0,
             speed: 1.0,
             time_range: (0.0, 60.0),
             custom_res: (512, 512),
@@ -517,7 +518,7 @@ impl Jockey {
         if do_update_pipeline {
             self.update_pipeline();
             self.last_build = Instant::now();
-            self.time_since_build = 0;
+            self.time_since_build = 0.0;
         }
     }
 
