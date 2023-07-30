@@ -1,10 +1,9 @@
-<img align="left" style="height: 17ch; margin: 1ch" src="docs/logo.png#gh-dark-mode-only">
-<img align="left" style="height: 17ch; margin: 1ch" src="docs/logo-alt.png#gh-light-mode-only">
+<img align="left" style="height: 17ch; margin: 1ch" src="docs/logo.png#gh-dark-mode-only"><img align="left" style="height: 17ch; margin: 1ch" src="docs/logo-alt.png#gh-light-mode-only">
 
 # Sh4derJockey
 *A tool for shader coding and live performances*
 
-<br>
+<br clear="left"/>
 
 Sh4derJockey lets you design custom render pipelines in yaml files,
 supports as many fragment, vertex, and compute shader stages as your machine can handle,
