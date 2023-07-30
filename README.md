@@ -1,4 +1,5 @@
-<img align="left" style="height: 17ch; margin: 1ch" src="docs/logo.png">
+<img align="left" style="height: 17ch; margin: 1ch" src="docs/logo.png#gh-dark-mode-only">
+<img align="left" style="height: 17ch; margin: 1ch" src="docs/logo-alt.png#gh-light-mode-only">
 
 # Sh4derJockey
 *A tool for shader coding and live performances*
