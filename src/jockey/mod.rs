@@ -5,6 +5,7 @@ use std::{
     hash::{Hash, Hasher},
     io::Write,
     mem::MaybeUninit,
+    path::Path,
     pin::Pin,
     rc::Rc,
     sync::atomic::{AtomicBool, Ordering},
@@ -347,9 +348,9 @@ impl Jockey {
                 // set waker on current working directory
                 self.ctx.watcher = Some({
                     let event_fn = |_| unsafe { PIPELINE_STALE.store(true, Ordering::Release) };
-                    let mut watcher = notify::immediate_watcher(event_fn).unwrap();
+                    let mut watcher = notify::recommended_watcher(event_fn).unwrap();
                     watcher
-                        .watch(".", notify::RecursiveMode::Recursive)
+                        .watch(Path::new("."), notify::RecursiveMode::Recursive)
                         .unwrap();
 
                     watcher
@@ -838,9 +839,7 @@ impl Jockey {
                     gl_debug_check!();
 
                     let name_len = name.as_bytes().len();
-                    let res_loc = alloca::with_bytes(name_len + 5, |buffer| {
-                        let res_name = &mut *(buffer as *mut _ as *mut [u8]);
-
+                    let res_loc = alloca::with_bytes_zeroed(name_len + 5, |res_name| {
                         res_name[..name_len].copy_from_slice(name.as_bytes());
                         res_name[name_len..].copy_from_slice("_res\0".as_bytes());
 
@@ -1042,7 +1041,7 @@ impl Jockey {
             let mut new_size = None;
 
             if ui.button_with_size(im_str!("auto"), [64.0, 18.0]) {
-                new_size = self
+                let detected = self
                     .pipeline
                     .stages
                     .iter()
@@ -1050,6 +1049,14 @@ impl Jockey {
                     .flat_map(|stage| stage.resolution())
                     .map(|[w, h, _]| (w, h))
                     .last();
+
+                if detected.is_none() {
+                    log::error!(
+                        "Pipeline does not specify a screen resolution, window was not resized"
+                    );
+                }
+
+                new_size = detected;
             }
 
             ui.same_line();
@@ -1093,6 +1100,8 @@ impl Jockey {
                 // by the event loop and causes buffers to be resized.
                 let size = PhysicalSize { width, height };
                 self.ctx.context.window().set_inner_size(size);
+
+                log::info!("Resized window to {} x {}", width, height);
             }
 
             window.end();

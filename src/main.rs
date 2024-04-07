@@ -19,7 +19,7 @@ use simplelog::*;
 lazy_static! {
     static ref VERSION: String = format!(
         "{} (commit {})",
-        env!("VERGEN_BUILD_SEMVER"),
+        env!("CARGO_PKG_VERSION"),
         &env!("VERGEN_GIT_SHA")[..14]
     );
 }
@@ -31,16 +31,19 @@ struct Args {
     #[clap(subcommand)]
     subcmd: Option<SubCommand>,
 
-    #[clap(short, long, parse(from_occurrences))]
+    #[clap(short, long, action = clap::ArgAction::Count, global = true)]
     #[clap(help = "Use verbose output (can be applied multiple times)")]
-    verbose: u32,
+    verbose: u8,
 }
 
 #[derive(Parser)]
 enum SubCommand {
     #[clap(about = "Create a new project in an existing directory")]
+    #[command(alias("i"))]
     Init,
+
     #[clap(about = "Start the tool in the current working directory (default)")]
+    #[command(alias("r"))]
     Run,
 }
 

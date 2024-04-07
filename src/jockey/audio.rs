@@ -206,10 +206,12 @@ impl Audio {
 
         let stream = match sample_format {
             cpal::SampleFormat::F32 => device
-                .build_input_stream(&config, input_callback, |err| {
-                    // react to errors here.
-                    log::error!("Failed to build input stream: {}", err);
-                })
+                .build_input_stream(
+                    &config,
+                    input_callback,
+                    |err| log::error!("Failed to build input stream: {}", err),
+                    None,
+                )
                 .map_err(|_| "Failed to initialize audio input stream".to_string())?,
             s => return Err(format!("Unsupported sample format {:?}", s)),
         };
