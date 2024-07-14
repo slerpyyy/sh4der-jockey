@@ -5,7 +5,7 @@ use std::{
     hash::{Hash, Hasher},
     io::Write,
     mem::MaybeUninit,
-    path::Path,
+    path::{Path, PathBuf},
     pin::Pin,
     rc::Rc,
     sync::atomic::{AtomicBool, Ordering},
@@ -67,6 +67,7 @@ pub struct Jockey {
     pub last_build: Instant,
     pub last_frame: Instant,
     pub last_frame_ui: Instant,
+    pub config_folder_path: Option<PathBuf>,
     pub midi: Midi,
     pub audio: Audio,
     pub ndi: Ndi,
@@ -94,13 +95,76 @@ impl std::fmt::Debug for Jockey {
     }
 }
 
+static CONFIG_ENV: &'static str = "SH4DER_DIR";
+
+fn config_folder_path() -> Option<PathBuf> {
+    // Fetch config folder path from enviroment variable
+    if let Some(path) = std::env::var_os(CONFIG_ENV) {
+        log::info!(
+            "Found enviroment variable: {CONFIG_ENV}={}",
+            path.to_string_lossy()
+        );
+
+        if let Err(err) = std::fs::create_dir_all(&path) {
+            log::warn!("Enviroment variable {CONFIG_ENV} was set, but does not contain a valid path: {err}");
+        } else {
+            let canon = std::fs::canonicalize(path).expect("path should be valid");
+            return Some(canon);
+        }
+    }
+
+    // Check for existing config files next to the executable
+    if let Ok(mut path) = std::env::current_exe() {
+        for file_name in ["config.yaml", "imgui-layout.ini", "midi-config.dat"] {
+            path.set_file_name(file_name);
+
+            if path.exists() {
+                log::info!("Found existing config file: {}", path.to_string_lossy());
+                path.pop();
+
+                let canon = std::fs::canonicalize(path).expect("path should be valid");
+                return Some(canon);
+            }
+        }
+    }
+
+    // Use the OS-specific local config directory
+    if let Some(mut path) = dirs::config_local_dir() {
+        path.push("sh4der-jockey");
+
+        if let Err(err) = std::fs::create_dir_all(&path) {
+            log::warn!(
+                "Failed to create config folder {} with error: {err:?}",
+                path.to_string_lossy()
+            );
+        } else {
+            let canon = std::fs::canonicalize(path).expect("path should be valid");
+            return Some(canon);
+        }
+    } else {
+        log::warn!("Failed to resolve local config directory");
+    }
+
+    // Give up
+    None
+}
+
 impl Jockey {
     /// Initializes the tool.
     ///
     /// This will spin up a Winit window, initialize Imgui,
     /// create a OpenGL context and more!
     pub fn init() -> Self {
-        let config = Config::load_or_default();
+        let config_folder_path = config_folder_path();
+        match &config_folder_path {
+            Some(path) => log::info!("Using config folder: {}", path.to_string_lossy()),
+            None => {
+                log::error!("Failed to find a valid config folder, your settings will not be saved when you close the program");
+                log::error!("Please set the enviroment variable {CONFIG_ENV} to a valid folder path for your config files")
+            }
+        }
+
+        let config = Config::try_load_with_base(config_folder_path.as_deref());
         let audio = Audio::new(AUDIO_SAMPLES, &config);
 
         let events_loop = glutin::event_loop::EventLoop::new();
@@ -134,9 +198,10 @@ impl Jockey {
         imgui.io_mut().config_flags |=
             imgui::ConfigFlags::DOCKING_ENABLE | imgui::ConfigFlags::VIEWPORTS_ENABLE;
 
-        let mut ini_path = std::env::current_exe().unwrap();
-        ini_path.set_file_name("imgui-layout.ini");
-        imgui.set_ini_filename(Some(ini_path));
+        let ini_path = config_folder_path
+            .as_ref()
+            .map(|base| base.join("imgui-layout.ini"));
+        imgui.set_ini_filename(ini_path);
 
         let renderer = imgui_opengl_renderer::Renderer::new(&mut imgui, ui_prog_addr);
         let mut platform = WinitPlatform::init(&mut imgui);
@@ -200,7 +265,7 @@ impl Jockey {
         };
 
         let pipeline = Pipeline::splash_screen();
-        let midi = Midi::new(&config);
+        let midi = Midi::new(&config, config_folder_path.as_deref());
         let ndi = Ndi::new();
 
         let console = "No pipeline has been built yet".into();
@@ -214,6 +279,7 @@ impl Jockey {
             last_build: now,
             last_frame: now,
             last_frame_ui: now,
+            config_folder_path,
             midi,
             audio,
             ndi,
@@ -408,13 +474,14 @@ impl Jockey {
 
         // reload all things that depend on the project-level config file
         if do_update_project {
-            let config = Config::load_or_default();
+            let base = self.config_folder_path.as_deref();
+            let config = Config::try_load_with_base(base);
 
             // the old midi struct must be dropped before the new one is created,
             // because it fails to connect to any common midi controller otherwise
             take_mut::take(&mut self.midi, |midi| {
                 drop(midi);
-                Midi::new(&config)
+                Midi::new(&config, base)
             });
 
             take_mut::take(&mut self.audio, |audio| {

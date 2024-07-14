@@ -13,9 +13,6 @@
 ボタンやスライダーに対してMIDIを割り当てることが可能です。`bind`を長押ししながらMIDIコントローラーを操作して、最後に受信したMIDIキーと結び付けられます。
 
 ## Config File
-A config file is a special yaml file called `config.yaml` at the project root alongside the pipeline files (described below).
-An example config file is shown below:
-
 コンフィグファイルはプロジェクトディレクトリの直下にある `config.yaml` という名前の特殊な設定ファイルで、pipelineを跨いだ設定項目をいくつか設定できます。設定されていない場合はデフォルトですべてのMIDIデバイスとデフォルトオーディオ入力デバイスに接続を試みます。
 
 ```yaml
