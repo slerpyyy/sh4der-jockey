@@ -38,12 +38,6 @@ cargo run
 cargo install --path .
 ```
 
-| ⚠️ | Please note that the tool drops config files in the folder where the executable is located. |
-|-|-|
-
-It is up to the user to ensure that additional files in the install directory do not interfere with other programs.
-The tool does also work when placed into a read-only directory, but user comfort will suffer.
-
 ## License
 
 This project is licensed under either of
