@@ -1067,13 +1067,11 @@ impl Jockey {
         if let Some(window) = imgui::Window::new(im_str!("Pipelines")).begin(&ui) {
             if ui.button_with_size(im_str!("Select project folder"), [0.0; 2]) {
                 std::thread::spawn(|| {
-                    let choice = nfd::open_pick_folder(None);
-                    let path = match choice {
-                        Ok(nfd::Response::Okay(s)) => s,
-                        _ => return,
+                    let Some(path) = rfd::FileDialog::new().pick_folder() else {
+                        return;
                     };
 
-                    log::info!("Setting cwd to {}", &path);
+                    log::info!("Setting cwd to {}", path.to_string_lossy().as_ref());
                     if let Err(err) = std::env::set_current_dir(path) {
                         log::error!("Failed setting cwd: {}", err);
                     }

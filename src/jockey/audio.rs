@@ -31,7 +31,6 @@ pub struct Audio {
     pub l_spectrum_smooth_integrated: Vec<f32>,
     pub r_spectrum_smooth_integrated: Vec<f32>,
     pub size: usize,
-    pub nice_size: usize,
     pub volume: [f32; 3],
     pub volume_integrated: [f32; 3],
     pub bass: [f32; 3],
@@ -69,7 +68,6 @@ impl Audio {
 
         let mut this = Self {
             size,
-            nice_size: bands,
             l_signal: vec![0.0; size],
             r_signal: vec![0.0; size],
             l_fft: vec![Complex::new(0.0, 0.0); size],

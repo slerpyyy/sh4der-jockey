@@ -29,7 +29,7 @@ pub struct Midi {
 #[derive(Debug, Clone, Copy)]
 pub enum MessageKind {
     NoteOn { channel: u8, key: u8, velocity: u8 },
-    NoteOff { channel: u8, key: u8, velocity: u8 },
+    NoteOff { channel: u8, key: u8, _velocity: u8 },
     KeyPressure { channel: u8, key: u8, pressure: u8 },
     ControlChange { channel: u8, key: u8, value: u8 },
 }
@@ -108,44 +108,35 @@ impl Midi {
         midi_in.ignore(Ignore::None);
 
         // Get an input port (read from console if multiple are available)
-        let in_ports = midi_in.ports();
+        let mut in_ports = midi_in.ports();
         if midi_in.port_count() == 0 {
             log::warn!("No midi input port found.");
             return;
         }
 
-        let in_ports = if self.preferred_devices.len() != 0 {
-            in_ports
-                .into_iter()
-                .filter(|port| {
-                    let mut matches = false;
-                    for pref in self.preferred_devices.iter() {
-                        matches =
-                            matches || midi_in.port_name(port).unwrap_or_default().contains(pref);
-                    }
-                    matches
-                })
-                .collect()
-        } else {
-            in_ports
-        };
+        if !self.preferred_devices.is_empty() {
+            in_ports.retain(|port| {
+                self.preferred_devices
+                    .iter()
+                    .any(|pref| midi_in.port_name(port).unwrap_or_default().contains(pref))
+            });
+        }
 
         let mut conns = Vec::new();
         let mut queues = Vec::new();
         for in_port in in_ports.iter() {
-            let (conn, rx) = match self.new_connection(in_port) {
-                Ok(x) => x,
-                Err(x) => {
-                    log::warn!(
-                        "Failed to connect to {}: {:?}",
-                        midi_in.port_name(&in_port).unwrap_or_default(),
-                        x
-                    );
-                    continue;
+            match self.new_connection(in_port) {
+                Ok((conn, rx)) => {
+                    conns.push(conn);
+                    queues.push(rx);
+                }
+
+                Err(code) => {
+                    let temp = midi_in.port_name(&in_port);
+                    let name = temp.as_deref().unwrap_or("???");
+                    log::warn!("Failed to connect to {name}: {code:?}");
                 }
             };
-            conns.push(conn);
-            queues.push(rx);
         }
 
         self.conns = conns;
@@ -192,29 +183,34 @@ impl Midi {
             let status = message[0];
             let data0 = message[1];
             let data1 = message[2];
+
             let kind_bits = 0xF0_u8 & status;
             let channel = status & 0x0F_u8;
             match kind_bits {
                 0x80 => Some(MessageKind::NoteOff {
                     channel,
                     key: data0,
-                    velocity: data1,
+                    _velocity: data1,
                 }),
+
                 0x90 => Some(MessageKind::NoteOn {
                     channel,
                     key: data0,
                     velocity: data1,
                 }),
+
                 0xA0 => Some(MessageKind::KeyPressure {
                     channel,
                     key: data0,
                     pressure: data1,
                 }),
+
                 0xB0 => Some(MessageKind::ControlChange {
                     channel,
                     key: data0,
                     value: data1,
                 }),
+
                 _ => None,
             }
         }
@@ -224,10 +220,10 @@ impl Midi {
                 let kind = parse_msg(message);
                 // println!("{:#02x} {} {}", message[0], message[1], message[2]);
                 // println!("{:?}", kind);
+
                 match kind {
-                    None => {
-                        continue;
-                    }
+                    None => continue,
+
                     Some(k) => match k {
                         MessageKind::NoteOn {
                             channel,
