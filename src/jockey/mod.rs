@@ -266,7 +266,7 @@ impl Jockey {
 
         let pipeline = Pipeline::splash_screen();
         let midi = Midi::new(&config, config_folder_path.as_deref());
-        let ndi = Ndi::new();
+        let ndi = Ndi::with_config_path(config_folder_path.clone());
 
         let console = "No pipeline has been built yet".into();
 

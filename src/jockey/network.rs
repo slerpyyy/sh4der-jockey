@@ -7,7 +7,7 @@ use ndi::{self, FindCreateError, FindSourcesTimeout};
 
 use super::*;
 
-static NDI_RECEIVER_NAME: &'static str = "Sh4derJockey";
+static NDI_RECEIVER_NAME: &str = "Sh4derJockey";
 
 #[derive(Debug)]
 pub struct Ndi {
@@ -18,18 +18,52 @@ pub struct Ndi {
 }
 
 impl Ndi {
-    pub fn new() -> Self {
-        let result = ndi::load_library_default();
-        if let Err(err) = &result {
-            log::error!("Failed to load NDI library: {:?}", err);
+    pub fn with_config_path(config_path: Option<PathBuf>) -> Self {
+        let found = 'search: {
+            #[cfg(target_os = "windows")]
+            let names = ["Processing.NDI.Lib.x86.dll", "Processing.NDI.Lib.x64.dll"];
+            #[cfg(target_os = "macos")]
+            let names = ["libndi.dylib"];
+            #[cfg(target_os = "linux")]
+            let names = ["libndi.so.4", "libndi.so", "libndi"];
+
+            let mut errs = Vec::new();
+            let paths = config_path
+                .into_iter()
+                .chain(std::env::current_exe())
+                .chain(std::env::current_dir());
+
+            for mut path in paths {
+                for name in names {
+                    path.set_file_name(name);
+                    match ndi::load_library(&path) {
+                        Ok(..) => {
+                            log::info!("Found NDI library at {}", path.to_string_lossy());
+                            break 'search true;
+                        }
+
+                        Err(err) => {
+                            let path_string = path.to_string_lossy().into_owned();
+                            errs.push((path_string, err))
+                        }
+                    }
+                }
+            }
+
+            log::error!("Failed to load NDI library:");
+            for (path, err) in errs {
+                log::error!(" - {path} : {err}");
+            }
+
             log::info!("The program will continue to run without NDI functionality");
-        }
+            false
+        };
 
         Self {
             sources: Default::default(),
             videos: HashMap::new(),
             searching: false,
-            disabled: result.is_err(),
+            disabled: !found,
         }
     }
 
