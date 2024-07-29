@@ -164,7 +164,7 @@ impl Jockey {
             }
         }
 
-        let config = Config::try_load_with_base(config_folder_path.as_deref());
+        let config = Config::load_or_default();
         let audio = Audio::new(AUDIO_SAMPLES, &config);
 
         let events_loop = glutin::event_loop::EventLoop::new();
@@ -475,7 +475,7 @@ impl Jockey {
         // reload all things that depend on the project-level config file
         if do_update_project {
             let base = self.config_folder_path.as_deref();
-            let config = Config::try_load_with_base(base);
+            let config = Config::load_or_default();
 
             // the old midi struct must be dropped before the new one is created,
             // because it fails to connect to any common midi controller otherwise

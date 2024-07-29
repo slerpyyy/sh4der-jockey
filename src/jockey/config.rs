@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use anyhow::{format_err, Result};
 use serde_yaml::Value;
 
@@ -10,24 +8,21 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn try_load_with_base(base: Option<&Path>) -> Self {
-        let Some(base) = base else {
-            return Default::default();
-        };
-
-        let path = base.join("config.yaml");
-        match Self::load(&path) {
-            Err(e) => {
-                log::warn!("Failed to load config.yaml: {}", e);
+    pub fn load_or_default() -> Self {
+        match Self::load() {
+            Ok(config) => config,
+            Err(err) => {
+                log::warn!("Failed to load config.yaml: {err}");
                 Default::default()
             }
-
-            Ok(x) => x,
         }
     }
 
-    pub fn load(path: &Path) -> Result<Self> {
-        let reader = std::fs::File::open(path)?;
+    pub fn load() -> Result<Self> {
+        let mut file_path = std::env::current_dir()?;
+        file_path.push("config.yaml");
+
+        let reader = std::fs::File::open(file_path)?;
         let object: Value = serde_yaml::from_reader(reader)?;
 
         let mut midi_devices = Vec::new();
