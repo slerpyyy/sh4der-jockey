@@ -31,7 +31,9 @@ impl Ndi {
             let paths = config_path
                 .into_iter()
                 .chain(std::env::current_exe())
-                .chain(std::env::current_dir());
+                .chain(std::env::current_dir())
+                .chain(dirs::data_dir())
+                .chain(dirs::data_local_dir());
 
             for mut path in paths {
                 for name in names {
