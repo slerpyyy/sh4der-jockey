@@ -17,6 +17,34 @@ pub use cache::*;
 pub use ringbuffer::*;
 pub use texture::*;
 
+pub fn gcd(mut x: u32, mut y: u32) -> u32 {
+    if x == 0 {
+        return y;
+    }
+    if y == 0 {
+        return x;
+    }
+
+    let shift = (x | y).trailing_zeros();
+    x >>= shift;
+    y >>= shift;
+    x >>= x.trailing_zeros();
+
+    while y != 0 {
+        y >>= y.trailing_zeros();
+
+        if x > y {
+            let temp = x;
+            x = y;
+            y = temp;
+        }
+
+        y -= x;
+    }
+
+    x << shift
+}
+
 #[macro_export]
 macro_rules! gl_check {
     () => {

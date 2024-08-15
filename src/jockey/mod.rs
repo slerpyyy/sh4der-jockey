@@ -80,6 +80,8 @@ pub struct Jockey {
     pub speed: f32,
     pub time_range: (f32, f32),
     pub custom_res: (i32, i32),
+    pub custom_ratio: (i32, i32),
+    pub custom_scale: i32,
     pub frame: u32,
     pub alt_pressed: bool,
     pub console: String,
@@ -292,6 +294,8 @@ impl Jockey {
             speed: 1.0,
             time_range: (0.0, 60.0),
             custom_res: (512, 512),
+            custom_ratio: (1, 1),
+            custom_scale: 512,
             frame: 0,
             alt_pressed: false,
             console,
@@ -1105,7 +1109,7 @@ impl Jockey {
         if let Some(window) = imgui::Window::new(im_str!("Resolution")).begin(&ui) {
             let mut new_size = None;
 
-            if ui.button_with_size(im_str!("auto"), [64.0, 18.0]) {
+            if ui.button_with_size(im_str!("reset"), [64.0, 18.0]) {
                 let detected = self
                     .pipeline
                     .stages
@@ -1125,8 +1129,8 @@ impl Jockey {
             }
 
             ui.same_line();
-            if ui.button_with_size(im_str!("480p"), [64.0, 18.0]) {
-                new_size = Some((640, 480));
+            if ui.button_with_size(im_str!("540p"), [64.0, 18.0]) {
+                new_size = Some((960, 540));
             }
 
             ui.same_line();
@@ -1149,15 +1153,46 @@ impl Jockey {
                 new_size = Some((width.max(0) as _, height.max(0) as _));
             }
 
+            let mut res = self.custom_res;
+            let mut ratio = self.custom_ratio;
+            let mut scale = self.custom_scale;
+
             ui.same_line();
             ui.set_next_item_width(100.0);
-            ui.input_int(im_str!("x##custom-width"), &mut self.custom_res.0)
+            ui.input_int(im_str!("x##custom-width"), &mut res.0).build();
+
+            ui.same_line();
+            ui.set_next_item_width(100.0);
+            ui.input_int(im_str!("##custom-height"), &mut res.1).build();
+
+            ui.set_next_item_width(40.0);
+            ui.input_int(im_str!(":##custom-ratio-width"), &mut ratio.0)
+                .step(0)
+                .build();
+
+            ui.same_line();
+            ui.set_next_item_width(40.0);
+            ui.input_int(im_str!("ratio##custom-ratio-height"), &mut ratio.1)
+                .step(0)
                 .build();
 
             ui.same_line();
             ui.set_next_item_width(100.0);
-            ui.input_int(im_str!("##custom-height"), &mut self.custom_res.1)
+            ui.input_int(im_str!("scale##custom-scale"), &mut scale)
+                .step_fast(1)
                 .build();
+
+            if self.custom_ratio != ratio || self.custom_scale != scale {
+                self.custom_res.0 = ratio.0 * scale;
+                self.custom_res.1 = ratio.1 * scale;
+                self.custom_ratio = ratio;
+                self.custom_scale = scale;
+            } else if self.custom_res != res {
+                self.custom_res = res;
+                self.custom_scale = gcd(res.0.unsigned_abs(), res.1.unsigned_abs()) as i32;
+                self.custom_ratio.0 = res.0 / self.custom_scale;
+                self.custom_ratio.1 = res.1 / self.custom_scale;
+            }
 
             if let Some((width, height)) = new_size {
                 // Note: We do not need to resize buffers here.
