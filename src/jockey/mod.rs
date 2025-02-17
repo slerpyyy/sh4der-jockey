@@ -83,6 +83,7 @@ pub struct Jockey {
     pub custom_ratio: (i32, i32),
     pub custom_scale: i32,
     pub frame: u32,
+    pub frame_since_build: u32,
     pub alt_pressed: bool,
     pub console: String,
 }
@@ -297,6 +298,7 @@ impl Jockey {
             custom_ratio: (1, 1),
             custom_scale: 512,
             frame: 0,
+            frame_since_build: 0,
             alt_pressed: false,
             console,
         };
@@ -591,6 +593,7 @@ impl Jockey {
             self.update_pipeline();
             self.last_build = Instant::now();
             self.time_since_build = 0.0;
+            self.frame_since_build = 0;
         }
     }
 
@@ -616,10 +619,12 @@ impl Jockey {
         let time_since_build = self.time_since_build;
         let delta = self.speed * now.duration_since(self.last_frame).as_secs_f32();
         let frame = self.frame;
+        let frame_since_build = self.frame_since_build;
         self.time += delta;
         self.time_since_build += delta;
         self.last_frame = now;
         self.frame = self.frame.wrapping_add(1);
+        self.frame_since_build = self.frame_since_build.wrapping_add(1);
 
         {
             // update audio samples texture
@@ -732,6 +737,8 @@ impl Jockey {
                         gl::GetUniformLocation(stage.prog_id, TIME_SINCE_BUILD_NAME.as_ptr());
                     let frame_loc =
                         gl::GetUniformLocation(stage.prog_id, FRAME_COUNT_NAME.as_ptr());
+                    let frame_since_build_loc =
+                        gl::GetUniformLocation(stage.prog_id, FRAME_COUNT_SINCE_BUILD_NAME.as_ptr());
                     let delta_loc = gl::GetUniformLocation(stage.prog_id, TIME_DELTA_NAME.as_ptr());
                     let beat_loc = gl::GetUniformLocation(stage.prog_id, BEAT_NAME.as_ptr());
                     let volume_loc = gl::GetUniformLocation(stage.prog_id, VOLUME_NAME.as_ptr());
@@ -855,6 +862,7 @@ impl Jockey {
                     gl::Uniform2i(k_loc, pass_num as _, frame as _);
                     gl::Uniform1i(pass_loc, pass_num as _);
                     gl::Uniform1i(frame_loc, frame as _);
+                    gl::Uniform1i(frame_since_build_loc, frame_since_build as _);
                     gl::Uniform1f(time_loc, time);
                     gl::Uniform1f(time_since_build_loc, time_since_build);
                     gl::Uniform1f(beat_loc, beat);

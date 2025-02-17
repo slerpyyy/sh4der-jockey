@@ -23,6 +23,7 @@ lazy_static! {
     pub static ref TIME_SINCE_BUILD_NAME: CString = CString::new("time_since_build").unwrap();
     pub static ref TIME_DELTA_NAME: CString = CString::new("time_delta").unwrap();
     pub static ref FRAME_COUNT_NAME: CString = CString::new("frame_count").unwrap();
+    pub static ref FRAME_COUNT_SINCE_BUILD_NAME: CString = CString::new("frame_count_since_build").unwrap();
 
     // direct user input
     pub static ref BEAT_NAME: CString = CString::new("beat").unwrap();
